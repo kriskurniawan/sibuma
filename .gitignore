@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+.env
+.env.local
+data/db.json
+data/*.bak
+data/uploads/*
+!data/uploads/.gitkeep
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+playwright-report
+test-results

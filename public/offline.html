@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Offline · SIBUMA</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #fbf9f3;
+        --fg: #112c25;
+        --muted: #6d766f;
+        --border: #e7e3d8;
+        --primary: #112c25;
+        --primary-fg: #ffffff;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1a16;
+          --fg: #f6f3eb;
+          --muted: #a8b1a9;
+          --border: #2a3a32;
+          --primary: #edf8d3;
+          --primary-fg: #112c25;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100svh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 26rem;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      h1 { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+      p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+      button {
+        margin-top: 8px;
+        min-height: 44px;
+        border: 0;
+        border-radius: 10px;
+        background: var(--primary);
+        color: var(--primary-fg);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:focus-visible { outline: 3px solid #6f8c7f; outline-offset: 2px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tidak ada koneksi internet</h1>
+      <p>
+        SIBUMA memerlukan koneksi untuk memuat data terbaru. Halaman ini tidak
+        menampilkan data akun atau pekerjaan sebelumnya.
+      </p>
+      <p>Periksa sinyal, lalu coba lagi. Perubahan yang belum tersimpan tidak dikirim otomatis.</p>
+      <button type="button" onclick="location.reload()">Coba lagi</button>
+    </main>
+  </body>
+</html>
