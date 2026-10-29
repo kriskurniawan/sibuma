@@ -228,7 +228,7 @@ export function ChecklistFollowUpDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="follow-up-due">Tenggat (opsional)</Label>
+          <Label htmlFor="follow-up-due">Deadline (opsional)</Label>
           <Input
             id="follow-up-due"
             type="date"

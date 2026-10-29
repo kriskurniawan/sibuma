@@ -374,7 +374,7 @@ export function ChecklistDetail({
             </span>
             <span className="inline-flex items-center gap-1 tabular-nums">
               <Clock3 className="size-3.5" aria-hidden="true" />
-              Tenggat {formatDateTime(inspection.dueAt, "d MMM, HH:mm")}
+              Deadline {formatDateTime(inspection.dueAt, "d MMM, HH:mm")}
             </span>
           </span>
         }
@@ -474,7 +474,7 @@ export function ChecklistDetail({
               </dd>
             </div>
             <div className="flex flex-col gap-0.5">
-              <dt className="text-xs text-muted-foreground">Tenggat</dt>
+              <dt className="text-xs text-muted-foreground">Deadline</dt>
               <dd className="text-sm font-medium text-foreground tabular-nums">
                 {formatDateTime(inspection.dueAt, "d MMM yyyy, HH:mm")}
               </dd>
@@ -526,7 +526,7 @@ export function ChecklistDetail({
               <dd className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                 <UsersRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
                 {detail.schedule
-                  ? `${checklistIntervalLabel(detail.schedule.intervalUnit, detail.schedule.intervalCount)} · tenggat ${detail.schedule.dueDays} hari`
+                  ? `${checklistIntervalLabel(detail.schedule.intervalUnit, detail.schedule.intervalCount)} · deadline ${detail.schedule.dueDays} hari`
                   : "Tanpa jadwal berkala"}
               </dd>
             </div>
@@ -778,8 +778,8 @@ export function ChecklistDetail({
                       </span>
                       <span className="tabular-nums">
                         {row.followUp.dueDate
-                          ? `Tenggat ${formatDateTime(dueIso(row.followUp.dueDate), "d MMM yyyy")}`
-                          : "Tanpa tenggat"}
+                          ? `Deadline ${formatDateTime(dueIso(row.followUp.dueDate), "d MMM yyyy")}`
+                          : "Tanpa deadline"}
                       </span>
                       {row.overdue && <ChecklistOverdueBadge />}
                       {row.followUp.status === "selesai" &&

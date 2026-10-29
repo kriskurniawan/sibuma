@@ -139,7 +139,7 @@ export function ChecklistFollowUpUpdateDialog({
             <p className="text-xs text-muted-foreground">
               {row.pic ? `PIC ${row.pic.name}` : "Belum ada PIC"}
               {row.followUp.dueDate
-                ? ` · Tenggat ${formatDateTime(`${row.followUp.dueDate}T23:59:59+07:00`, "d MMM yyyy")}`
+                ? ` · Deadline ${formatDateTime(`${row.followUp.dueDate}T23:59:59+07:00`, "d MMM yyyy")}`
                 : ""}
             </p>
           </div>
@@ -170,7 +170,7 @@ export function ChecklistFollowUpUpdateDialog({
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="update-due">Tenggat</Label>
+              <Label htmlFor="update-due">Deadline</Label>
               <Input
                 id="update-due"
                 type="date"

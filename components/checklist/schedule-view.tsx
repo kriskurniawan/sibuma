@@ -222,7 +222,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                           dateIso(schedule.anchorDate),
                           "d MMM yyyy",
                         )}{" "}
-                        · tenggat {schedule.dueDays} hari
+                        · deadline {schedule.dueDays} hari
                       </p>
                     </div>
                     <Button
@@ -267,7 +267,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Clock3 className="size-3.5" aria-hidden="true" />
-                      Tenggat {schedule.dueDays} hari setelah tanggal jadwal
+                      Deadline {schedule.dueDays} hari setelah tanggal jadwal
                     </span>
                   </div>
 
@@ -492,7 +492,7 @@ function ScheduleDialog({
       return;
     }
     if (!Number.isInteger(dueDays) || dueDays < 0) {
-      toast.error("Tenggat minimal 0 hari.");
+      toast.error("Deadline minimal 0 hari.");
       return;
     }
 
@@ -645,7 +645,7 @@ function ScheduleDialog({
             </Select>
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="schedule-due-days">Tenggat (hari)</Label>
+            <Label htmlFor="schedule-due-days">Deadline (hari)</Label>
             <Input
               id="schedule-due-days"
               type="number"
@@ -665,7 +665,7 @@ function ScheduleDialog({
           <span className="font-medium text-foreground">
             {checklistIntervalLabel(intervalUnit, intervalCount)}
           </span>
-          . Tenggat {dueDays} hari setelah tanggal jadwal. Keterlambatan tidak
+          . Deadline {dueDays} hari setelah tanggal jadwal. Keterlambatan tidak
           menggeser tanggal berikutnya.
         </p>
 

@@ -212,9 +212,9 @@ export const checklistScheduleSchema = z.object({
   anchorDate: dateOnly,
   dueDays: z
     .number()
-    .int("Tenggat harus bilangan bulat.")
-    .min(0, "Tenggat minimal 0 hari.")
-    .max(90, "Tenggat maksimal 90 hari."),
+    .int("Deadline harus bilangan bulat.")
+    .min(0, "Deadline minimal 0 hari.")
+    .max(90, "Deadline maksimal 90 hari."),
   assigneeIds: z
     .array(id)
     .min(1, "Pilih minimal satu anggota tim.")

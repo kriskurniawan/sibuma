@@ -83,7 +83,7 @@ const columns: ColumnDef<DataGridFeatures, ChecklistFollowUpRow>[] = [
   {
     id: "dueDate",
     accessorFn: (row) => row.followUp.dueDate,
-    header: "Tenggat",
+    header: "Deadline",
     meta: {
       headerClassName: "whitespace-nowrap",
       cellClassName: "whitespace-nowrap",
@@ -305,7 +305,7 @@ export function FollowUpReportGrid({
 
                     <div className="grid grid-cols-2 gap-2 rounded-md bg-muted/50 px-3 py-2.5">
                       <div>
-                        <p className="text-xs text-muted-foreground">Tenggat</p>
+                        <p className="text-xs text-muted-foreground">Deadline</p>
                         <p className="mt-0.5 text-xs font-medium text-foreground tabular-nums">
                           {row.followUp.dueDate
                             ? formatDateHuman(

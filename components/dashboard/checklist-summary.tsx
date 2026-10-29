@@ -159,7 +159,7 @@ export function FollowUpSummaryRow({ row }: { row: ChecklistFollowUpRow }) {
           <CalendarClock className="size-3.5" aria-hidden="true" />
           {followUp.dueDate
             ? formatDateHuman(dateIso(followUp.dueDate), "d MMM yyyy")
-            : "Tanpa tenggat"}
+            : "Tanpa deadline"}
         </span>
         {row.overdue && <ChecklistOverdueBadge />}
         {row.pic && (

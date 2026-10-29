@@ -94,7 +94,7 @@ export function SupervisorDashboard({
                 {checklistTotals.overdue} terlambat
               </Badge>
             ) : (
-              <Badge variant="success-light">Sesuai tenggat</Badge>
+              <Badge variant="success-light">Sesuai deadline</Badge>
             )
           }
         />
@@ -139,7 +139,7 @@ export function SupervisorDashboard({
               <div className="flex flex-col gap-1">
                 <FrameTitle>Checklist prioritas</FrameTitle>
                 <FrameDescription className="text-xs">
-                  Paling dekat tenggat dan perlu diselesaikan tim.
+                  Paling dekat deadline dan perlu diselesaikan tim.
                 </FrameDescription>
               </div>
               <Link

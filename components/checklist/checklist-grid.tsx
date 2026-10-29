@@ -125,7 +125,7 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
   {
     id: "due",
     accessorFn: (row) => row.inspection.dueAt,
-    header: "Tenggat",
+    header: "Deadline",
     meta: { headerClassName: "whitespace-nowrap" },
     cell: ({ row }) => (
       <div className="flex flex-col gap-1">

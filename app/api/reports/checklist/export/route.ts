@@ -103,7 +103,7 @@ export async function GET(request: Request) {
       "Item terkait",
       "Prioritas",
       "Status",
-      "Tenggat",
+      "Deadline",
       "PIC",
       "Lokasi",
       "Template",

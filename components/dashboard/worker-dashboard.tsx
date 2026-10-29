@@ -85,7 +85,7 @@ export function WorkerDashboard({
       <PageHeader
         eyebrow={formatDateHuman(new Date().toISOString(), "EEEE, d MMMM yyyy")}
         title={`${greeting()}, ${firstName}.`}
-        description="Checklist area kerjamu hari ini, lengkap dengan tenggat dan tindak lanjutnya."
+        description="Checklist area kerjamu hari ini, lengkap dengan deadline dan tindak lanjutnya."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button
@@ -130,7 +130,7 @@ export function WorkerDashboard({
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CalendarClock className="size-3.5" aria-hidden="true" />
-                  Tenggat{" "}
+                  Deadline{" "}
                   {formatDateTime(
                     focus.inspection.dueAt,
                     "EEEE, d MMM · HH:mm",
@@ -387,7 +387,7 @@ export function WorkerDashboard({
                 {checklistTotals.overdue} terlambat
               </Badge>
             ) : (
-              <Badge variant="success-light">Sesuai tenggat</Badge>
+              <Badge variant="success-light">Sesuai deadline</Badge>
             )
           }
         />

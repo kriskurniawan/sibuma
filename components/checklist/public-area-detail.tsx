@@ -439,7 +439,7 @@ export function PublicAreaDetail({
                           className="size-3 shrink-0"
                           aria-hidden="true"
                         />
-                        Tenggat {formatDateTime(task.dueAt, "d MMM yyyy, HH:mm")}{" "}
+                        Deadline {formatDateTime(task.dueAt, "d MMM yyyy, HH:mm")}{" "}
                         WIB
                       </p>
                     </div>

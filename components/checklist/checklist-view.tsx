@@ -195,7 +195,7 @@ export function ChecklistView({
           suffix="checklist"
           icon={Clock3}
           tone="warning"
-          helper="Melewati tenggat, tetap dijadwal yang sama"
+          helper="Melewati deadline, tetap dijadwal yang sama"
         />
         <StatCard
           label="Selesai bulan ini"
@@ -220,7 +220,7 @@ export function ChecklistView({
           <div className="flex min-w-0 flex-col gap-0.5">
             <FrameTitle>Daftar checklist</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
-              {total} checklist sesuai filter. Tenggat dihitung otomatis dari
+              {total} checklist sesuai filter. Deadline dihitung otomatis dari
               kalender, bukan dari status manual.
             </FrameDescription>
           </div>

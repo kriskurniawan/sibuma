@@ -130,7 +130,7 @@ export async function FollowUpReportScreen({
         <PageHeader
           eyebrow="Tindak lanjut"
           title="Laporan tindak lanjut."
-          description="Pantau temuan yang belum selesai, tenggat, dan PIC berdasarkan periode pemeriksaan. Unduh CSV atau cetak untuk arsip."
+          description="Pantau temuan yang belum selesai, deadline, dan PIC berdasarkan periode pemeriksaan. Unduh CSV atau cetak untuk arsip."
           action={
             <div className="flex flex-wrap gap-2">
               <Button
@@ -305,7 +305,7 @@ export async function FollowUpReportScreen({
           value={data.totals.overdue}
           suffix="tindak lanjut"
           icon={TriangleAlert}
-          helper="Melewati tenggat"
+          helper="Melewati deadline"
           tone={data.totals.overdue > 0 ? "warning" : "success"}
         />
         <StatCard
@@ -366,7 +366,7 @@ export async function FollowUpReportScreen({
         <FrameFooter className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-1.5">
             <TriangleAlert className="size-3.5 shrink-0" aria-hidden="true" />
-            {data.totals.overdue} melewati tenggat
+            {data.totals.overdue} melewati deadline
           </span>
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />

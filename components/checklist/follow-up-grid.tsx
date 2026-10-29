@@ -122,7 +122,7 @@ const columns = (
   {
     id: "due",
     accessorFn: (row) => row.followUp.dueDate ?? "",
-    header: "Tenggat",
+    header: "Deadline",
     meta: { headerClassName: "whitespace-nowrap" },
     cell: ({ row }) =>
       row.original.followUp.dueDate ? (
@@ -262,7 +262,7 @@ export function ChecklistFollowUpGrid({
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Tenggat</p>
+                      <p className="text-xs text-muted-foreground">Deadline</p>
                       <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
                         {row.followUp.dueDate
                           ? formatDateHuman(

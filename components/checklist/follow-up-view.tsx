@@ -81,7 +81,7 @@ export function ChecklistFollowUpView({
           suffix="temuan"
           icon={Clock3}
           tone="warning"
-          helper="Melewati tenggat tindak lanjut"
+          helper="Melewati deadline tindak lanjut"
         />
         <StatCard
           label="Selesai bulan ini"
