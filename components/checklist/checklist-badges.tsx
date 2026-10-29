@@ -1,10 +1,12 @@
 import { Badge } from "@/components/ui";
 import {
-  CHECKLIST_CONDITION_LABEL,
   CHECKLIST_FOLLOW_UP_LABEL,
   CHECKLIST_PRIORITY_LABEL,
   CHECKLIST_STATUS_LABEL,
+  findChecklistCondition,
   type ChecklistCondition,
+  type ChecklistConditionOption,
+  type ChecklistConditionTone,
   type ChecklistFollowUpStatus,
   type ChecklistInspectionStatus,
   type ChecklistPriority,
@@ -17,12 +19,15 @@ const STATUS_VARIANT = {
   dilewati: "info-light",
 } as const;
 
-const CONDITION_VARIANT = {
-  baik: "success-light",
-  perlu_perhatian: "warning-light",
-  tidak_baik: "destructive-light",
-  tidak_berlaku: "outline",
-} as const;
+const CONDITION_VARIANT: Record<
+  ChecklistConditionTone,
+  "success-light" | "warning-light" | "destructive-light" | "outline"
+> = {
+  success: "success-light",
+  warning: "warning-light",
+  danger: "destructive-light",
+  neutral: "outline",
+};
 
 const FOLLOW_UP_VARIANT = {
   terbuka: "info-light",
@@ -59,14 +64,20 @@ export function ChecklistStatusBadge({
 
 export function ChecklistConditionBadge({
   condition,
+  conditions,
   className,
 }: {
   condition: ChecklistCondition;
+  conditions: ChecklistConditionOption[];
   className?: string;
 }) {
+  const meta = findChecklistCondition(conditions, condition);
   return (
-    <Badge variant={CONDITION_VARIANT[condition]} className={className}>
-      {CHECKLIST_CONDITION_LABEL[condition]}
+    <Badge
+      variant={CONDITION_VARIANT[meta?.tone ?? "neutral"]}
+      className={className}
+    >
+      {meta?.label ?? condition}
     </Badge>
   );
 }

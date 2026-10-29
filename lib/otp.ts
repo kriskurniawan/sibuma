@@ -7,7 +7,6 @@ import { mutateDb, pushAudit } from "./store";
 import type { OtpRecord } from "./types";
 
 const accountError = "Akun belum terdaftar/aktif atau NIK dan atasan belum lengkap. Hubungi atasanmu.";
-const demoMode = () => process.env.DEMO_MODE === "true";
 
 export async function requestOtp(value: string) {
   const login = normalizeLoginIdentifier(value);
@@ -37,7 +36,7 @@ export async function requestOtp(value: string) {
     return { employee, code, record, status: 200 };
   });
   if ("error" in outcome) return outcome;
-  const delivery = await deliverOtp(outcome.employee, login.channel, outcome.code, outcome.record.id, demoMode());
+  const delivery = await deliverOtp(outcome.employee, login.channel, outcome.code, outcome.record.id);
   const finalized = await mutateDb({ kind: "otp", employeeId: outcome.employee.id }, db => {
     const employee = db.employees.find(item => item.id === outcome.employee.id);
     const otp = db.otps.find(item => item.id === outcome.record.id);
@@ -55,9 +54,8 @@ export async function requestOtp(value: string) {
   return {
     status: 200, challengeId: outcome.record.id, channel: delivery.channel,
     maskedDestination: maskDestination(delivery.destination, delivery.channel), fallback: delivery.fallback,
-    message: delivery.status === "demo" ? "Mode demo: kode tidak dikirim ke penyedia." : delivery.fallback ? "WhatsApp tidak tersedia. OTP dikirim ke email terdaftar." : `OTP dikirim ke ${delivery.channel === "email" ? "email" : "WhatsApp"} terdaftar.`,
+    message: delivery.fallback ? "WhatsApp tidak tersedia. OTP dikirim ke email terdaftar." : `OTP dikirim ke ${delivery.channel === "email" ? "email" : "WhatsApp"} terdaftar.`,
     resendAfter: OTP_RESEND_SECONDS, expiresIn: OTP_TTL_SECONDS,
-    devCode: demoMode() ? outcome.code : undefined,
   };
 }
 
@@ -73,7 +71,7 @@ export async function verifyOtp(value: string, challengeId: string, code: string
     if (!otp || otp.id !== challengeId || otp.identifier !== login.identifier || otp.employeeId !== employee.id) return { error: "Permintaan OTP tidak cocok. Minta kode baru.", status: 400 };
     if (employee.phone !== otp.phone || (employee.email ?? null) !== otp.email || !otp.destination || (otp.channel === "email" ? employee.email !== otp.destination : employee.phone !== otp.destination)) return { error: "Kontak akun berubah. Minta kode baru.", status: 400 };
     if (otp.usedAt || otp.status === "terpakai") return { error: "Kode OTP sudah dipakai. Minta kode baru.", status: 400 };
-    if (otp.status !== "terkirim" && !(otp.status === "demo" && demoMode())) return { error: "OTP belum berhasil dikirim. Minta kode baru.", status: 400 };
+    if (otp.status !== "terkirim") return { error: "OTP belum berhasil dikirim. Minta kode baru.", status: 400 };
     if (new Date(otp.expiresAt) <= now) return { error: "Kode OTP sudah kedaluwarsa. Minta kode baru.", status: 400 };
     if (!safeCompareHash(otp.codeHash, hashOtp(code, otp.codeSalt))) {
       otp.attempts += 1;

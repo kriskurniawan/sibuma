@@ -329,7 +329,7 @@ function LocationDialog({
     { value: "", label: "Tanpa induk" },
     ...locations
       .filter((item) => item.id !== location?.id)
-      .map((item) => ({ value: item.id, label: item.name })),
+      .map((item) => ({ value: item.id, label: item.path ?? item.name })),
   ];
 
   async function submit() {

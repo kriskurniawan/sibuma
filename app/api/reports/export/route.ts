@@ -1,3 +1,4 @@
+import { isSuperAdmin } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { ATTENDANCE_STATUS_LABEL } from "@/lib/constants";
 import { apiError } from "@/lib/http";
@@ -22,8 +23,8 @@ function csvCell(value: string | number | null | undefined) {
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
-  if (user.role !== "atasan") {
-    return apiError("Hanya atasan yang dapat mengunduh rekap.", 403);
+  if (user.role !== "atasan" && !isSuperAdmin(user)) {
+    return apiError("Kamu tidak memiliki izin untuk mengunduh rekap.", 403);
   }
 
   const url = new URL(request.url);
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
     return apiError("Rentang tanggal tidak valid.");
   }
 
-  const data = await getReportData(user.id, {
+  const data = await getReportData(isSuperAdmin(user) ? null : user.id, {
     from,
     to,
     employeeId: url.searchParams.get("employeeId") || undefined,

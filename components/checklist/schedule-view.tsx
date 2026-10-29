@@ -217,7 +217,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {schedule.locationName} · mulai{" "}
+                        {schedule.locationPath} · mulai{" "}
                         {formatDateHuman(
                           dateIso(schedule.anchorDate),
                           "d MMM yyyy",
@@ -363,7 +363,10 @@ function ScheduleDialog({
     }));
   const locationItems = setup.locations
     .filter((location) => location.active)
-    .map((location) => ({ value: location.id, label: location.name }));
+    .map((location) => ({
+      value: location.id,
+      label: location.path ?? location.name,
+    }));
   const unitItems = (
     ["hari", "minggu", "bulan"] as ChecklistIntervalUnit[]
   ).map((unit) => ({

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
-import { ArrowLeft, Check, ChevronDown, Copy } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/logo";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -12,15 +12,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import {
   Field,
   FieldDescription,
@@ -38,26 +32,12 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Spinner } from "@/components/ui/spinner";
-import type { EmployeeRole } from "@/lib/types";
-
-interface DemoAccount {
-  id: string;
-  name: string;
-  role: EmployeeRole;
-  nik: string;
-}
 
 interface LoginViewProps {
-  demoAccounts: DemoAccount[];
-  demoMode: boolean;
   next?: string;
 }
 
-export function LoginView({
-  demoAccounts,
-  demoMode,
-  next = "/",
-}: LoginViewProps) {
+export function LoginView({ next = "/" }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [identifier, setIdentifier] = useState("");
@@ -66,14 +46,11 @@ export function LoginView({
   const [deliveryChannel, setDeliveryChannel] = useState("WhatsApp");
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [maskedDestination, setMaskedDestination] = useState("");
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const [resendDeadline, setResendDeadline] = useState<number | null>(null);
-  const [copied, setCopied] = useState(false);
-  const busy = loading || Boolean(demoLoading);
+  const busy = loading;
 
   // Derive the countdown from an absolute deadline so background throttling and
   // app resume cannot leave a stale "Kirim ulang 45 dtk" label.
@@ -109,7 +86,6 @@ export function LoginView({
     if (!isResend) {
       setCode("");
       setChallengeId("");
-      setDevCode(null);
     }
     setLoading(true);
     try {
@@ -121,7 +97,6 @@ export function LoginView({
       const data = (await response.json()) as {
         ok: boolean;
         message?: string;
-        devCode?: string;
         resendAfter?: number;
         maskedDestination?: string;
         challengeId: string;
@@ -137,12 +112,10 @@ export function LoginView({
       setChallengeId(data.challengeId);
       setDeliveryChannel(data.channel === "email" ? "Email" : "WhatsApp");
       setDeliveryMessage(data.message ?? "OTP dikirim ke kontak terdaftar.");
-      setDevCode(data.devCode ?? null);
       const resendAfter = data.resendAfter ?? 60;
       setResendIn(resendAfter);
       // Anchor the countdown to a wall-clock deadline, not to render timing.
       setResendDeadline(Date.now() + resendAfter * 1000);
-      setCopied(false);
       if (isResend) toast.success("Kode OTP baru sudah dikirim.");
     } catch {
       setError("Tidak dapat menghubungi server. Periksa koneksi internetmu.");
@@ -189,50 +162,6 @@ export function LoginView({
       setError("Tidak dapat menghubungi server. Periksa koneksi internetmu.");
     } finally {
       setLoading(false);
-    }
-  }
-
-  async function loginDemo(employeeId: string) {
-    setError(null);
-    setDemoLoading(employeeId);
-    try {
-      const response = await fetch("/api/auth/demo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ employeeId }),
-      });
-      const data = (await response.json()) as {
-        ok: boolean;
-        message?: string;
-      };
-      if (!response.ok || !data.ok) {
-        setError(data.message ?? "Tidak dapat masuk dengan akun demo.");
-        return;
-      }
-      router.push(next);
-      router.refresh();
-    } catch {
-      setError("Tidak dapat menghubungi server.");
-    } finally {
-      setDemoLoading(null);
-    }
-  }
-
-  function fillCode(value: string) {
-    const clean = value.replace(/\D/g, "").slice(0, 6);
-    setCode(clean);
-    setError(null);
-    window.setTimeout(() => document.getElementById("otp")?.focus(), 0);
-  }
-
-  async function copyDemoCode() {
-    if (!devCode) return;
-    try {
-      await navigator.clipboard.writeText(devCode);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      toast.error("Gagal menyalin kode.");
     }
   }
 
@@ -331,43 +260,6 @@ export function LoginView({
                 <Alert variant="info" role="status">
                   <AlertDescription>{deliveryMessage}</AlertDescription>
                 </Alert>
-                {devCode && (
-                  <Alert variant="warning" role="status">
-                    <AlertDescription>
-                      <p>
-                        Kode demo:{" "}
-                        <span className="font-mono font-semibold tracking-widest text-foreground">
-                          {devCode}
-                        </span>
-                      </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={copyDemoCode}
-                          disabled={busy}
-                        >
-                          {copied ? (
-                            <Check aria-hidden="true" />
-                          ) : (
-                            <Copy aria-hidden="true" />
-                          )}
-                          {copied ? "Tersalin" : "Salin"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fillCode(devCode)}
-                          disabled={busy}
-                        >
-                          Isi otomatis
-                        </Button>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
 
                 <FieldGroup>
                   <Field data-invalid={Boolean(error)}>
@@ -439,7 +331,6 @@ export function LoginView({
                     onClick={() => {
                       setStep("phone");
                       setError(null);
-                      setDevCode(null);
                       setCode("");
                       window.setTimeout(
                         () => document.getElementById("identifier")?.focus(),
@@ -465,63 +356,6 @@ export function LoginView({
               </form>
             )}
           </CardContent>
-
-          {demoMode && demoAccounts.length > 0 && step === "phone" && (
-            <CardFooter>
-              <Collapsible className="flex w-full flex-col gap-3">
-                <CollapsibleTrigger
-                  disabled={busy}
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="group w-full justify-between"
-                    />
-                  }
-                >
-                  Coba akun demo
-                  <ChevronDown
-                    aria-hidden="true"
-                    className="group-aria-expanded:rotate-180"
-                  />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="flex flex-col gap-3">
-                    <p className="text-xs text-muted-foreground">
-                      Masuk tanpa OTP, khusus mode demo.
-                    </p>
-                    <div className="flex flex-col gap-2">
-                      {demoAccounts.map((account) => (
-                        <Button
-                          key={account.id}
-                          type="button"
-                          variant="outline"
-                          disabled={busy}
-                          onClick={() => loginDemo(account.id)}
-                          className="w-full min-w-0 justify-start gap-2"
-                          aria-live="polite"
-                        >
-                          <span className="min-w-0 flex-1 truncate text-left">
-                            {account.name}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {account.role === "atasan" ? "Atasan" : "Pekerja"}
-                          </span>
-                          {demoLoading === account.id && (
-                            <>
-                              <Spinner />
-                              <span className="sr-only">Sedang masuk…</span>
-                            </>
-                          )}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </CardFooter>
-          )}
         </Card>
 
         <p className="text-center text-xs leading-relaxed text-muted-foreground">

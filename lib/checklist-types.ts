@@ -1,13 +1,10 @@
+import type { ChecklistLocationOption } from "./checklist-location-path";
+
 export type ChecklistIntervalUnit = "hari" | "minggu" | "bulan";
 export type ChecklistPhotoPolicy =
   | "opsional"
   | "wajib"
   | "wajib_saat_masalah";
-export type ChecklistCondition =
-  | "baik"
-  | "perlu_perhatian"
-  | "tidak_baik"
-  | "tidak_berlaku";
 export type ChecklistInspectionStatus =
   | "belum_dimulai"
   | "berlangsung"
@@ -19,16 +16,44 @@ export type ChecklistFollowUpStatus =
   | "tertunda"
   | "selesai"
   | "dibatalkan";
+/** Kunci status checklist; daftar dan labelnya diatur di Pengaturan. */
+export type ChecklistCondition = string;
+export type ChecklistConditionTone =
+  | "success"
+  | "warning"
+  | "danger"
+  | "neutral";
 export type ChecklistPriority = "rendah" | "sedang" | "tinggi" | "mendesak";
 export type ChecklistPhotoStage = "temuan" | "perbaikan";
 export type ChecklistItemType = "grup" | "item";
 
-export const CHECKLIST_CONDITION_LABEL: Record<ChecklistCondition, string> = {
-  baik: "Baik",
-  perlu_perhatian: "Perlu perhatian",
-  tidak_baik: "Tidak baik",
-  tidak_berlaku: "Tidak berlaku",
+export const CHECKLIST_CONDITION_TONE_LABEL: Record<
+  ChecklistConditionTone,
+  string
+> = {
+  success: "Positif",
+  warning: "Peringatan",
+  danger: "Masalah",
+  neutral: "Netral",
 };
+
+export interface ChecklistConditionOption {
+  id: string;
+  label: string;
+  tone: ChecklistConditionTone;
+  isIssue: boolean;
+  requiresNote: boolean;
+  active: boolean;
+  position: number;
+}
+
+export function findChecklistCondition(
+  conditions: ChecklistConditionOption[],
+  id: string | null | undefined,
+) {
+  if (!id) return null;
+  return conditions.find((condition) => condition.id === id) ?? null;
+}
 
 export const CHECKLIST_STATUS_LABEL: Record<
   ChecklistInspectionStatus,
@@ -80,8 +105,18 @@ export const CHECKLIST_MAX_ASSIGNEES = 500;
 export const CHECKLIST_MAX_ITEMS = 100;
 export const CHECKLIST_MAX_GROUPS = 30;
 
-export function isIssueCondition(condition: ChecklistCondition | null) {
-  return condition === "perlu_perhatian" || condition === "tidak_baik";
+export function isIssueCondition(
+  condition: ChecklistCondition | null,
+  conditions: ChecklistConditionOption[],
+) {
+  return Boolean(findChecklistCondition(conditions, condition)?.isIssue);
+}
+
+export function conditionRequiresNote(
+  condition: ChecklistCondition | null,
+  conditions: ChecklistConditionOption[],
+) {
+  return Boolean(findChecklistCondition(conditions, condition)?.requiresNote);
 }
 
 export interface ChecklistLocation {
@@ -95,6 +130,8 @@ export interface ChecklistLocation {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Label hierarki dari akar, diisi saat data lokasi dimuat untuk UI. */
+  path?: string;
 }
 
 export interface ChecklistTemplate {
@@ -260,6 +297,8 @@ export interface ChecklistInspectionRow {
   totalItems: number;
   openFollowUps: number;
   overdue: boolean;
+  /** Label hierarki lokasi saat ini; fallback ke snapshot locationName. */
+  locationPath?: string;
 }
 
 export interface ChecklistInspectionDetail {
@@ -285,6 +324,7 @@ export interface ChecklistInspectionRef {
   templateName: string;
   category: string;
   locationName: string;
+  locationPath?: string;
   occurrenceDate: string;
   dueAt: string;
   status: ChecklistInspectionStatus;
@@ -325,6 +365,7 @@ export interface ChecklistSetupTemplate extends ChecklistTemplate {
 export interface ChecklistSetupSchedule extends ChecklistSchedule {
   templateName: string;
   locationName: string;
+  locationPath: string;
   assignees: ChecklistSetupEmployee[];
   nextOccurrence: string | null;
 }
@@ -435,6 +476,8 @@ export interface ChecklistReportFilters {
   from: string;
   to: string;
   locationId?: string;
+  /** Default true: area yang dipilih mencakup seluruh sub-lokasinya. */
+  includeSubLocations?: boolean;
   templateId?: string;
   status?: string;
   search?: string;
@@ -460,10 +503,11 @@ export interface ChecklistReportRow {
   openFollowUps: number;
   late: boolean;
   overdue: boolean;
+  locationPath?: string;
 }
 
 export interface ChecklistReportOptions {
-  locations: Array<{ id: string; name: string }>;
+  locations: ChecklistLocationOption[];
   templates: Array<{ id: string; name: string }>;
   employees: ChecklistPerson[];
 }

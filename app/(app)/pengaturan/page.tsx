@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
+import { ChecklistConditionSettings } from "@/components/settings/checklist-condition-settings";
 import { PolicyForm } from "@/components/settings/policy-form";
 import { PageHeader } from "@/components/ui";
 import { Button } from "@/components/ui/button";
+import { can } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
+import { listChecklistConditions } from "@/lib/checklist-conditions";
 import { getPolicy } from "@/lib/queries";
 
 export const metadata = {
@@ -14,16 +17,19 @@ export const metadata = {
 export default async function SettingsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "atasan") redirect("/");
+  if (!can(user.role, "policy.manage")) redirect("/");
 
-  const policy = await getPolicy();
+  const [policy, conditions] = await Promise.all([
+    getPolicy(),
+    listChecklistConditions({ includeInactive: true }),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Kelola"
         title="Pengaturan."
-        description="Atur kebijakan lembur yang berlaku untuk seluruh tim, mulai dari batas durasi, pembulatan, radius absensi, hingga kewajiban dokumentasi."
+        description="Atur kebijakan lembur dan status checklist yang dipakai tim saat mengisi pemeriksaan."
         action={
           <Button
             variant="outline"
@@ -36,8 +42,9 @@ export default async function SettingsPage() {
         }
       />
 
-      <div className="w-full max-w-4xl">
+      <div className="flex w-full max-w-4xl flex-col gap-6">
         <PolicyForm policy={policy} />
+        <ChecklistConditionSettings conditions={conditions} />
       </div>
     </div>
   );

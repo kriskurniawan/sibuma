@@ -16,7 +16,7 @@ export function normalizeLoginIdentifier(value: string) {
 }
 export function canEmployeeLogin(employee: Employee | undefined, employees: Employee[]) {
   if (!employee?.active || !employee.nik.trim()) return false;
-  if (employee.role === "atasan") return true;
+  if (employee.role === "atasan" || employee.role === "super_admin") return true;
   return Boolean(employee.divisionId && employee.supervisorId && employees.some(
     (item) => item.id === employee.supervisorId && item.role === "atasan" && item.active,
   ));

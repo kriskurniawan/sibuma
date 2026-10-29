@@ -60,8 +60,10 @@ import { ChecklistFollowUpUpdateDialog } from "@/components/checklist/follow-up-
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
 import { checklistIntervalLabel } from "@/lib/checklist-schedule";
 import {
+  conditionRequiresNote,
   isIssueCondition,
   type ChecklistAnswer,
+  type ChecklistConditionOption,
   type ChecklistFollowUpRow,
   type ChecklistInspectionDetail,
 } from "@/lib/checklist-types";
@@ -86,9 +88,11 @@ interface MissingRequirement {
 export function ChecklistDetail({
   detail,
   currentUserId,
+  conditions,
 }: {
   detail: ChecklistInspectionDetail;
   currentUserId: string;
+  conditions: ChecklistConditionOption[];
 }) {
   const router = useRouter();
   const { inspection } = detail;
@@ -174,10 +178,10 @@ export function ChecklistDetail({
     let reason: string | null = null;
     if (persisted.required && condition === null) {
       reason = "wajib diisi";
-    } else if (condition === "tidak_berlaku" && note.length < 3) {
-      reason = "alasan tidak berlaku belum diisi";
+    } else if (conditionRequiresNote(condition, conditions) && note.length < 3) {
+      reason = "catatan status wajib diisi";
     } else if (
-      isIssueCondition(condition) &&
+      isIssueCondition(condition, conditions) &&
       persisted.requireNoteOnIssue &&
       note.length < 3
     ) {
@@ -185,7 +189,7 @@ export function ChecklistDetail({
     } else if (
       (persisted.photoPolicy === "wajib" ||
         (persisted.photoPolicy === "wajib_saat_masalah" &&
-          isIssueCondition(condition))) &&
+          isIssueCondition(condition, conditions))) &&
       entry.photos.length === 0
     ) {
       reason = "foto wajib dilampirkan";
@@ -582,6 +586,7 @@ export function ChecklistDetail({
                           photos={entry.photos}
                           canFill={detail.canFill}
                           followUp={active ?? null}
+                          conditions={conditions}
                           nested={Boolean(block.groupPath)}
                           onCreateFollowUp={openCreateFollowUp}
                           onDraftChange={handleDraftChange}

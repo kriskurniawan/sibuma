@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ChecklistLocationOption } from "@/lib/checklist-location-path";
 
 const STATUS_OPTIONS = [
   { value: "aktif", label: "Perlu dikerjakan" },
@@ -24,20 +25,30 @@ const STATUS_OPTIONS = [
   { value: "semua", label: "Semua status" },
 ];
 
+const SCOPE_OPTIONS = [
+  { value: "1", label: "Termasuk sub-lokasi" },
+  { value: "0", label: "Hanya area ini" },
+];
+
 export function ChecklistFilterBar({
   filters,
   locations,
   resetHref = "/checklist",
 }: {
-  filters: { status: string; locationId: string; search: string };
-  locations: Array<{ id: string; name: string }>;
+  filters: {
+    status: string;
+    locationId: string;
+    search: string;
+    includeSubLocations: boolean;
+  };
+  locations: ChecklistLocationOption[];
   resetHref?: string;
 }) {
   const locationItems = [
     { value: "", label: "Semua lokasi" },
     ...locations.map((location) => ({
       value: location.id,
-      label: location.name,
+      label: location.path,
     })),
   ];
 
@@ -48,7 +59,7 @@ export function ChecklistFilterBar({
       className="flex flex-col gap-4"
     >
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
-        <div className="flex flex-col gap-2 xl:col-span-3">
+        <div className="flex flex-col gap-2 xl:col-span-2">
           <Label htmlFor="status">Status</Label>
           <Select
             name="status"
@@ -86,7 +97,26 @@ export function ChecklistFilterBar({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-4">
+        <div className="flex flex-col gap-2 xl:col-span-2">
+          <Label htmlFor="includeSub">Cakupan area</Label>
+          <Select
+            name="includeSub"
+            defaultValue={filters.includeSubLocations ? "1" : "0"}
+            items={SCOPE_OPTIONS}
+          >
+            <SelectTrigger id="includeSub" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SCOPE_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-3">
           <Label htmlFor="search">Cari</Label>
           <InputGroup>
             <InputGroupAddon>

@@ -18,6 +18,7 @@ import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { avatarUrl } from "@/lib/avatar-url";
 import type { Division, Employee } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { durationLabel } from "@/lib/time";
@@ -127,6 +128,7 @@ export function TeamWorkersGrid({
               <Avatar
                 name={employee.name}
                 seed={employee.id}
+                src={avatarUrl(employee.id, employee.avatarKey)}
                 size="xs"
                 className={cn(!employee.active && "opacity-50 grayscale")}
               />
@@ -356,6 +358,7 @@ export function TeamWorkersGrid({
                         <Avatar
                           name={employee.name}
                           seed={employee.id}
+                          src={avatarUrl(employee.id, employee.avatarKey)}
                           size="md"
                           className={cn(
                             !employee.active && "opacity-50 grayscale",

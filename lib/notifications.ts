@@ -24,7 +24,10 @@ async function deliverWhatsApp(
   const sessionId = process.env.CHATERY_SESSION_ID?.trim();
 
   if (!apiUrl || !apiKey || !sessionId) {
-    return { status: "demo" };
+    return {
+      status: "gagal",
+      error: "Chatery belum dikonfigurasi. Isi CHATERY_API_URL, CHATERY_API_KEY, dan CHATERY_SESSION_ID.",
+    };
   }
 
   try {

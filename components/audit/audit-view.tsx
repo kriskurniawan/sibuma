@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Bell,
   Building2,
-  CheckCircle2,
   ChevronDown,
   ClipboardCheck,
   ClipboardList,
@@ -20,7 +19,6 @@ import {
   Send,
   Settings2,
   ShieldCheck,
-  Smartphone,
   UserRound,
   X,
 } from "lucide-react";
@@ -38,7 +36,6 @@ import { ListPagination } from "@/components/list-pagination";
 import {
   Badge,
   EmptyState,
-  InfoBanner,
   PageHeader,
   StatCard,
 } from "@/components/ui";
@@ -108,10 +105,11 @@ const ACTION_LABEL: Record<string, string> = {
   absensi_dikoreksi: "Absensi dikoreksi",
   karyawan_ditambahkan: "Pekerja ditambahkan",
   karyawan_diubah: "Data pekerja diubah",
+  atasan_ditambahkan: "Akun atasan dibuat",
+  atasan_diubah: "Akun atasan diubah",
   divisi_dibuat: "Divisi dibuat",
   divisi_diubah: "Divisi diubah",
   kebijakan_diubah: "Kebijakan diubah",
-  login_demo: "Login demo",
   login_otp: "Login OTP",
   sesi_ditutup_otomatis: "Sesi ditutup otomatis",
   tidak_hadir_dicatat: "Tidak hadir dicatat",
@@ -124,6 +122,12 @@ const ACTION_LABEL: Record<string, string> = {
   checklist_jadwal_dibuat: "Jadwal checklist dibuat",
   checklist_jadwal_diubah: "Jadwal checklist diubah",
   checklist_item_diisi: "Item checklist diisi",
+  checklist_butir_diisi: "Item checklist diisi",
+  status_checklist_ditambah: "Status checklist ditambahkan",
+  status_checklist_diubah: "Status checklist diubah",
+  status_checklist_dihapus: "Status checklist dihapus",
+  status_checklist_diurutkan: "Urutan status checklist diubah",
+  super_admin_dipromosikan: "Super admin dipromosikan",
   checklist_foto_diunggah: "Foto checklist diunggah",
   checklist_foto_dihapus: "Foto checklist dihapus",
   checklist_selesai: "Checklist diselesaikan",
@@ -152,13 +156,11 @@ const NOTIFICATION_LABEL: Record<NotificationLog["type"], string> = {
 };
 
 const NOTIFICATION_STATUS_LABEL: Record<NotificationStatus, string> = {
-  demo: "Mode demo",
   terkirim: "Terkirim",
   gagal: "Gagal",
 };
 
 const NOTIFICATION_VARIANT = {
-  demo: "warning-light",
   terkirim: "success-light",
   gagal: "destructive-light",
 } as const;
@@ -180,7 +182,6 @@ const NOTIFICATION_FILTERS: Array<{
   label: string;
 }> = [
   { value: "semua", label: "Semua" },
-  { value: "demo", label: "Demo" },
   { value: "terkirim", label: "Terkirim" },
   { value: "gagal", label: "Gagal" },
 ];
@@ -197,11 +198,9 @@ function safeJson(value: unknown) {
 export function AuditView({
   logs,
   notifications,
-  demoMode,
 }: {
   logs: AuditLog[];
   notifications: NotificationLog[];
-  demoMode: boolean;
 }) {
   const [tab, setTab] = useState<AuditTab>("audit");
   const [typeFilter, setTypeFilter] = useState<"semua" | AuditType>("semua");
@@ -571,17 +570,6 @@ export function AuditView({
         </TabsContent>
 
         <TabsContent value="notifikasi" className="flex flex-col gap-6">
-          {demoMode && (
-            <InfoBanner icon={Smartphone} tone="warning">
-              <b>Mode demo aktif.</b> Chatery belum dikonfigurasi, jadi pesan
-              WhatsApp hanya dicatat di outbox ini. Isi kredensial Chatery di
-              <code className="mx-1 bg-muted px-1 py-0.5 font-mono text-xs">
-                .env.local
-              </code>
-              untuk pengiriman sungguhan.
-            </InfoBanner>
-          )}
-
           <Frame>
             <FrameHeader className="gap-3">
               <div className="flex flex-col gap-1">
@@ -767,12 +755,6 @@ export function AuditView({
                                 <span className="flex items-center gap-1 text-destructive">
                                   <AlertTriangle className="size-3" />
                                   {notification.error}
-                                </span>
-                              )}
-                              {notification.status === "demo" && (
-                                <span className="flex items-center gap-1">
-                                  <CheckCircle2 className="size-3" />
-                                  Tidak dikirim ke Chatery
                                 </span>
                               )}
                             </div>

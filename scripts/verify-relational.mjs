@@ -35,7 +35,6 @@ let original;
 const uploads=new Set();
 try {
  const health=await fetch(`${base}/api/health`).then(r=>r.json());assert.equal(health.schema,'relational-v1');
- assert.equal(process.env.DEMO_MODE,'true','Verifikasi fixture hanya boleh berjalan dalam mode demo tanpa pengiriman nyata.');
  original=Object.fromEntries(await Promise.all(Object.entries(models).map(async([name,config])=>[name,(await pool.query(`SELECT * FROM ${config.table} ORDER BY ${config.keys.map(key=>columns(name).find(c=>c.field===key).column).join(',')}`)).rows])));
  const legacyPresent=(await pool.query("SELECT to_regclass('public.app_state') IS NOT NULL present")).rows[0].present;
  if(legacyPresent) {
@@ -60,7 +59,7 @@ try {
   assert.equal((await fetch(`${base}/api/uploads/${doc.storageKey}`)).status,401);
   assert.equal((await fetch(`${process.env.AWS_ENDPOINT_URL_S3.replace(/\/$/,'')}/${bucket}/${doc.storageKey}`)).status,403);
  }
- passed.push('Foto hasil migrasi: hash proxy cocok, anonim API 401/S3 403');
+ passed.push(original.documentations.length?'Foto hasil migrasi: hash proxy cocok, anonim API 401/S3 403':'Tidak ada dokumentasi historis; pemeriksaan foto lama dilewati');
  const now=new Date().toISOString();
  await insert('employees',{id:supervisorId,nik:`${prefix}_nik`,name:'Atasan verifikasi sementara',phone:`628990${Date.now().toString().slice(-8)}`,role:'atasan',supervisorId:null,divisionId:null,active:true,createdAt:now,updatedAt:now});
  const createDivision=await request('/api/divisions',supervisorId,{name:`Uji ${prefix.slice(-8)}`,description:'Fixture sementara'});
@@ -71,6 +70,8 @@ try {
  const createWorker=await request('/api/employees',supervisorId,{name:'Pekerja verifikasi sementara',nik:`UJI-${prefix.slice(-12)}-PEKERJA`,phone:`628991${Date.now().toString().slice(-8)}`,email:`${prefix}@example.test`,divisionId:actualDivision});assert.equal(createWorker.status,200,JSON.stringify(createWorker));
  const actualWorker=createWorker.data.employee.id;fixtureIds.add(actualWorker);
  const updateWorker=await request(`/api/employees/${actualWorker}`,supervisorId,{name:'Pekerja verifikasi diperbarui'},'PATCH');assert.equal(updateWorker.status,200,JSON.stringify(updateWorker));
+ const otherWorker=await request('/api/employees',supervisorId,{name:'Pekerja lain verifikasi',nik:`UJI-${prefix.slice(-12)}-LAIN`,phone:`628992${Date.now().toString().slice(-8)}`,email:`lain-${prefix}@example.test`,divisionId:actualDivision});assert.equal(otherWorker.status,200,JSON.stringify(otherWorker));
+ const otherWorkerId=otherWorker.data.employee.id;fixtureIds.add(otherWorkerId);
  passed.push('Divisi/pekerja: tambah dan perbarui via API');
  const date=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Jakarta',hour:'2-digit',hour12:false}).format(new Date()));
@@ -89,12 +90,14 @@ try {
  assert(new Date(attendance.checkInAt)<new Date(spklResult.data.spkl.startAt));
  const blockedCheckout=await request(`/api/attendance/${attendance.id}/checkout`,actualWorker,geolocation);assert.equal(blockedCheckout.status,422);
  passed.push('SPKL buat/edit, role guard, absen lebih awal, check-in paralel satu baris');
- const sample=original.documentations[0];const object=await s3.send(new GetObjectCommand({Bucket:bucket,Key:sample.storage_key}));const bytes=await object.Body.transformToByteArray();
+ const bytes=Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64');
  const form=new FormData();form.set('file',new File([bytes],'verifikasi.jpg',{type:'image/jpeg'}));form.set('description','Fixture upload Neon relasional.');
  const upload=await request(`/api/spkl/${spklId}/documents`,actualWorker,form);assert.equal(upload.status,200,JSON.stringify(upload));
  const doc=upload.data.documentation;uploads.add(doc.storageKey);
  const saved=await s3.send(new GetObjectCommand({Bucket:bucket,Key:doc.storageKey}));assert.equal(hash(await saved.Body.transformToByteArray()),hash(bytes));
- assert.equal((await fetch(`${base}/api/uploads/${doc.storageKey}`,{headers:{cookie:cookie('emp_siti')}})).status,403);
+ assert.equal((await fetch(`${base}/api/uploads/${doc.storageKey}`,{headers:{cookie:cookie(otherWorkerId)}})).status,403);
+ assert.equal((await fetch(`${base}/api/uploads/${doc.storageKey}`)).status,401);
+ assert.equal((await fetch(`${process.env.AWS_ENDPOINT_URL_S3.replace(/\/$/,'')}/${bucket}/${doc.storageKey}`)).status,403);
  const checkout=await request(`/api/attendance/${attendance.id}/checkout`,actualWorker,geolocation);assert.equal(checkout.status,200,JSON.stringify(checkout));assert.equal(checkout.data.attendance.durationMinutes,0);
  passed.push('Upload S3 asli, dokumen wajib, akses pekerja lain 403, durasi sebelum start=0');
  const corrected=await request(`/api/attendance/${attendance.id}/correct`,supervisorId,{checkInLocal:`${date}T${startTime}`,checkOutLocal:`${date}T23:59`,reason:'Koreksi fixture pengujian relasional.'},'PATCH');assert.equal(corrected.status,200,JSON.stringify(corrected));
@@ -115,11 +118,17 @@ try {
  }
  const csv=await fetch(`${base}/api/reports/export?from=${date}&to=${date}`,{headers:{cookie:cookie(supervisorId)}});assert.equal(csv.status,200);assert((await csv.text()).includes('Pekerja verifikasi'));
  passed.push('Dashboard/tim/laporan/audit/profil/detail + CSV');
- // Exercise OTP only on fixture account; no original auth data is modified.
- const otpRequest=await request('/api/auth/otp/request',null,{identifier:createWorker.data.employee.phone});assert.equal(otpRequest.status,200,JSON.stringify(otpRequest));
- const otpWrong=await request('/api/auth/otp/verify',null,{identifier:createWorker.data.employee.phone,challengeId:otpRequest.data.challengeId,code:otpRequest.data.devCode==='000000'?'111111':'000000'});assert.equal(otpWrong.status,401);
- const otpCorrect=await request('/api/auth/otp/verify',null,{identifier:createWorker.data.employee.phone,challengeId:otpRequest.data.challengeId,code:otpRequest.data.devCode});assert.equal(otpCorrect.status,200,JSON.stringify(otpCorrect));assert.equal(otpCorrect.data.user.supervisorName,'Atasan verifikasi sementara');
- const otpReused=await request('/api/auth/otp/verify',null,{identifier:createWorker.data.employee.phone,challengeId:otpRequest.data.challengeId,code:otpRequest.data.devCode});assert.equal(otpReused.status,400);
+ // Exercise OTP verification on the fixture account without contacting providers.
+ // The hash uses the same SESSION_SECRET pepper as lib/security.ts.
+ const workerPhone=createWorker.data.employee.phone;
+ const workerEmail=createWorker.data.employee.email;
+ const challengeId=randomUUID(), otpCode='246810', otpSalt=`${prefix}_salt`;
+ assert(process.env.SESSION_SECRET,'SESSION_SECRET belum diatur.');
+ const otpHash=createHash('sha256').update(`${process.env.SESSION_SECRET}:${otpSalt}:${otpCode}`).digest('hex');
+ await pool.query("INSERT INTO otp_records(id,phone,email,identifier,channel,destination,employee_id,code_salt,code_hash,created_at,expires_at,attempts,attempts_reset_at,status,used_at,locked_until) VALUES($1,$2,$3,$2,'whatsapp',$2,$4,$5,$6,now(),now()+interval '5 minutes',0,now()+interval '15 minutes','terkirim',null,null)",[challengeId,workerPhone,workerEmail,actualWorker,otpSalt,otpHash]);
+ const otpWrong=await request('/api/auth/otp/verify',null,{identifier:workerPhone,challengeId,code:'111111'});assert.equal(otpWrong.status,401,JSON.stringify(otpWrong));
+ const otpCorrect=await request('/api/auth/otp/verify',null,{identifier:workerPhone,challengeId,code:otpCode});assert.equal(otpCorrect.status,200,JSON.stringify(otpCorrect));assert.equal(otpCorrect.data.user.supervisorName,'Atasan verifikasi sementara');
+ const otpReused=await request('/api/auth/otp/verify',null,{identifier:workerPhone,challengeId,code:otpCode});assert.equal(otpReused.status,400);
  passed.push('OTP salah/benar/sekali pakai + identitas atasan');
 } finally {
  try {

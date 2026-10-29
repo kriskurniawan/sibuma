@@ -16,6 +16,7 @@ export default async function ChecklistPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role === "super_admin") redirect("/");
 
   const params = await searchParams;
   const first = (value: string | string[] | undefined) =>
@@ -25,6 +26,7 @@ export default async function ChecklistPage({
     status,
     locationId: first(params.locationId) ?? "",
     search: first(params.search) ?? "",
+    includeSubLocations: first(params.includeSub) !== "0",
   };
   const request = pageRequest(first(params.page), first(params.size));
   const ownerId = user.role === "atasan" ? user.id : user.supervisorId;

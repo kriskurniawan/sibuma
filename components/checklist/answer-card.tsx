@@ -11,29 +11,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
 import { ChecklistConditionBadge, ChecklistFollowUpBadge } from "@/components/checklist/checklist-badges";
 import {
-  CHECKLIST_CONDITION_LABEL,
   CHECKLIST_PHOTO_POLICY_LABEL,
+  conditionRequiresNote,
+  findChecklistCondition,
   isIssueCondition,
   type ChecklistAnswer,
   type ChecklistCondition,
+  type ChecklistConditionOption,
+  type ChecklistConditionTone,
   type ChecklistFollowUpRow,
   type ChecklistPhoto,
 } from "@/lib/checklist-types";
 import { formatDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-const CONDITIONS: ChecklistCondition[] = [
-  "baik",
-  "perlu_perhatian",
-  "tidak_baik",
-  "tidak_berlaku",
-];
-
-const SELECTED_CLASS: Record<ChecklistCondition, string> = {
-  baik: "border-success/50 bg-success/10 text-success-foreground",
-  perlu_perhatian: "border-warning/50 bg-warning/10 text-warning-foreground",
-  tidak_baik: "border-destructive/50 bg-destructive/10 text-destructive-foreground",
-  tidak_berlaku: "border-border bg-muted text-muted-foreground",
+const SELECTED_CLASS: Record<ChecklistConditionTone, string> = {
+  success: "border-success/50 bg-success/10 text-success-foreground",
+  warning: "border-warning/50 bg-warning/10 text-warning-foreground",
+  danger: "border-destructive/50 bg-destructive/10 text-destructive-foreground",
+  neutral: "border-border bg-muted text-muted-foreground",
 };
 
 const DRAFT_PREFIX = "sibuma:draft:";
@@ -85,11 +81,15 @@ function clearDraft(key: string) {
   }
 }
 
-function needsNote(answer: ChecklistAnswer, condition: ChecklistCondition | null) {
-  if (condition === "tidak_berlaku") {
-    return "Tuliskan alasan mengapa item ini tidak berlaku (minimal 3 karakter).";
+function needsNote(
+  answer: ChecklistAnswer,
+  condition: ChecklistCondition | null,
+  conditions: ChecklistConditionOption[],
+) {
+  if (conditionRequiresNote(condition, conditions)) {
+    return `Tuliskan catatan untuk status "${findChecklistCondition(conditions, condition)?.label ?? condition}" (minimal 3 karakter).`;
   }
-  if (isIssueCondition(condition) && answer.requireNoteOnIssue) {
+  if (isIssueCondition(condition, conditions) && answer.requireNoteOnIssue) {
     return "Catatan wajib diisi saat kondisi bermasalah (minimal 3 karakter).";
   }
   return null;
@@ -108,6 +108,7 @@ export function AnswerCard({
   photos,
   canFill,
   followUp,
+  conditions,
   nested,
   onCreateFollowUp,
   onDraftChange,
@@ -119,6 +120,7 @@ export function AnswerCard({
   photos: ChecklistPhoto[];
   canFill: boolean;
   followUp: ChecklistFollowUpRow | null;
+  conditions: ChecklistConditionOption[];
   nested?: boolean;
   onCreateFollowUp: (answer: ChecklistAnswer) => void;
   /** Reports local edits so the parent can mirror completion validation. */
@@ -217,20 +219,18 @@ export function AnswerCard({
     });
   }, [condition, note, baseVersion, dirty, draftKey]);
 
-  const noteHint = needsNote(answer, condition);
+  const noteHint = needsNote(answer, condition, conditions);
   const invalid =
     dirty &&
     condition !== null &&
-    (condition === "tidak_berlaku"
-      ? note.trim().length < 3
-      : isIssueCondition(condition) && answer.requireNoteOnIssue
-        ? note.trim().length < 3
-        : false);
+    ((conditionRequiresNote(condition, conditions) ||
+      (isIssueCondition(condition, conditions) && answer.requireNoteOnIssue)) &&
+      note.trim().length < 3);
   const photoWarning =
     answer.photoPolicy === "wajib" && photos.length === 0
       ? "Foto wajib dilampirkan sebelum checklist diselesaikan."
       : answer.photoPolicy === "wajib_saat_masalah" &&
-          isIssueCondition(condition) &&
+          isIssueCondition(condition, conditions) &&
           photos.length === 0
         ? "Kondisi bermasalah mewajibkan minimal satu foto."
         : null;
@@ -322,7 +322,12 @@ export function AnswerCard({
                 {CHECKLIST_PHOTO_POLICY_LABEL[answer.photoPolicy]}
               </Badge>
             )}
-            {condition && <ChecklistConditionBadge condition={condition} />}
+            {condition && (
+              <ChecklistConditionBadge
+                condition={condition}
+                conditions={conditions}
+              />
+            )}
             {dirty && (
               <Badge variant="warning-outline" className="text-xs">
                 Belum disimpan
@@ -354,7 +359,8 @@ export function AnswerCard({
             Draf Anda belum dikirim. Versi server terbaru:{" "}
             <span className="font-medium">
               {answer.condition
-                ? CHECKLIST_CONDITION_LABEL[answer.condition]
+                ? (findChecklistCondition(conditions, answer.condition)?.label ??
+                  answer.condition)
                 : "belum diisi"}
             </span>
             {answer.note.trim() ? ` · “${answer.note.trim().slice(0, 120)}”` : ""}.
@@ -386,27 +392,29 @@ export function AnswerCard({
         aria-label={`Kondisi ${answer.prompt}`}
         className="grid grid-cols-2 gap-2 sm:grid-cols-4"
       >
-        {CONDITIONS.map((value) => {
-          const selected = condition === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              disabled={!canFill || saving}
-              aria-pressed={selected}
-              onClick={() => setCondition(value)}
-              className={cn(
-                "inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60",
-                selected
-                  ? SELECTED_CLASS[value]
-                  : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
-              )}
-            >
-              {selected && <Check className="size-3.5" aria-hidden="true" />}
-              {CHECKLIST_CONDITION_LABEL[value]}
-            </button>
-          );
-        })}
+        {conditions
+          .filter((option) => option.active || option.id === condition)
+          .map((option) => {
+            const selected = condition === option.id;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                disabled={!canFill || saving}
+                aria-pressed={selected}
+                onClick={() => setCondition(option.id)}
+                className={cn(
+                  "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60",
+                  selected
+                    ? SELECTED_CLASS[option.tone]
+                    : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                {selected && <Check className="size-3.5" aria-hidden="true" />}
+                {option.label}
+              </button>
+            );
+          })}
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -466,7 +474,7 @@ export function AnswerCard({
                 </Button>
               </>
             )}
-            {canFill && !activeFollowUp && isIssueCondition(condition) && (
+            {canFill && !activeFollowUp && isIssueCondition(condition, conditions) && (
               <Button
                 type="button"
                 size="sm"

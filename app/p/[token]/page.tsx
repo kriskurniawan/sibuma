@@ -3,6 +3,7 @@ import { PublicAreaDetail } from "@/components/checklist/public-area-detail";
 import { PublicAreaList } from "@/components/checklist/public-area-list";
 import { PublicUnavailable } from "@/components/checklist/public-shell";
 import { getCurrentUser } from "@/lib/auth";
+import { listChecklistConditions } from "@/lib/checklist-conditions";
 import {
   getChecklistPublicArea,
   getChecklistPublicStaff,
@@ -67,16 +68,16 @@ export default async function PublicChecklistPage({
         />
       );
     }
-    const staff = await getChecklistPublicStaff(
-      user,
-      qr.ownerId,
-      qr.locationId,
-    );
+    const [staff, conditions] = await Promise.all([
+      getChecklistPublicStaff(user, qr.ownerId, qr.locationId),
+      listChecklistConditions({ includeInactive: true }),
+    ]);
     return (
       <PublicAreaDetail
         qrName={qr.name}
         area={area}
         staff={staff}
+        conditions={conditions}
         backHref={null}
         detailHref={`/p/${token}`}
         loginNext={`/p/${token}`}

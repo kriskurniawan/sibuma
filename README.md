@@ -4,7 +4,7 @@ Aplikasi web mobile-first untuk operasional **SIBUMA**: tim mengisi checklist ar
 
 Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan dirancang sebagai PWA yang dapat dipasang di layar utama ponsel.
 
-> **Status:** MVP P0 selesai secara fungsional. Penyimpanan produksi memakai **Neon Postgres** (tabel relasional) dan **Neon Object Storage** (S3-compatible) untuk dokumentasi. Seluruh data dan foto (termasuk demo) wajib memakai Neon; tidak ada database atau fallback upload lokal. Pengiriman Chatery dan Resend sudah diimplementasikan, tetapi belum diuji dengan kredensial nyata.
+> **Status:** MVP P0 selesai secara fungsional. Penyimpanan produksi memakai **Neon Postgres** (tabel relasional) dan **Neon Object Storage** (S3-compatible) untuk dokumentasi. Seluruh data dan foto wajib memakai Neon; tidak ada database atau fallback upload lokal. Pengiriman Chatery dan Resend sudah diimplementasikan, tetapi belum diuji dengan kredensial nyata.
 
 ---
 
@@ -48,7 +48,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan di
 - Pembatasan OTP: kirim ulang 60 detik, maksimal 5 percobaan, kunci 15 menit.
 - Sesi login ditandatangani HMAC dan berlaku 30 hari.
 - Validasi peran di setiap API dan halaman.
-- Audit untuk login demo, SPKL, absensi, dokumentasi, koreksi, kebijakan, perubahan tim, checklist, dan tindak lanjut.
+- Audit untuk login OTP, SPKL, absensi, dokumentasi, koreksi, kebijakan, perubahan tim, checklist, dan tindak lanjut.
 - PWA **online-first**: manifest, ikon, dan service worker yang hanya menyimpan aset statis publik. Halaman berisi data akun dan respons API tidak pernah masuk Cache API; saat offline aplikasi menampilkan halaman netral tanpa data. Pembaruan versi ditawarkan lewat notifikasi dan baru aktif setelah pengguna memilih **Muat ulang**.
 
 ---
@@ -74,7 +74,7 @@ Sistem UI memakai **ReUI** di atas shadcn/ui dengan komponen gratis saja:
 - **Shell aplikasi** memakai **Sidebar** ReUI varian standar (bukan *inset*): sidebar ivory `rgb(251,249,243)`, kanvas konten putih `rgb(255,255,255)`, kartu putih dengan border tipis, dan item menu berjarak `gap-1`. Header sidebar serta topbar sama-sama 56px sehingga bordernya sejajar. Navigasi berkelompok, menu akun `DropdownMenu`, dan tab bar bawah di mobile tetap dipertahankan. Warna diambil dari token `--sidebar`/`--background` sehingga tema gelap tinggal mengaktifkan token gelap yang sudah disiapkan.
 - **Dashboard atasan** menyusun pita KPI checklist (aktif, terlambat, tindak lanjut, selesai bulan ini), daftar checklist prioritas dengan progres/anggota/tenggat, rel tindak lanjut dan kartu **Lembur hari ini** ringkas. **Dashboard pekerja** menempatkan tugas lebih dulu: checklist paling mendesak (terlambat/berlangsung) sebagai panel fokus dengan progres dan aksi, lalu antrean checklist, tindak lanjut pribadi, dan jadwal lembur. KPI ringkas berada di bawahnya sebagai konteks, bukan hal pertama yang dilihat.
 - **State data**: rute terlindungi memakai `loading.tsx` (skeleton mengikuti layout) dan `error.tsx` (tombol *Coba lagi* + jalan kembali ke beranda); empty state dengan aksi tersedia di setiap region data.
-- **Login** memakai satu kartu ringkas di tengah dengan logo, **Field/InputGroup**, dan **InputOTP**, tanpa panel promosi atau dekorasi tambahan. Pilihan akun demo berada di bagian **Coba akun demo** yang tertutup secara default. Mengadaptasi contoh gratis [login form card](https://reui.io/preview/base/components/c-card-12?ref=mcp).
+- **Login** memakai satu kartu ringkas di tengah dengan logo, **Field/InputGroup**, dan **InputOTP**, tanpa panel promosi atau dekorasi tambahan. Masuk hanya melalui OTP email atau WhatsApp terdaftar. Mengadaptasi contoh gratis [login form card](https://reui.io/preview/base/components/c-card-12?ref=mcp).
 - Pratinjau: [Frame](https://reui.io/components/frame), [Data Grid](https://reui.io/components/data-grid), [Alert](https://reui.io/components/alert), [Badge](https://reui.io/components/badge), [Icon Tile](https://reui.io/components/icon-tile).
 - Status memakai varian `success-light`, `warning-light`, `info-light`, `destructive-light`, atau `primary-light`; badge netral memakai `outline`.
 - Modal memakai `Dialog`/`AlertDialog`, notifikasi Sonner, dan ikon Lucide.
@@ -89,10 +89,10 @@ Prasyarat: **Node.js 20.9+** (disarankan Node 22/24) dan npm.
 ```powershell
 npm install
 Copy-Item .env.example .env.local
-# Buka .env.local dan isi SESSION_SECRET, DATABASE_URL, dan variabel Neon Object Storage.
+# Isi SESSION_SECRET, DATABASE_URL, variabel Neon Object Storage, dan BOOTSTRAP_ADMIN_*.
 npm run storage:init  # buat/periksa bucket dan blokir akses publik
-# Untuk database baru saja: salin seed/*.jpg dari bucket awal ke bucket ini,
-# lalu jalankan npm run db:init. Database yang sudah berisi data tidak perlu diinisialisasi ulang.
+# Database baru: npm run db:init membuat skema dan satu akun super admin dari env bootstrap.
+# Database yang sudah berisi data tidak perlu diinisialisasi ulang.
 npm run dev
 ```
 
@@ -104,29 +104,29 @@ Buka `http://localhost:3000`.
 2. Aktifkan **Object Storage** pada branch produksi dan buat bucket privat (mis. `documentation`; nama harus sama dengan `NEON_STORAGE_BUCKET`).
 3. Dari **Connect**, salin `DATABASE_URL` (gunakan pooled connection untuk Vercel).
 4. Dari tab **Storage**, buat credential dengan scope `storage:read` dan `storage:write`, lalu salin `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, dan `AWS_SECRET_ACCESS_KEY`.
-5. Isi `.env.local`, lalu jalankan `npm run storage:init` untuk memasang Public Access Block. Untuk database baru, salin empat aset `seed/*.jpg` dari bucket awal ke bucket target, lalu jalankan `npm run db:init`. Jangan inisialisasi ulang database yang sudah berisi data.
-6. Di Vercel, tambahkan variabel yang sama ditambah `NEON_STORAGE_BUCKET=<nama-bucket>`, `SESSION_SECRET`, `DEMO_MODE=false`, dan variabel Chatery.
+5. Isi `.env.local`, lalu jalankan `npm run storage:init` untuk memasang Public Access Block. Untuk database baru, isi `BOOTSTRAP_ADMIN_*`, lalu jalankan `npm run db:init`. Jangan inisialisasi ulang database yang sudah berisi data.
+6. Di Vercel, tambahkan variabel yang sama ditambah `NEON_STORAGE_BUCKET=<nama-bucket>`, `SESSION_SECRET`, dan variabel Chatery.
 
-`npm run db:init` hanya untuk database kosong; membuat tabel relasional dan memeriksa aset seed S3 terlebih dahulu. Semua tabel harus kosong dan `--force` ditolak. Untuk instalasi lama gunakan `npm run db:migrate:relational -- --apply`, bukan init/reset. Migrasi sudah diterapkan pada database aktif.
+`npm run db:init` hanya untuk database kosong; membuat tabel relasional dan satu akun super admin awal dari environment. Semua tabel harus kosong dan `--force` ditolak. Super admin membuat akun atasan lewat menu **Akun atasan**; atasan kemudian menambahkan pekerja dan divisi lewat menu **Tim**. Untuk instalasi lama gunakan `npm run db:migrate:relational -- --apply`, bukan init/reset.
 
-Modul checklist memakai migrasi terpisah: `npm run db:migrate:checklists` (DDL `db/migrations/004_checklists.sql`, `005_checklist_public.sql`, dan `006_checklist_item_groups.sql`). Database baru yang dibuat lewat `db:init` sudah memuat skema ini; database lama cukup menjalankan migrasi tersebut. Migrasi hanya menambah tabel/indeks checklist, kolom visibilitas publik, tabel QR, kolom grup item (`item_type`, `parent_item_id`, `group_path`), dan label audit baru, tanpa mengubah baris lama. Item/answer lama otomatis bernilai `item_type='item'` dan `group_path=''`, sehingga inspection historis tetap valid. Ketiga migrasi idempoten dan aman diulang.
+Modul checklist memakai migrasi terpisah: `npm run db:migrate:checklists` (DDL `db/migrations/004_checklists.sql`, `005_checklist_public.sql`, `006_checklist_item_groups.sql`, dan `008_checklist_conditions.sql`). Migrasi `007_remove_demo_status.sql` menghapus status `demo` dari OTP dan notifikasi; terapkan dengan `npm run db:migrate:remove-demo`. Database baru yang dibuat lewat `db:init` sudah memuat seluruh skema ini; database lama cukup menjalankan migrasi tersebut. Migrasi checklist menambah tabel/indeks checklist, kolom visibilitas publik, tabel QR, kolom grup item (`item_type`, `parent_item_id`, `group_path`), tabel status checklist (`checklist_conditions`), dan label audit baru, tanpa mengubah baris lama. Item/answer lama otomatis bernilai `item_type='item'` dan `group_path=''`; status lama (`baik`, `perlu_perhatian`, `tidak_baik`, `tidak_berlaku`) diisi sebagai status awal, sehingga inspection historis tetap valid. Status checklist dapat ditambah, diubah, diurutkan, dinonaktifkan, atau dihapus lewat **Pengaturan**; status yang sudah dipakai pada jawaban tidak dapat dihapus. Seluruh migrasi idempoten dan aman diulang.
 
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
 ### Migrasi lokal yang sudah dilakukan
 
-Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL tambahan dan riwayat audit. Empat foto contoh dipindahkan ke `seed/*.jpg` di bucket privat; kelima metadata dokumentasi menunjuk ke S3 dengan ukuran asli. Sumber lokal dihapus setelah verifikasi runtime, ID, arsip, dan hash objek. Pada 27 Oktober, atas persetujuan pengguna, `app_migrations`, `app_state`, dan `app_state_archives` beserta backup historis di dalamnya dihapus melalui migrasi `002_drop_legacy`. Data relasional dibandingkan persis sebelum/sesudah dan tidak berubah. `schema_migrations` tetap menyimpan catatan skema; restorasi lokal lama ditolak dan cleanup ulang tidak membuat tabel legacy.
+Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL tambahan dan riwayat audit. Sumber lokal dihapus setelah verifikasi runtime, ID, arsip, dan hash objek. Pada 27 Oktober, atas persetujuan pengguna, `app_migrations`, `app_state`, dan `app_state_archives` beserta backup historis di dalamnya dihapus melalui migrasi `002_drop_legacy`. Pada 29 Oktober, mode demo dan seluruh data contoh dihapus setelah backup; database aktif menyisakan satu akun atasan (`emp_budi`), kebijakan, dan catatan migrasi. `schema_migrations` tetap menyimpan catatan skema; skrip restorasi/cleanup lokal lama sudah dihapus dan tidak dapat membuat ulang tabel legacy.
 
 ### Deploy ke Vercel
 
 1. Hubungkan repositori ke Vercel dengan framework preset **Next.js**.
-2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `SESSION_SECRET`, `DEMO_MODE=false`, `NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada.
+2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada.
 3. `vercel.json` menetapkan **Function Region Singapore (`sin1`)** agar fungsi Vercel dekat dengan Neon.
-4. Jalankan `npm run storage:init` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan inisialisasi seed.
+4. Jalankan `npm run storage:init` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
 5. Buka `https://<domain>/api/health`; `database` harus `neon-postgres`, `schema` harus `relational-v1`, dan `storage` harus `neon-object-storage`.
 6. Pastikan bucket sesuai `NEON_STORAGE_BUCKET` privat. Jangan menambahkan URL publik, presigned URL, atau kredensial storage ke klien.
 
-**Sebelum produksi:** rotasi kredensial database/storage/Chatery yang pernah dibagikan dan gunakan `SESSION_SECRET` produksi baru; jangan menyalin rahasia ke repositori. Workspace ini belum memiliki Git dan deployment belum dijalankan. Pilih alur Git (inisialisasi/push repo lalu impor) atau Vercel CLI terautentikasi; langkah tersebut memerlukan persetujuan dan akses pemilik.
+**Sebelum produksi:** rotasi kredensial database/storage/Chatery yang pernah dibagikan dan gunakan `SESSION_SECRET` produksi baru; jangan menyalin rahasia ke repositori. Repositori Git sudah diinisialisasi, tetapi deployment Vercel belum dijalankan. Pilih alur impor repo atau Vercel CLI terautentikasi; langkah tersebut memerlukan persetujuan dan akses pemilik.
 
 Jika port `3000` sedang dipakai proses lain, jalankan dengan port alternatif:
 
@@ -148,34 +148,21 @@ npm start
 
 ---
 
-## 4. Akun demo
+## 4. Akun awal (bootstrap)
 
-Mode demo hanya aktif jika `DEMO_MODE=true` dipasang eksplisit. Buka **Coba akun demo** di halaman login untuk menampilkan akses cepat Budi, Andi, Siti, dan Rizky; Dewi tersedia melalui OTP.
+Mode demo sudah dihapus. Database baru dibuat dengan satu **super admin** dari environment. Super admin membuat akun atasan melalui menu **Akun atasan**; atasan lalu menambahkan pekerja dan divisi melalui menu **Tim**.
 
-| Nama | Peran | Nomor HP | ID |
-| --- | --- | --- | --- |
-| Budi Santoso | Atasan | `081234567890` | `emp_budi` |
-| Andi Pratama | Pekerja | `081234567891` | `emp_andi` |
-| Siti Rahma | Pekerja | `081234567892` | `emp_siti` |
-| Rizky Hidayat | Pekerja | `081234567893` | `emp_rizky` |
-| Dewi Lestari | Pekerja | `081234567894` | `emp_dewi` |
+| Variabel | Wajib | Keterangan |
+| --- | --- | --- |
+| `BOOTSTRAP_ADMIN_ID` | Tidak | ID akun super admin; default `emp_admin`. |
+| `BOOTSTRAP_ADMIN_NAME` | Ya | Nama lengkap super admin. |
+| `BOOTSTRAP_ADMIN_NIK` | Ya | NIK unik super admin. |
+| `BOOTSTRAP_ADMIN_PHONE` | Ya | Nomor WhatsApp super admin; menerima format `08…`, `628…`, atau `8…`. |
+| `BOOTSTRAP_ADMIN_EMAIL` | Tidak | Email super admin untuk OTP/fallback. |
 
-Catatan:
+Nama lama `BOOTSTRAP_SUPERVISOR_*` masih dibaca sebagai fallback bila variabel `BOOTSTRAP_ADMIN_*` belum diisi.
 
-- Isi kolom **Email atau WhatsApp** dengan kontak terdaftar. Nomor menerima format `08…`, `628…`, atau `8…` dan dinormalisasi otomatis; tidak perlu mengetik NIK.
-- Kode OTP demo hanya ditampilkan di layar/respons demo, bukan outbox. OTP tidak dikirim ke penyedia selama demo aktif; kode disimpan sebagai hash.
-- Akses cepat menampilkan Budi, Andi, Siti, dan Rizky. Dewi tetap dapat masuk lewat OTP.
-- Data seed dibuat relatif terhadap waktu server saat database Neon diinisialisasi. Jika aplikasi sudah lama dibiarkan, lakukan **Reset data demo** agar jadwal “berlangsung” dan “akan datang” kembali relevan.
-
-### Reset data demo
-
-Masuk sebagai atasan → **Profil → Reset data demo**. Reset akan:
-
-- membuat ulang seluruh data seed (karyawan, SPKL, absensi, dokumentasi, audit, outbox);
-- menghapus unggahan yang direferensikan data lama, tetapi mempertahankan aset `seed/*.jpg` dan objek lain yang tidak terkait;
-- memeriksa empat aset seed di S3 sebelum mengubah database; jika aset hilang, reset dibatalkan.
-
-Reset hanya tersedia saat mode demo dan hanya untuk peran atasan. Jangan menjalankan reset saat migrasi/verifikasi pada data yang ingin dipertahankan.
+Database aktif saat ini menyisakan akun **Budi Santoso** (`emp_budi`). Pada instalasi lama, promosikan akun tersebut menjadi super admin dengan `npm run db:migrate:super-admin` lalu `npm run db:promote:super-admin -- --id emp_budi`. Setelah itu buat akun atasan pengganti lewat menu **Akun atasan**. Jangan menjalankan `db:init` pada database yang sudah berisi data.
 
 ---
 
@@ -187,7 +174,11 @@ Salin `.env.example` menjadi `.env.local`.
 | --- | --- | --- |
 | `SESSION_SECRET` | Produksi | Kunci HMAC untuk cookie sesi dan hash OTP. Wajib ≥ 32 karakter di produksi; aplikasi **gagal tertutup** bila kosong, terlalu pendek, atau masih memakai nilai pengembangan. Di pengembangan, secret pengembangan hanya dipakai bila variabel tidak diisi. |
 | `NEXT_PUBLIC_APP_TIMEZONE` | Tidak | Default `Asia/Jakarta`. Dipakai untuk tampilan dan konversi waktu. |
-| `DEMO_MODE` | Tidak | Hanya `true` eksplisit mengaktifkan login cepat dan kode OTP di respons. Wajib `false` di produksi. OTP demo tidak menghubungi penyedia. |
+| `BOOTSTRAP_ADMIN_ID` | Tidak | ID akun super admin awal; default `emp_admin`. |
+| `BOOTSTRAP_ADMIN_NAME` | `db:init` | Nama super admin awal. |
+| `BOOTSTRAP_ADMIN_NIK` | `db:init` | NIK super admin awal. |
+| `BOOTSTRAP_ADMIN_PHONE` | `db:init` | Nomor WhatsApp super admin awal. |
+| `BOOTSTRAP_ADMIN_EMAIL` | Tidak | Email super admin awal untuk OTP/fallback. `BOOTSTRAP_SUPERVISOR_*` lama tetap menjadi fallback. |
 | `NEXT_PUBLIC_APP_URL` | Tidak | Disiapkan untuk konfigurasi URL publik; belum dipakai di kode saat ini. |
 | `CHATERY_API_URL` | Integrasi | Base URL API Chatery, tanpa `/` di akhir. |
 | `CHATERY_API_KEY` | Integrasi | Dikirim sebagai header `X-Api-Key`. |
@@ -201,7 +192,7 @@ Salin `.env.example` menjadi `.env.local`.
 | `AWS_SECRET_ACCESS_KEY` | Ya | `s3_secret_access_key` dari credential Neon Object Storage. |
 | `NEON_STORAGE_BUCKET` | Ya | Nama bucket privat; harus diisi eksplisit (deployment ini: `bmbi`). |
 
-Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan hanya dicatat di outbox dengan status `demo`. Jika diisi, aplikasi memanggil `POST {CHATERY_API_URL}/chats/send-text` dengan body `sessionId`, `chatId`, `message`, dan `typingTime`. Khusus OTP produksi, WA tidak tersedia/gagal otomatis mencoba email Resend; jika dua kanal gagal maka permintaan ditolak, bukan dianggap demo.
+Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di outbox dengan status `gagal` dan alasan konfigurasi. Jika diisi, aplikasi memanggil `POST {CHATERY_API_URL}/chats/send-text` dengan body `sessionId`, `chatId`, `message`, dan `typingTime`. Khusus OTP, WA tidak tersedia/gagal otomatis mencoba email Resend; jika dua kanal gagal maka permintaan ditolak.
 
 ---
 
@@ -242,19 +233,20 @@ Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikor
 
 ## 7. Alur singkat pengujian
 
-1. Masuk sebagai **Budi** lewat akses cepat demo.
-2. Buka menu **Lembur**, lalu **Buat SPKL**: isi detail, pilih lokasi di peta, atur radius, pilih pekerja, simpan.
-3. Keluar, masuk sebagai pekerja yang ditugaskan (mis. **Rizky**).
-4. Buka SPKL, tekan **Absen masuk sekarang**, izinkan lokasi, lalu absen.
-5. Unggah dokumentasi jika diwajibkan.
-6. Tekan **Absen pulang** (masih di dalam radius).
-7. Masuk kembali sebagai Budi untuk melihat rekap di **Laporan**, mengunduh CSV, mencetak PDF, atau mengoreksi absensi.
-8. Buka **Checklist**, isi inspection yang ditugaskan. Sebagai Budi, buka **Checklist → QR area**, buat QR, lalu aktifkan area dan item yang boleh tampil ke pengunjung.
-9. Buka `/p/<token>` tanpa login untuk melihat tampilan pengunjung; masuk sebagai petugas yang ditugaskan untuk kembali ke area tersebut.
-10. Buka tab **Checklist** dan **Tindak lanjut** di **Laporan**, lalu unduh CSV rekap/rincian atau cetak PDF.
-11. Periksa **Log audit** dan **Outbox WhatsApp**.
+1. Masuk sebagai atasan (mis. **Budi**) menggunakan OTP email/WhatsApp terdaftar.
+2. Buka menu **Tim**, tambahkan pekerja dan divisi.
+3. Buka menu **Lembur**, lalu **Buat SPKL**: isi detail, pilih lokasi di peta, atur radius, pilih pekerja, simpan.
+4. Keluar, masuk sebagai pekerja yang ditugaskan.
+5. Buka SPKL, tekan **Absen masuk sekarang**, izinkan lokasi, lalu absen.
+6. Unggah dokumentasi jika diwajibkan.
+7. Tekan **Absen pulang** (masih di dalam radius).
+8. Masuk kembali sebagai atasan untuk melihat rekap di **Laporan**, mengunduh CSV, mencetak PDF, atau mengoreksi absensi.
+9. Buka **Checklist**, isi inspection yang ditugaskan. Sebagai atasan, buka **Checklist → QR area**, buat QR, lalu aktifkan area dan item yang boleh tampil ke pengunjung.
+10. Buka `/p/<token>` tanpa login untuk melihat tampilan pengunjung; masuk sebagai petugas yang ditugaskan untuk kembali ke area tersebut.
+11. Buka tab **Checklist** dan **Tindak lanjut** di **Laporan**, lalu unduh CSV rekap/rincian atau cetak PDF.
+12. Periksa **Log audit** dan **Outbox WhatsApp**.
 
-Untuk menguji check-in, browser harus diberi izin lokasi. Titik seed utama berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 WIB tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai.
+Untuk menguji check-in, browser harus diberi izin lokasi. Titik default kebijakan berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 WIB tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai.
 
 ---
 
@@ -273,7 +265,7 @@ app/
     tim/                   Pekerja & divisi
     pengaturan/            Kebijakan lembur
     audit/                 Log audit & outbox
-    profil/                Profil & reset demo
+    profil/                Profil & akun
   p/[token]/               Halaman publik QR (tanpa shell, noindex)
   api/                     Route handler (auth, SPKL, absensi, checklist, dll.)
 components/                UI per domain
@@ -297,14 +289,13 @@ lib/
   report-queries.ts        Filter/pagination/agregasi laporan SQL
   db-state.ts              Probe konfigurasi saja, bukan penyimpanan
   storage.ts               Neon Object Storage privat, tanpa fallback lokal
-  seed-assets.json         Key dan ukuran aset seed di S3 (bukan file gambar)
-  store.ts                 Helper audit dan reset relasional eksplisit
-  auth.ts, seed.ts, ...    Auth, seed, validasi, waktu, dsb.
+  store.ts                 Helper audit relasional
+  auth.ts, ...             Auth, validasi, waktu, dsb.
 scripts/
-  init-neon.mjs            Inisialisasi seed langsung ke Neon
+  init-neon.mjs            Inisialisasi database kosong + akun atasan awal
   init-storage.mjs         Siapkan bucket dan blokir akses publik
-  migrate-checklists.mjs   Terapkan skema modul checklist (004 + 005)
-  migrate-local-to-neon.mjs Arsip/migrasi sekali jalan + cleanup terverifikasi
+  migrate-checklists.mjs   Terapkan skema modul checklist (004 + 005 + 006)
+  migrate-remove-demo.mjs  Terapkan migrasi 007 (hapus status demo)
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB
@@ -319,7 +310,6 @@ Ringkasan API utama:
 | --- | --- |
 | `POST /api/auth/otp/request` | `{ identifier }`: email/WhatsApp terdaftar; respons `challengeId`, `channel`, `maskedDestination`, `fallback` |
 | `POST /api/auth/otp/verify` | `{ identifier, challengeId, code }`: verifikasi OTP & buat sesi |
-| `POST /api/auth/demo` | Login cepat (hanya mode demo) |
 | `POST /api/auth/logout` | Hapus sesi |
 | `GET/POST /api/spkl` | Daftar / buat SPKL |
 | `PATCH /api/spkl/:id` | Ubah SPKL |
@@ -346,7 +336,6 @@ Ringkasan API utama:
 | `GET/PATCH /api/policy` | Baca / ubah kebijakan |
 | `GET /api/reports/export` | Unduh CSV rekap lembur |
 | `GET /api/reports/checklist/export` | CSV checklist: `kind=rekap`, `kind=item` (legacy `kind=butir`), atau `kind=tindak-lanjut` |
-| `POST /api/demo/reset` | Reset data demo |
 | `GET /api/health` | Health check |
 
 ---
@@ -362,13 +351,13 @@ Ringkasan API utama:
 - DDL/migrasi dijalankan eksplisit, bukan otomatis pada request. Ketiga tabel era JSON (`app_state`, `app_state_archives`, `app_migrations`) sudah dihapus setelah verifikasi; catatan migrasi tetap berada di `schema_migrations`.
 - **Dokumentasi:** Neon Object Storage, bucket privat. Metadata `storageProvider` dan `storageKey` disimpan di database. File tidak pernah diekspos lewat URL publik; `/api/uploads/...` tetap memeriksa sesi dan kepemilikan SPKL, lalu mengirim `Cache-Control: private, no-store`.
 - Validasi upload mencakup ukuran, MIME, pencocokan magic bytes, dan sanitasi nama file.
-- Reset demo mempertahankan aset seed S3 dan menghapus unggahan terkait data lama saja.
+- Tidak ada reset data dari aplikasi. Backup dan pemulihan dilakukan di luar aplikasi melalui Neon.
 - Snapshot/backup era JSON di `app_state_archives` ikut dihapus atas persetujuan pengguna. Pemulihan berikutnya memerlukan backup/PITR Neon yang dikonfigurasi terpisah.
 
 ### Pengembangan
 
 - Memakai Neon Postgres dan Neon Object Storage yang sama seperti produksi (sebaiknya branch terpisah).
-- Tidak ada pembacaan/penulisan `data/db.json`, `data/uploads/`, atau foto `public/demo/` oleh aplikasi.
+- Tidak ada pembacaan/penulisan `data/db.json` atau `data/uploads/` oleh aplikasi.
 - Konfigurasi Neon wajib; tidak ada fallback filesystem.
 
 ### Catatan skala
@@ -411,7 +400,7 @@ Ringkasan API utama:
 - Entitas aplikasi disimpan di tabel relasional; seluruh tabel snapshot era JSON sudah dipensiunkan. Lihat [catatan migrasi](docs/relational-migration.md).
 - Dokumentasi disimpan di bucket privat Neon Object Storage; metadata dan `storageKey` tetap di database.
 - Akses file tetap melalui `/api/uploads/...` dengan pemeriksaan sesi dan kepemilikan SPKL. Tidak ada URL publik atau presigned URL yang dikirim ke browser.
-- `npm run db:init` menginisialisasi seed di Neon (menolak overwrite); `npm run storage:init` membuat bucket dan memasang Public Access Block.
+- `npm run db:init` menginisialisasi skema dan satu akun atasan dari environment pada database kosong (menolak overwrite); `npm run storage:init` membuat bucket dan memasang Public Access Block.
 - Akses anonim ke objek ditolak; file hanya dapat dibaca lewat `/api/uploads/...` setelah sesi dan kepemilikan SPKL diverifikasi.
 - Untuk produksi, isi `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, dan `NEON_STORAGE_BUCKET` di Vercel.
 
@@ -422,14 +411,14 @@ Google Sheets/Drive tidak dipakai. Jika suatu saat diperlukan arsip tambahan, sa
 - Instalasi lama: jalankan `npm run db:migrate:email` sebelum memakai kode baru. Migrasi `003_employee_email_otp` hanya menambah kolom/index/check; memverifikasi semua nilai kolom lama tetap identik. `db:init` untuk database kosong juga memasang skema ini.
 - Pekerja baru wajib memiliki NIK, WhatsApp, email unik, dan divisi milik atasan. Email dinormalisasi lowercase. Akun lama tanpa email tetap ada; lengkapi melalui **Tim → Edit pekerja** agar login email/fallback tersedia. Kontak dikelola atasan, bukan pemohon OTP. Email yang sudah terdaftar tidak dapat dikosongkan melalui API.
 - Login email langsung ke email akun; login WhatsApp mencoba Chatery dahulu, lalu Resend bila WA tidak tersedia/gagal. Fallback hanya ke email tersimpan, tidak menerima alamat tujuan dari requester. Timeout provider 12 detik WA + 8 detik email; panggilan jaringan di luar transaksi database. API sukses berarti penyedia menerima pesan, bukan jaminan masuk inbox; bounce/delivery asinkron belum dipantau.
-- Konfigurasi `RESEND_API_KEY`, `RESEND_FROM_EMAIL` di environment server/Vercel. Verifikasi domain pengirim beserta DNS yang diminta Resend. Set `DEMO_MODE=false` untuk pengiriman nyata. Jangan kirim kunci lewat chat atau memasukkannya ke source.
-- OTP mulai berstatus `menunggu`, hanya `terkirim` (atau `demo` saat demo aktif) yang dapat dipakai. Gagal dua kanal tidak membuat OTP valid. Challenge terikat akun, identifier, ID permintaan, serta snapshot kontak. Perubahan kontak/NIK/status akun membatalkan OTP yang belum digunakan.
+- Konfigurasi `RESEND_API_KEY`, `RESEND_FROM_EMAIL` di environment server/Vercel. Verifikasi domain pengirim beserta DNS yang diminta Resend. Jangan kirim kunci lewat chat atau memasukkannya ke source.
+- OTP mulai berstatus `menunggu`; hanya `terkirim` yang dapat dipakai. Gagal dua kanal tidak membuat OTP valid. Challenge terikat akun, identifier, ID permintaan, serta snapshot kontak. Perubahan kontak/NIK/status akun membatalkan OTP yang belum digunakan.
 - Satu challenge terbaru per akun; kirim ulang minimum 60 detik, masa berlaku 5 menit, maksimum 5 percobaan lintas kirim ulang/kanal dalam jendela 15 menit; setelah batas tercapai dikunci 15 menit. Tantangan lama langsung dicabut saat meminta yang baru. OTP tidak dicatat dalam audit/notifikasi/plaintext.
 - `npm run auth:test`: fixture unik, penyedia dimock, tidak mengirim pesan nyata, tidak reset data. Pengiriman Resend/Chatery nyata masih perlu diuji pemilik setelah kredensial/domain siap.
 
 ### Chatery (WhatsApp)
 
-Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta notifikasi SPKL. Status tersimpan di outbox (`terkirim`, `demo`, `gagal`). Namun pengiriman nyata **belum diverifikasi** karena kredensial tidak tersedia. Format API mengikuti endpoint `POST /chats/send-text`; sesuaikan jika kontrak Chatery berbeda.
+Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta notifikasi SPKL. Status tersimpan di outbox (`terkirim`, `gagal`). Bila `CHATERY_*` belum diisi, notifikasi dicatat `gagal` beserta alasannya. Pengiriman nyata **belum diverifikasi** karena kredensial tidak tersedia. Format API mengikuti endpoint `POST /chats/send-text`; sesuaikan jika kontrak Chatery berbeda.
 
 ### PWA, cache, dan privasi perangkat
 
@@ -456,10 +445,10 @@ Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta 
 
 ### Checklist hardening produksi
 
-1. Set `DEMO_MODE=false` dan `SESSION_SECRET` acak ≥ 32 karakter dari secret manager.
+1. Set `SESSION_SECRET` acak ≥ 32 karakter dari secret manager.
 2. Jalankan di balik HTTPS; batasi akses GPS hanya untuk origin produksi.
 3. Isi `DATABASE_URL` dan variabel Neon Object Storage di Vercel; pastikan bucket privat dan region dekat pengguna (Singapura).
-4. Jalankan `npm run storage:init`, lalu verifikasi `/api/health`. Jalankan `db:init` hanya untuk database baru setelah empat aset seed tersedia di bucket; jangan menimpa database hasil migrasi.
+4. Jalankan `npm run storage:init`, lalu verifikasi `/api/health`. Jalankan `db:init` hanya untuk database baru setelah variabel `BOOTSTRAP_SUPERVISOR_*` diisi; jangan menimpa database hasil migrasi.
 5. Verifikasi kontrak Chatery, tambahkan retry/backoff dan monitoring kegagalan.
 6. Tambahkan rate limiting di edge/proxy, observability, backup, retensi, dan audit akses.
 7. Tambahkan pengujian otomatis (unit, integrasi API, E2E) dan pipeline CI.
@@ -476,7 +465,7 @@ Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta 
 - ReUI C1–C4 bersih pada 8 file UI yang berubah; komponen sistem tidak diubah. Lint belum dikonfigurasi.
 - Setelah pengguna merestart server dev, `npm run db:verify` lulus: ID migrasi, hash foto/proxy, anonim API 401/S3 403, divisi/akun, SPKL, check-in paralel dan lebih awal, upload privat, dokumentasi wajib, durasi nol sebelum start, koreksi/audit, pembatalan, aktivasi akun, guard divisi/kebijakan, halaman/cetak/CSV, serta OTP salah/benar/sekali pakai. Fixture dibersihkan; seluruh baris asli tetap identik. Tidak ada reset. Marker `runtimeVerifiedAt` tercatat di `schema_migrations`.
 - Uji Chrome headless pada desktop 1440×1000 dan mobile 390×844 lulus: tim/laporan 12/10/2, ukuran halaman 25, filter mereset page, Hapus filter, Back dari laporan mempertahankan pencarian tim, Skeleton saat navigasi mobile, tanpa error halaman/overflow horizontal. Cetak dari halaman kedua memuat seluruh 12 baris, CSV juga lengkap; seluruh fixture browser dibersihkan dan baris asli identik.
-- `npm run db:cleanup-local` lulus setelah marker runtime: tiga file database/backup, empat foto `public/demo`, dan `.gitkeep` upload dihapus hanya setelah verifikasi ID/arsip/S3/hash file. Aset seed tetap privat di S3. Arsip/snapshot yang saat cleanup dipertahankan kemudian dihapus melalui `002_drop_legacy` atas persetujuan pengguna.
+- Cleanup sumber lokal sekali jalan lulus setelah marker runtime: tiga file database/backup, empat foto contoh, dan `.gitkeep` upload dihapus hanya setelah verifikasi ID/arsip/S3/hash file. Arsip/snapshot yang saat cleanup dipertahankan kemudian dihapus melalui `002_drop_legacy` atas persetujuan pengguna.
 - `npm run db:verify` kembali lulus setelah sumber lokal dihapus; semua fixture bersih dan seluruh baris asli tetap identik. Typecheck dan build produksi tanpa sumber lokal juga lulus.
 - Atas persetujuan pengguna, migrasi `002_drop_legacy` menghapus `app_migrations`, `app_state`, dan `app_state_archives` termasuk 4 backup historis, tanpa `CASCADE`. Seluruh data relasional dibandingkan sebelum/sesudah dan identik. `schema_migrations` tetap disimpan. Jumlah saat penghapusan: 18 absensi dan 148 audit (bertambah 6 melalui finalisasi otomatis sejak pemeriksaan sebelumnya); entitas lain tetap sama. `db:test`, `db:verify`, typecheck, dan pemeriksaan cleanup no-op setelah penghapusan lulus.
 - Deploy Vercel belum dijalankan.
@@ -512,7 +501,7 @@ Hasil berikut berasal dari fase lokal/JSON sebelumnya, bukan bukti regresi runti
 - `npm run typecheck` — lolos.
 - `npm run build` — lolos setelah integrasi Neon; route aplikasi bersifat dinamis. Build tidak membuat database atau upload lokal.
 - Audit ReUI (C1–C4) bersih pada file picker, form SPKL, koreksi absensi, filter laporan, dan komponen pendukung; empat pembacaan `Date.now()` di klien diberi komentar karena memang jam live/kompresi.
-- Uji API: login demo & OTP, check-in/check-out, upload dokumentasi, koreksi + audit, pembuatan/editing/pembatalan SPKL, validasi waktu, pengelolaan tim, kebijakan, laporan/CSV, reset demo.
+- Uji API: login OTP, check-in/check-out, upload dokumentasi, koreksi + audit, pembuatan/editing/pembatalan SPKL, validasi waktu, pengelolaan tim, kebijakan, laporan/CSV.
 - Uji otorisasi: pekerja ditolak saat membuat SPKL/mengubah kebijakan/mengoreksi; atasan ditolak saat check-out; pekerja diarahkan dari `/laporan` ke `/riwayat`; sesi pekerja nonaktif diarahkan ke `/login`.
 - Uji browser (Chrome headless) pada **390×844** dan **1440×900**:
   - tidak ada overflow horizontal;
@@ -520,7 +509,7 @@ Hasil berikut berasal dari fase lokal/JSON sebelumnya, bukan bukti regresi runti
   - navigasi mobile dan sidebar desktop tampil sesuai;
   - login OTP dan check-in GPS melalui UI berhasil;
   - header cetak tampil dan elemen `no-print` tersembunyi saat media cetak.
-- Login sederhana (satu kartu tanpa panel promosi): permintaan OTP, normalisasi nomor `08…`/`+62…`, indikator proses, kode salah, ganti nomor, kirim ulang setelah 60 detik, salin kode, `Isi otomatis`, serta login demo atasan/pekerja lolos. Kondisi nomor dan OTP diperiksa di **320, 390, 768, dan 1440** tanpa overflow horizontal; pilihan demo tertutup secara default dan empat akun tetap dapat ditampilkan di 320 px. Fokus keyboard awal, fokus otomatis OTP, fokus setelah ganti nomor, serta membuka akun demo dengan Enter dan menavigasinya dengan Tab berfungsi. OTP menolak huruf/campuran nonangka, menerima enam digit, dan dapat dikosongkan kembali; tampilan layar pendek 320×568 tetap dapat digulir tanpa overflow horizontal. Tanpa error console/page selain respons 401 yang diharapkan untuk kode salah. `npm run typecheck`, `npm run build`, dan pemeriksaan ReUI C1–C4 lolos; data bisnis sebelum/sesudah sama dan hanya data autentikasi uji yang dibersihkan.
+- Login sederhana (satu kartu tanpa panel promosi): permintaan OTP, normalisasi nomor `08…`/`+62…`, indikator proses, kode salah, ganti nomor, kirim ulang setelah 60 detik, serta kode OTP manual lolos. Kondisi nomor dan OTP diperiksa di **320, 390, 768, dan 1440** tanpa overflow horizontal. Fokus keyboard awal, fokus otomatis OTP, serta fokus setelah ganti nomor berfungsi. OTP menolak huruf/campuran nonangka, menerima enam digit, dan dapat dikosongkan kembali; tampilan layar pendek 320×568 tetap dapat digulir tanpa overflow horizontal. Tanpa error console/page selain respons 401 yang diharapkan untuk kode salah. `npm run typecheck`, `npm run build`, dan pemeriksaan ReUI C1–C4 lolos; data bisnis sebelum/sesudah sama dan hanya data autentikasi uji yang dibersihkan.
 - Desain ulang shell & dashboard: sidebar ivory `rgb(251,249,243)` dan kanvas konten putih `rgb(255,255,255)` dengan border pemisah; kartu putih ber-border; item menu sidebar berjarak; header sidebar/topbar 56px sejajar. Tanpa overflow horizontal di **320, 390, 768, dan 1440**; tanpa error console. Sidebar collapsed (48px; konten 47px + border), sheet mobile, topbar sticky saat scroll, menu akun, serta halaman `/laporan` dan `/tim` ikut diverifikasi.
 - Penyempurnaan area konten dashboard atasan: KPI dengan avatar pekerja aktif, sparkline 7 hari, pembanding dokumentasi kemarin, status kehadiran; bar kehadiran tersegmentasi; meta sesi/dokumentasi pada beban tim; agenda selebar kontainer; galeri dokumentasi dalam satu Frame. Diuji pada state aktif di **320, 390, 768, dan 1440** serta state tanpa lembur di **390 dan 1440**, tanpa overflow atau error console.
 - State loading/error: skeleton route-level dan boundary error dengan *Coba lagi* diuji lewat rute pratinjau sementara (rute dihapus setelah verifikasi); `npm run build` tetap lolos.
@@ -529,7 +518,7 @@ Hasil berikut berasal dari fase lokal/JSON sebelumnya, bukan bukti regresi runti
 - Penjadwalan fleksibel & absen lebih awal (waktu uji 2026-10-26 07:40 WIB): pembuatan SPKL hari yang sama `07:20–08:20` berhasil (`200`); SPKL dengan jam selesai sudah lewat ditolak (`400`); pekerja dapat absen masuk pada SPKL `09:40–10:40` pukul `07:40` (`200`, `checkInAt` lebih awal dari `startAt`); check-out sebelum jam mulai menghasilkan durasi `0` menit; pengeditan SPKL setelah absen lebih awal tetap berhasil (`200`, bukan ditolak aturan pemindahan jam mulai); semua data uji dibatalkan dan `data/db.json` dipulihkan. Kartu fokus pekerja menampilkan hitung mundur “Menuju jam mulai” (bukan `00:00:00`) dan CTA “Absen masuk sekarang” pada SPKL hari ini; setelah absen lebih awal, kartu dan detail menampilkan badge “Absen lebih awal”, tombol “Absen pulang”, serta durasi `00:00:00` dengan keterangan bahwa lembur dihitung sejak jam mulai. Diuji di **390 dan 1440** tanpa overflow atau error console.
 - Migrasi picker tanggal/jam (waktu uji 2026-10-26): membuat SPKL lewat picker `28 Okt 2026 18:30–21:45` tersimpan sebagai `2026-10-28`/`18:30`/`21:45`; mengubahnya lewat picker menjadi `29 Okt 2026 19:15–21:45` juga tersimpan; koreksi absensi `23 Okt 2026` dari `21:26` ke `21:30` tersimpan dengan durasi dihitung ulang menjadi `210` menit dan audit `absensi_dikoreksi` tercatat; filter laporan diubah lewat picker ke `20–31 Okt 2026`, lalu URL, tabel (10 baris), cetak (10 baris), dan CSV (10 baris detail, periode `20 Oktober 2026 – 31 Oktober 2026`) konsisten. Diuji di **320, 390, dan 1440** tanpa overflow horizontal atau error console; data uji dipulihkan.
 - Integrasi Neon Postgres/Object Storage sudah dikodekan; `npm run typecheck` dan `npm run build` lolos.
-- Uji Neon awal (26 Okt 2026, **historis sebelum pemulihan data lokal**): inisialisasi, migrasi skema v3, login demo, pembuatan SPKL uji, absen masuk, upload foto 112 KB ke S3, proxy (`200`, `image/jpeg`, ukuran sama), penolakan akses anonim S3 (`403`), dan reset demo lolos. State seed hasil reset ini bukan lagi data aktif.
+- Uji Neon awal (26 Okt 2026, **historis sebelum pemulihan data lokal**): inisialisasi, migrasi skema v3, pembuatan SPKL uji, absen masuk, upload foto 112 KB ke S3, proxy (`200`, `image/jpeg`, ukuran sama), dan penolakan akses anonim S3 (`403`) lolos. State seed saat itu bukan lagi data aktif.
 - Pemulihan Neon-only (26 Okt 2026): data lokal lama dipulihkan menjadi 6 akun, 2 divisi, 7 SPKL, 18 penugasan, 12 absensi, 5 dokumentasi, 3 OTP, 14 notifikasi, dan 141 audit. Tiga file database/backup lokal serta state Neon sebelumnya diarsipkan di `app_state_archives`. Empat foto dipindahkan ke S3 privat dengan SHA-256 dan ukuran identik; seluruh metadata dokumentasi memakai provider `s3`. Verifikasi API pada data hasil pemulihan dan penghapusan sumber lokal masih menunggu server lokal dijalankan. Deploy Vercel belum dijalankan.
 - Pengiriman Chatery nyata **belum diuji** (tanpa kredensial).
 - Dashboard checklist-first (28 Okt 2026): beranda atasan kini menampilkan KPI checklist (aktif, terlambat, tindak lanjut, selesai bulan ini), daftar checklist prioritas, tindak lanjut, dan kartu lembur ringkas; beranda pekerja menampilkan checklist berikutnya sebagai panel fokus, KPI checklist, antrean checklist, tindak lanjut pribadi, dan jadwal lembur ringkas. Diuji di **390×844** dan **1440×1000** untuk kedua peran serta `/checklist`, `/lembur`, dan `/profil` tanpa overflow horizontal atau error console; `npm run build`, `tsc` dengan konfigurasi sementara yang mengecualikan `.next/dev`, dan ReUI C1–C4 lolos. Data checklist live saat tangkapan akhir kosong (0 jadwal/inspeksi), sehingga state terisi diverifikasi sebelum data dibersihkan dan state kosong pada tangkapan akhir.
@@ -546,7 +535,7 @@ Hasil berikut berasal dari fase lokal/JSON sebelumnya, bukan bukti regresi runti
 - Query halaman publik hanya memilih field yang aman (nama area, deskripsi publik, prompt/kondisi item publik, waktu, status). Jangan menambahkan catatan, foto, nama petugas, atau deskripsi internal ke query tersebut.
 - Gambar QR dibuat server-side dengan paket `qrcode` (PNG 1024px); origin diambil dari header request sehingga QR mengikuti domain saat diakses.
 - Laporan checklist memakai `occurrence_date` sebagai periode dan menghitung inspection yang belum selesai. Saat menambah filter baru, pastikan klausa `WHERE` tetap ada di kedua builder (`checklistWhere` dan filter tindak lanjut).
-- Gambar demo dan file terproteksi disajikan lewat helper `documentSrc(storageKey)`.
+- File dokumentasi terproteksi disajikan lewat helper `documentSrc(storageKey)`.
 - Komponen `LocationPicker` memakai OpenStreetMap Nominatim; patuhi kebijakan penggunaan dan tambahkan cache/proxy untuk produksi.
 - Dev server Next.js menampilkan indikator kecil di kiri bawah; indikator ini tidak muncul pada build produksi.
-- Reset data hanya melalui UI mode demo (atasan) dan bersifat destruktif. Tidak ada file database lokal untuk dihapus. Jangan reset selama migrasi/verifikasi atau pada data yang ingin dipertahankan.
+- Tidak ada reset data dari aplikasi. Backup dan pemulihan dilakukan di luar aplikasi melalui Neon; jangan menjalankan operasi destruktif pada data produksi tanpa backup terverifikasi.

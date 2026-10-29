@@ -22,6 +22,7 @@ export const DEFAULT_MAP_CENTER = {
 export const ROLE_LABEL = {
   pekerja: "Pekerja",
   atasan: "Atasan",
+  super_admin: "Super admin",
 } as const;
 
 export const ATTENDANCE_STATUS_LABEL = {

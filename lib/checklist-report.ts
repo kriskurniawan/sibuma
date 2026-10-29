@@ -2,6 +2,7 @@ import "server-only";
 
 import { query } from "./db";
 import { rowToCamel } from "./db-model";
+import { getChecklistLocationPathMap, getChecklistLocationScopeIds, listChecklistLocationOptions } from "./checklist-location-scope";
 import { clampPage, type PageRequest } from "./pagination";
 import type {
   ChecklistFollowUp,
@@ -37,13 +38,17 @@ function mapRow<T>(row: Record<string, unknown>): T {
 const OPEN_STATUSES = `('belum_dimulai','berlangsung')`;
 const OPEN_FOLLOW_UP_STATUSES = `('terbuka','diproses','tertunda')`;
 
-function checklistWhere(userId: string, filters: ChecklistReportFilters) {
+async function checklistWhere(userId: string | null, filters: ChecklistReportFilters) {
   const values: unknown[] = [userId, filters.from, filters.to];
-  let where = `WHERE i.owner_id=$1 AND i.occurrence_date BETWEEN $2::date AND $3::date`;
+  let where = `WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.occurrence_date BETWEEN $2::date AND $3::date`;
 
   if (filters.locationId) {
-    values.push(filters.locationId);
-    where += ` AND i.location_id=$${values.length}`;
+    const locationIds =
+      filters.includeSubLocations === false
+        ? [filters.locationId]
+        : await getChecklistLocationScopeIds(userId, filters.locationId);
+    values.push(locationIds);
+    where += ` AND i.location_id=ANY($${values.length}::text[])`;
   }
   if (filters.templateId) {
     values.push(filters.templateId);
@@ -103,16 +108,22 @@ function pickFollowUp(row: Record<string, unknown>): ChecklistFollowUp {
 }
 
 export async function getChecklistReportData(
-  userId: string,
+  userId: string | null,
   filters: ChecklistReportFilters,
   request?: PageRequest,
 ) {
-  const { where, values } = checklistWhere(userId, filters);
+  const { where, values } = await checklistWhere(userId, filters);
 
-  const [countRow] = await query<{ total: number }>(
+  const locationPathsPromise = getChecklistLocationPathMap(userId);
+  const countPromise = query<{ total: number }>(
     `SELECT count(*)::integer total FROM checklist_inspections i ${where}`,
     values,
   );
+  const [countRows, locationPaths] = await Promise.all([
+    countPromise,
+    locationPathsPromise,
+  ]);
+  const countRow = countRows[0];
   const pagination = request ? clampPage(request, countRow.total) : undefined;
 
   const rowsPromise = query(
@@ -126,7 +137,7 @@ export async function getChecklistReportData(
      LEFT JOIN LATERAL (
        SELECT count(*) FILTER (WHERE a.condition IS NOT NULL)::integer answered,
          count(*)::integer total,
-         count(*) FILTER (WHERE a.condition IN ('perlu_perhatian','tidak_baik'))::integer issues
+         count(*) FILTER (WHERE a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue))::integer issues
        FROM checklist_answers a WHERE a.inspection_id=i.id
      ) c ON true
      LEFT JOIN LATERAL (
@@ -175,7 +186,7 @@ export async function getChecklistReportData(
     query<{ findings: number }>(
       `SELECT count(*)::integer findings
        FROM checklist_answers a JOIN checklist_inspections i ON i.id=a.inspection_id
-       ${where} AND a.condition IN ('perlu_perhatian','tidak_baik')`,
+       ${where} AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)`,
       values,
     ),
     query<{ open: number }>(
@@ -207,6 +218,7 @@ export async function getChecklistReportData(
       overdue:
         !["selesai", "dilewati"].includes(inspection.status) &&
         new Date(inspection.dueAt).getTime() < now,
+      locationPath: locationPaths.get(inspection.locationId),
     };
   });
 
@@ -225,63 +237,74 @@ export async function getChecklistReportData(
 }
 
 export async function getChecklistReportOptions(
-  userId: string,
+  userId: string | null,
 ): Promise<ChecklistReportOptions> {
   const [locations, templates, employees] = await Promise.all([
+    listChecklistLocationOptions(userId),
     query(
-      `SELECT id,name FROM checklist_locations WHERE owner_id=$1 AND active ORDER BY name,id`,
-      [userId],
+      userId
+        ? `SELECT id,name FROM checklist_templates WHERE owner_id=$1 AND active ORDER BY name,id`
+        : `SELECT id,name FROM checklist_templates WHERE active ORDER BY name,id`,
+      userId ? [userId] : [],
     ),
     query(
-      `SELECT id,name FROM checklist_templates WHERE owner_id=$1 AND active ORDER BY name,id`,
-      [userId],
-    ),
-    query(
-      `SELECT id,name,nik FROM employees WHERE supervisor_id=$1 AND active ORDER BY name,id`,
-      [userId],
+      userId
+        ? `SELECT id,name,nik FROM employees WHERE supervisor_id=$1 AND active ORDER BY name,id`
+        : `SELECT id,name,nik FROM employees WHERE role='pekerja' AND active ORDER BY name,id`,
+      userId ? [userId] : [],
     ),
   ]);
   return {
-    locations: locations as Array<{ id: string; name: string }>,
+    locations,
     templates: templates as Array<{ id: string; name: string }>,
     employees: employees as ChecklistPerson[],
   };
 }
 
 export async function getChecklistItemExportRows(
-  userId: string,
+  userId: string | null,
   filters: ChecklistReportFilters,
 ) {
-  const { where, values } = checklistWhere(userId, filters);
-  const rows = await query(
-    `SELECT i.occurrence_date,i.due_at,i.template_name,i.category,i.location_name,
-       i.period_label,i.status,a.position,a.group_path,a.prompt,a.condition,a.note,a.updated_at
-     FROM checklist_answers a
-     JOIN checklist_inspections i ON i.id=a.inspection_id
-     ${where}
-     ORDER BY i.occurrence_date DESC,i.location_name,i.period_label,a.position,a.id`,
-    values,
-  );
-  return rows.map((row) => mapRow<{
-    occurrenceDate: string;
-    dueAt: string;
-    templateName: string;
-    category: string;
-    locationName: string;
-    periodLabel: string;
-    status: ChecklistInspection["status"];
-    position: number;
-    groupPath: string;
-    prompt: string;
-    condition: string | null;
-    note: string;
-    updatedAt: string | null;
-  }>(row));
+  const { where, values } = await checklistWhere(userId, filters);
+  const [rows, locationPaths] = await Promise.all([
+    query(
+      `SELECT i.occurrence_date,i.due_at,i.template_name,i.category,i.location_id,i.location_name,
+         i.period_label,i.status,a.position,a.group_path,a.prompt,a.condition,a.note,a.updated_at
+       FROM checklist_answers a
+       JOIN checklist_inspections i ON i.id=a.inspection_id
+       ${where}
+       ORDER BY i.occurrence_date DESC,i.location_name,i.period_label,a.position,a.id`,
+      values,
+    ),
+    getChecklistLocationPathMap(userId),
+  ]);
+  return rows.map((row) => {
+    const mapped = mapRow<{
+      occurrenceDate: string;
+      dueAt: string;
+      templateName: string;
+      category: string;
+      locationId: string;
+      locationName: string;
+      periodLabel: string;
+      status: ChecklistInspection["status"];
+      position: number;
+      groupPath: string;
+      prompt: string;
+      condition: string | null;
+      note: string;
+      updatedAt: string | null;
+    }>(row);
+    return {
+      ...mapped,
+      locationPath: locationPaths.get(mapped.locationId),
+    };
+  });
 }
 
-function followUpWhere(userId: string, filters: ChecklistReportFilters) {
+async function followUpWhere(userId: string | null, filters: ChecklistReportFilters) {
   const values: unknown[] = [userId, filters.from, filters.to];
-  let where = `WHERE i.owner_id=$1 AND i.occurrence_date BETWEEN $2::date AND $3::date`;
+  let where = `WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.occurrence_date BETWEEN $2::date AND $3::date`;
 
   if (filters.status === "aktif") {
     where += ` AND f.status IN ${OPEN_FOLLOW_UP_STATUSES}`;
@@ -297,8 +320,12 @@ function followUpWhere(userId: string, filters: ChecklistReportFilters) {
     where += ` AND f.status=$${values.length}`;
   }
   if (filters.locationId) {
-    values.push(filters.locationId);
-    where += ` AND i.location_id=$${values.length}`;
+    const locationIds =
+      filters.includeSubLocations === false
+        ? [filters.locationId]
+        : await getChecklistLocationScopeIds(userId, filters.locationId);
+    values.push(locationIds);
+    where += ` AND i.location_id=ANY($${values.length}::text[])`;
   }
   if (filters.search?.trim()) {
     values.push(filters.search.trim());
@@ -308,18 +335,24 @@ function followUpWhere(userId: string, filters: ChecklistReportFilters) {
 }
 
 export async function getChecklistFollowUpReportData(
-  userId: string,
+  userId: string | null,
   filters: ChecklistReportFilters,
   request?: PageRequest,
 ) {
-  const { where, values } = followUpWhere(userId, filters);
+  const { where, values } = await followUpWhere(userId, filters);
 
-  const [countRow] = await query<{ total: number }>(
+  const locationPathsPromise = getChecklistLocationPathMap(userId);
+  const countPromise = query<{ total: number }>(
     `SELECT count(*)::integer total
      FROM checklist_follow_ups f JOIN checklist_inspections i ON i.id=f.inspection_id
      ${where}`,
     values,
   );
+  const [countRows, locationPaths] = await Promise.all([
+    countPromise,
+    locationPathsPromise,
+  ]);
+  const countRow = countRows[0];
   const pagination = request ? clampPage(request, countRow.total) : undefined;
   const baseValues = pagination
     ? [
@@ -332,7 +365,7 @@ export async function getChecklistFollowUpReportData(
   const [rows, totalsRow] = await Promise.all([
     query(
       `SELECT f.*,a.prompt,p.name pic_name,p.nik pic_nik,c.name creator_name,
-         i.id source_inspection_id,i.template_name,i.category,i.location_name,i.occurrence_date,
+         i.id source_inspection_id,i.template_name,i.category,i.location_id,i.location_name,i.occurrence_date,
          i.due_at source_due_at,i.status source_status,i.period_label
        FROM checklist_follow_ups f
        JOIN checklist_inspections i ON i.id=f.inspection_id
@@ -373,6 +406,7 @@ export async function getChecklistFollowUpReportData(
       templateName: row.template_name as string,
       category: row.category as string,
       locationName: row.location_name as string,
+      locationPath: locationPaths.get(row.location_id as string),
       occurrenceDate: row.occurrence_date as string,
       dueAt: toPlain(row.source_due_at) as string,
       status: row.source_status as ChecklistInspectionRef["status"],

@@ -4,6 +4,12 @@ import { query } from "./db";
 import { rowToCamel } from "./db-model";
 import { clampPage, type PageRequest } from "./pagination";
 import { generateChecklistInspections } from "./checklist-generate";
+import { buildChecklistLocationOptions } from "./checklist-location-path";
+import {
+  getChecklistLocationPathMap,
+  getChecklistLocationScopeIds,
+  listChecklistLocationOptions,
+} from "./checklist-location-scope";
 import { scheduleOccurrences, shiftDate } from "./checklist-schedule";
 import { todayLocal } from "./time";
 import type { SessionUser } from "./types";
@@ -105,6 +111,8 @@ async function generateForUser(user: SessionUser) {
 export interface ChecklistFilters {
   status?: string;
   locationId?: string;
+  /** Default true: area yang dipilih mencakup seluruh sub-lokasinya. */
+  includeSubLocations?: boolean;
   search?: string;
   from?: string;
   to?: string;
@@ -119,6 +127,8 @@ export async function getChecklistDashboard(
 ) {
   await generateForUser(user);
   const [userId, manager] = roleParams(user);
+  const ownerId = user.role === "atasan" ? user.id : user.supervisorId;
+  const locationPathsPromise = getChecklistLocationPathMap(ownerId);
   const values: unknown[] = [userId, manager];
   let where = `WHERE ${inspectionAccess("i")}`;
 
@@ -132,8 +142,12 @@ export async function getChecklistDashboard(
     where += ` AND i.status=$${values.length}`;
   }
   if (filters.locationId) {
-    values.push(filters.locationId);
-    where += ` AND i.location_id=$${values.length}`;
+    const locationIds =
+      filters.includeSubLocations === false
+        ? [filters.locationId]
+        : await getChecklistLocationScopeIds(ownerId, filters.locationId);
+    values.push(locationIds);
+    where += ` AND i.location_id=ANY($${values.length}::text[])`;
   }
   if (filters.search?.trim()) {
     values.push(filters.search.trim());
@@ -148,10 +162,14 @@ export async function getChecklistDashboard(
     where += ` AND i.occurrence_date<=$${values.length}::date`;
   }
 
-  const [count] = await query<{ total: number }>(
-    `SELECT count(*)::integer total FROM checklist_inspections i ${where}`,
-    values,
-  );
+  const [countRows, locationPaths] = await Promise.all([
+    query<{ total: number }>(
+      `SELECT count(*)::integer total FROM checklist_inspections i ${where}`,
+      values,
+    ),
+    locationPathsPromise,
+  ]);
+  const count = countRows[0];
   const pagination = request ? clampPage(request, count.total) : undefined;
 
   const rows = await query(
@@ -195,6 +213,7 @@ export async function getChecklistDashboard(
       overdue:
         !["selesai", "dilewati"].includes(inspection.status) &&
         new Date(inspection.dueAt).getTime() < now,
+      locationPath: locationPaths.get(inspection.locationId),
     };
   });
 
@@ -431,12 +450,8 @@ export async function getChecklistFollowUpTotals(
 }
 
 export async function getChecklistLocations(ownerId: string | null) {
-  if (!ownerId) return [] as Array<{ id: string; name: string }>;
-  const rows = await query(
-    `SELECT id,name FROM checklist_locations WHERE owner_id=$1 AND active ORDER BY name,id`,
-    [ownerId],
-  );
-  return rows as Array<{ id: string; name: string }>;
+  if (!ownerId) return [];
+  return listChecklistLocationOptions(ownerId);
 }
 
 export async function getChecklistSetup(userId: string): Promise<ChecklistSetup> {  await generateChecklistInspections(userId);
@@ -465,6 +480,12 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
   ]);
 
   const mappedTemplates = templates.map((row) => mapRow<ChecklistTemplate>(row));
+  const mappedLocations = buildChecklistLocationOptions(
+    locations.map((row) => mapRow<ChecklistLocation>(row)),
+  );
+  const locationPaths = new Map(
+    mappedLocations.map((location) => [location.id, location.path]),
+  );
   const templateIds = mappedTemplates.map((template) => template.id);
   let versions: Array<ChecklistTemplateVersion & { itemCount: number }> = [];
   let items: ChecklistTemplateItem[] = [];
@@ -497,6 +518,9 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
       ...schedule,
       templateName: row.template_name as string,
       locationName: row.location_name as string,
+      locationPath:
+        locationPaths.get(schedule.locationId) ??
+        (row.location_name as string),
       assignees: (row.assignees as ChecklistSetupEmployee[]) ?? [],
       nextOccurrence: occurrences[0] ?? null,
     };
@@ -515,7 +539,7 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
   }));
 
   return {
-    locations: locations.map((row) => mapRow<ChecklistLocation>(row)),
+    locations: mappedLocations,
     templates: setupTemplates,
     schedules: mappedSchedules,
     employees: employees.map((row) => mapRow<ChecklistSetupEmployee>(row)),

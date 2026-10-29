@@ -1,3 +1,4 @@
+import { can } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { mutateDb, pushAudit } from "@/lib/store";
@@ -8,8 +9,8 @@ export const runtime = "nodejs";
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
-  if (user.role !== "atasan") {
-    return apiError("Hanya atasan yang dapat mengubah kebijakan.", 403);
+  if (!can(user.role, "policy.manage")) {
+    return apiError("Kamu tidak memiliki izin untuk mengubah kebijakan.", 403);
   }
 
   let raw: unknown;

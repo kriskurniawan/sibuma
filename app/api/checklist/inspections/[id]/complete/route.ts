@@ -1,8 +1,8 @@
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessInspection } from "@/lib/checklist-access";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
+import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
-import { isIssueCondition, type ChecklistCondition } from "@/lib/checklist-types";
 import { query, transaction } from "@/lib/db";
 import { rowToCamel } from "@/lib/db-model";
 import { apiError, apiOk } from "@/lib/http";
@@ -37,18 +37,23 @@ export async function POST(
         [id],
         connection,
       );
+      const conditions = await loadChecklistConditionMap(connection);
       for (const answer of answers) {
         const prompt = answer.prompt as string;
         const condition = answer.condition as string | null;
         if (answer.required && !condition) {
           throw new Error(`Item "${prompt}" belum diisi.`);
         }
+        const meta = condition ? conditions.get(condition) : null;
+        if (condition && !meta) {
+          throw new Error(`Status checklist item "${prompt}" tidak dikenal.`);
+        }
         const note = ((answer.note as string) ?? "").trim();
-        if (condition === "tidak_berlaku" && note.length < 3) {
-          throw new Error(`Tuliskan alasan item "${prompt}" tidak berlaku.`);
+        if (meta?.requiresNote && note.length < 3) {
+          throw new Error(`Tuliskan catatan untuk item "${prompt}".`);
         }
         if (
-          isIssueCondition(condition as ChecklistCondition | null) &&
+          meta?.isIssue &&
           (answer.require_note_on_issue as boolean) &&
           note.length < 3
         ) {
@@ -56,8 +61,7 @@ export async function POST(
         }
         const needsPhoto =
           answer.photo_policy === "wajib" ||
-          (answer.photo_policy === "wajib_saat_masalah" &&
-            isIssueCondition(condition as ChecklistCondition | null));
+          (answer.photo_policy === "wajib_saat_masalah" && meta?.isIssue);
         if (needsPhoto && Number(answer.photo_count) === 0) {
           throw new Error(`Foto wajib dilampirkan untuk item "${prompt}".`);
         }

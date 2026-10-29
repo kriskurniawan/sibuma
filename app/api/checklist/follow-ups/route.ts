@@ -6,7 +6,6 @@ import {
 } from "@/lib/checklist-access";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
-import { isIssueCondition, type ChecklistCondition } from "@/lib/checklist-types";
 import { checklistFollowUpSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
@@ -39,7 +38,14 @@ export async function POST(request: Request) {
           connection,
         );
         if (!answer) throw new Error("Item checklist tidak ditemukan.");
-        if (!isIssueCondition(answer.condition as ChecklistCondition | null)) {
+        const [condition] = answer.condition
+          ? await query(
+              `SELECT is_issue FROM checklist_conditions WHERE id=$1`,
+              [answer.condition],
+              connection,
+            )
+          : [];
+        if (!condition?.is_issue) {
           throw new Error("Tindak lanjut hanya dibuat dari item yang bermasalah.");
         }
         const [existing] = await query(

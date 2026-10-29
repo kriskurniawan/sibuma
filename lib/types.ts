@@ -1,4 +1,4 @@
-export type EmployeeRole = "pekerja" | "atasan";
+export type EmployeeRole = "pekerja" | "atasan" | "super_admin";
 
 export interface Division {
   id: string;
@@ -16,6 +16,7 @@ export interface Employee {
   name: string;
   phone: string;
   email: string | null;
+  avatarKey?: string | null;
   role: EmployeeRole;
   supervisorId: string | null;
   divisionId: string | null;
@@ -129,7 +130,7 @@ export interface OtpRecord {
   createdAt: string;
   expiresAt: string;
   attempts: number;
-  status: "menunggu" | "terkirim" | "demo" | "gagal" | "terpakai";
+  status: "menunggu" | "terkirim" | "gagal" | "terpakai";
   identifier?: string | null;
   channel?: "whatsapp" | "email" | null;
   destination?: string | null;
@@ -139,7 +140,7 @@ export interface OtpRecord {
   lockedUntil: string | null;
 }
 
-export type NotificationStatus = "demo" | "terkirim" | "gagal";
+export type NotificationStatus = "terkirim" | "gagal";
 
 export interface NotificationLog {
   id: string;
@@ -208,6 +209,7 @@ export interface SessionUser {
   nik: string;
   phone: string;
   email: string | null;
+  avatarKey?: string | null;
   role: EmployeeRole;
   supervisorId: string | null;
   supervisorName: string | null;

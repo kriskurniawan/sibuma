@@ -99,12 +99,9 @@ export function toSessionUser(
     nik: employee.nik,
     phone: employee.phone,
     email: employee.email ?? null,
+    avatarKey: employee.avatarKey ?? null,
     role: employee.role,
     supervisorId: employee.supervisorId,
     supervisorName: supervisor?.name ?? null,
   };
-}
-
-export function isDemoMode() {
-  return process.env.DEMO_MODE === "true";
 }

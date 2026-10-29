@@ -1,8 +1,8 @@
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessInspection, loadAnswer } from "@/lib/checklist-access";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
+import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
-import { isIssueCondition } from "@/lib/checklist-types";
 import { checklistAnswerSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { rowToCamel } from "@/lib/db-model";
@@ -62,11 +62,25 @@ export async function PATCH(
       }
 
       const note = parsed.data.note;
-      if (parsed.data.condition === "tidak_berlaku" && note.length < 3) {
-        throw new Error("Tuliskan alasan mengapa item ini tidak berlaku.");
+      const conditions = await loadChecklistConditionMap(connection);
+      const selected = parsed.data.condition
+        ? conditions.get(parsed.data.condition)
+        : null;
+      if (parsed.data.condition && !selected) {
+        throw new Error("Status checklist tidak dikenal.");
       }
       if (
-        isIssueCondition(parsed.data.condition) &&
+        selected &&
+        !selected.active &&
+        parsed.data.condition !== current.condition
+      ) {
+        throw new Error("Status checklist ini sudah dinonaktifkan.");
+      }
+      if (selected?.requiresNote && note.length < 3) {
+        throw new Error("Tuliskan catatan untuk status checklist ini.");
+      }
+      if (
+        selected?.isIssue &&
         current.requireNoteOnIssue &&
         note.length < 3
       ) {

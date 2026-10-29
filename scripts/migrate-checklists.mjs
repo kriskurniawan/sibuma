@@ -39,6 +39,12 @@ const migrations = [
     label: "grup item checklist",
     tables: ["checklist_template_items", "checklist_answers"],
   },
+  {
+    id: "008_checklist_conditions",
+    file: "../db/migrations/008_checklist_conditions.sql",
+    label: "status checklist",
+    tables: ["checklist_conditions", "checklist_answers"],
+  },
 ];
 
 try {

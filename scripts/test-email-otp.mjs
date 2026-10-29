@@ -8,7 +8,7 @@ import { normalizeLoginIdentifier } from "../lib/login-identity.ts";
 
 // Providers are intercepted here, never via a production-configurable test URL.
 const originalFetch = globalThis.fetch;
-const names = ["DEMO_MODE", "CHATERY_API_URL", "CHATERY_API_KEY", "CHATERY_SESSION_ID", "RESEND_API_KEY", "RESEND_FROM_EMAIL"];
+const names = ["CHATERY_API_URL", "CHATERY_API_KEY", "CHATERY_SESSION_ID", "RESEND_API_KEY", "RESEND_FROM_EMAIL"];
 const env = Object.fromEntries(names.map(name => [name, process.env[name]]));
 const prefix = `otp_test_${randomUUID()}`;
 const owner = `${prefix}_owner`, division = `${prefix}_division`, worker = `${prefix}_worker`, other = `${prefix}_other`;
@@ -34,7 +34,7 @@ globalThis.fetch = async (url, options) => {
   if (mail === "throw") throw new Error("simulated timeout");
   return Response.json(mail === "ok" ? { id: "email-mock" } : { message: "failed" }, { status: mail === "ok" ? 200 : 503 });
 };
-Object.assign(process.env, { DEMO_MODE: "false", CHATERY_API_URL: "https://chatery.example.test", CHATERY_API_KEY: "mock-only", CHATERY_SESSION_ID: "mock-only", RESEND_API_KEY: "mock-only", RESEND_FROM_EMAIL: "Lembur <noreply@example.test>" });
+Object.assign(process.env, { CHATERY_API_URL: "https://chatery.example.test", CHATERY_API_KEY: "mock-only", CHATERY_SESSION_ID: "mock-only", RESEND_API_KEY: "mock-only", RESEND_FROM_EMAIL: "Lembur <noreply@example.test>" });
 try {
   const now = new Date().toISOString();
   await transaction(async connection => {
@@ -54,7 +54,7 @@ try {
   }
   passed.push("Unknown/inactive/blank-NIK/inactive-supervisor accounts blocked");
   let result = await requestOtp(` ${email.toUpperCase()} `);
-  assert.equal(result.status, 200); assert.equal(result.channel, "email"); assert.equal(result.devCode, undefined);
+  assert.equal(result.status, 200); assert.equal(result.channel, "email"); assert.equal("devCode" in result, false);
   assert.equal(calls.at(-1).body.to[0], email);
   assert.equal((await requestOtp(phone)).status, 429);
   assert.equal((await verifyOtp(phone, result.challengeId, latestCode)).status, 400);
@@ -105,10 +105,6 @@ try {
   const simultaneous = await Promise.all([verify(result, code), verify(result, code)]);
   assert.equal(simultaneous.filter(item => item.status === 200).length, 1);
   passed.push("Concurrent WA/email requests issue one challenge; concurrent verification succeeds only once");
-  await fresh(); process.env.DEMO_MODE = "true"; calls.length = 0;
-  result = await requestOtp(email); assert(result.devCode); assert.equal(calls.length, 0);
-  assert.equal((await verify(result, result.devCode)).status, 200);
-  passed.push("Explicit demo makes no external calls and allows demo OTP only while enabled");
 } finally {
   globalThis.fetch = originalFetch;
   for (const name of names) env[name] === undefined ? delete process.env[name] : process.env[name] = env[name];

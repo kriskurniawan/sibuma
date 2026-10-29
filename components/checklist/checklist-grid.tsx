@@ -107,14 +107,14 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
   },
   {
     id: "location",
-    accessorFn: (row) => row.inspection.locationName,
+    accessorFn: (row) => row.locationPath ?? row.inspection.locationName,
     header: "Lokasi & tanggal",
     meta: { headerClassName: "whitespace-nowrap", cellClassName: "max-w-56" },
     cell: ({ row }) => (
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="flex items-center gap-1 truncate text-sm text-foreground">
           <MapPin className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-          {row.original.inspection.locationName}
+          {row.original.locationPath ?? row.original.inspection.locationName}
         </span>
         <span className="text-xs text-muted-foreground">
           {formatDateHuman(occurrenceIso(row.original.inspection.occurrenceDate), "d MMM yyyy")}
@@ -277,7 +277,7 @@ export function ChecklistGrid({
                   <div>
                     <p className="text-xs text-muted-foreground">Lokasi</p>
                     <p className="mt-0.5 truncate text-sm font-medium text-foreground">
-                      {row.inspection.locationName}
+                      {row.locationPath ?? row.inspection.locationName}
                     </p>
                   </div>
                   <div>

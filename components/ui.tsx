@@ -4,7 +4,11 @@ import { ArrowUpRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge as ReuiBadge } from "@/components/reui/badge";
 import { IconTile } from "@/components/reui/icon-tile";
-import { Avatar as ShadcnAvatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Avatar as ShadcnAvatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import {
   Card,
   CardAction,
@@ -25,6 +29,7 @@ import {
   ATTENDANCE_STATUS_LABEL,
   SPKL_STATUS_LABEL,
 } from "@/lib/constants";
+import { avatarUrl } from "@/lib/avatar-url";
 import type { AttendanceStatus, Employee, SpklStatus } from "@/lib/types";
 import { avatarColor, cn, initials } from "@/lib/utils";
 
@@ -41,12 +46,14 @@ const AVATAR_SIZES = {
 export function Avatar({
   name,
   seed,
+  src,
   size = "md",
   className,
   ring = false,
 }: {
   name: string;
   seed?: string;
+  src?: string;
   size?: keyof typeof AVATAR_SIZES;
   className?: string;
   ring?: boolean;
@@ -57,6 +64,7 @@ export function Avatar({
       title={name}
       className={cn(ring && "ring-2 ring-card", className)}
     >
+      {src ? <AvatarImage src={src} alt="" /> : null}
       <AvatarFallback
         className={cn("font-semibold", avatarColor(seed ?? name))}
       >
@@ -88,6 +96,7 @@ export function AvatarStack({
           <Avatar
             name={employee.name}
             seed={employee.id}
+            src={avatarUrl(employee.id, employee.avatarKey)}
             size={size}
             className="ring-0"
           />

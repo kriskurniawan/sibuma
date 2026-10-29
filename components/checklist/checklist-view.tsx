@@ -24,6 +24,7 @@ import {
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import type { PageRequest } from "@/lib/pagination";
+import type { ChecklistLocationOption } from "@/lib/checklist-location-path";
 import type {
   ChecklistInspectionRow,
   ChecklistTotals,
@@ -42,8 +43,13 @@ export function ChecklistView({
   total: number;
   pagination: PageRequest;
   totals: ChecklistTotals;
-  filters: { status: string; locationId: string; search: string };
-  locations: Array<{ id: string; name: string }>;
+  filters: {
+    status: string;
+    locationId: string;
+    search: string;
+    includeSubLocations: boolean;
+  };
+  locations: ChecklistLocationOption[];
   canManage: boolean;
 }) {
   return (

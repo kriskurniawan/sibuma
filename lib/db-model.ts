@@ -1,7 +1,7 @@
 import type { Database } from "./types";
 
 export const models = {
-  employees: { table: "employees", keys: ["id"], fields: "id nik name phone email role supervisorId divisionId active createdAt updatedAt" },
+  employees: { table: "employees", keys: ["id"], fields: "id nik name phone email avatarKey role supervisorId divisionId active createdAt updatedAt" },
   divisions: { table: "divisions", keys: ["id"], fields: "id name description supervisorId active createdAt updatedAt" },
   spkls: { table: "spkls", keys: ["id"], fields: "id number title description date startAt endAt radiusMeters createdBy divisionId requiresDocumentation canceledAt cancelReason createdAt updatedAt", locations: { location: ["latitude", "longitude", "address"] } },
   spklWorkers: { table: "spkl_workers", keys: ["spklId", "employeeId"], fields: "spklId employeeId assignedAt" },

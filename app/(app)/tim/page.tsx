@@ -1,8 +1,10 @@
 import { redirect } from "next/navigation";
+import { SupervisorsView } from "@/components/supervisors/supervisors-view";
 import { TeamView } from "@/components/team/team-view";
 import { getCurrentUser } from "@/lib/auth";
 import { getDivisions, getTeamOverview, getTeamTotals } from "@/lib/queries";
 import { pageRequest } from "@/lib/pagination";
+import { getSupervisors } from "@/lib/supervisor-queries";
 
 export const metadata = { title: "Tim" };
 
@@ -11,6 +13,9 @@ export default async function TeamPage({ searchParams }: {
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role === "super_admin") {
+    return <SupervisorsView rows={await getSupervisors()} />;
+  }
   if (user.role !== "atasan") redirect("/");
   const params = await searchParams;
   const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;

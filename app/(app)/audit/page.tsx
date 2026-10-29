@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { AuditView } from "@/components/audit/audit-view";
-import { getCurrentUser, isDemoMode } from "@/lib/auth";
-import { getAuditLogs, getNotifications } from "@/lib/queries";
+import { isSuperAdmin } from "@/lib/access";
+import { getCurrentUser } from "@/lib/auth";
+import { getAllAuditLogs, getAuditLogs, getNotifications } from "@/lib/queries";
 
 export const metadata = {
   title: "Log audit",
@@ -10,18 +11,16 @@ export const metadata = {
 export default async function AuditPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "atasan") redirect("/");
+  if (user.role !== "atasan" && !isSuperAdmin(user)) redirect("/");
 
   const [logs, notifications] = await Promise.all([
-    getAuditLogs(user.id, 200),
-    getNotifications(user.id, 100),
+    isSuperAdmin(user) ? getAllAuditLogs(200) : getAuditLogs(user.id, 200),
+    isSuperAdmin(user)
+      ? Promise.resolve([])
+      : getNotifications(user.id, 100),
   ]);
 
   return (
-    <AuditView
-      logs={logs}
-      notifications={notifications}
-      demoMode={isDemoMode()}
-    />
+    <AuditView logs={logs} notifications={notifications} />
   );
 }

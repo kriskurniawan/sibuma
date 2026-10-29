@@ -100,6 +100,41 @@ export const employeeUpdateSchema = z.object({
   active: z.boolean().optional(),
 });
 
+/** Akun atasan dibuat super admin; tidak memiliki supervisor maupun divisi. */
+export const supervisorInputSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, "Nama minimal 3 karakter.")
+    .max(100, "Nama maksimal 100 karakter."),
+  nik: z
+    .string()
+    .trim()
+    .min(3, "NIK minimal 3 karakter.")
+    .max(40, "NIK maksimal 40 karakter."),
+  phone: z.string().trim().min(8, "Nomor HP wajib diisi."),
+  email: z.string().trim().toLowerCase().max(254).email("Format email tidak valid."),
+});
+
+export const supervisorUpdateSchema = z
+  .object({
+    name: z.string().trim().min(3).max(100).optional(),
+    nik: z.string().trim().min(3).max(40).optional(),
+    phone: z.string().trim().min(8).optional(),
+    email: z.string().trim().toLowerCase().max(254).email("Format email tidak valid.").optional(),
+  })
+  .refine((value) => Object.values(value).some((item) => item !== undefined), {
+    message: "Tidak ada perubahan yang dikirim.",
+  });
+
+export const profileUpdateSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(3, "Nama minimal 3 karakter.")
+    .max(100, "Nama maksimal 100 karakter."),
+});
+
 export const divisionInputSchema = z.object({
   name: z
     .string()

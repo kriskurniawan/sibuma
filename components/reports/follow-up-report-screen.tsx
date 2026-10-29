@@ -36,6 +36,7 @@ import {
 import { FollowUpReportGrid } from "@/components/reports/follow-up-report-grid";
 import { ReportDateFilters } from "@/components/reports/report-date-filters";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
+import { isSuperAdmin } from "@/lib/access";
 import {
   getChecklistFollowUpReportData,
   getChecklistReportOptions,
@@ -64,6 +65,11 @@ const STATUS_ITEMS: Record<string, string> = {
   dibatalkan: "Dibatalkan",
 };
 
+const SCOPE_ITEMS: Record<string, string> = {
+  "1": "Termasuk sub-lokasi",
+  "0": "Hanya area ini",
+};
+
 export async function FollowUpReportScreen({
   user,
   params,
@@ -82,24 +88,27 @@ export async function FollowUpReportScreen({
     from,
     to,
     locationId: first(params.locationId) || undefined,
+    includeSubLocations: first(params.includeSub) !== "0",
     status: first(params.status) || undefined,
     search: first(params.search)?.trim() || undefined,
   };
 
   const printing = first(params.print) === "1";
+  const ownerId = isSuperAdmin(user) ? null : user.id;
   const [data, options] = await Promise.all([
     getChecklistFollowUpReportData(
-      user.id,
+      ownerId,
       filters,
       printing
         ? undefined
         : pageRequest(first(params.page), first(params.size)),
     ),
-    getChecklistReportOptions(user.id),
+    getChecklistReportOptions(ownerId),
   ]);
 
   const exportParams = new URLSearchParams({ from, to, kind: "tindak-lanjut" });
   if (filters.locationId) exportParams.set("locationId", filters.locationId);
+  exportParams.set("includeSub", filters.includeSubLocations === false ? "0" : "1");
   if (filters.status) exportParams.set("status", filters.status);
   if (filters.search) exportParams.set("search", filters.search);
 
@@ -111,7 +120,7 @@ export async function FollowUpReportScreen({
   const locationItems: Record<string, string> = {
     "": "Semua area",
     ...Object.fromEntries(
-      options.locations.map((location) => [location.id, location.name]),
+      options.locations.map((location) => [location.id, location.path]),
     ),
   };
 
@@ -151,7 +160,7 @@ export async function FollowUpReportScreen({
           Rekap tindak lanjut {periodLabel}
         </h1>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
-          Atasan: {user.name} · Dicetak{" "}
+          Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
           {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")} WIB
         </p>
       </div>
@@ -186,7 +195,7 @@ export async function FollowUpReportScreen({
             <input type="hidden" name="tab" value="tindak-lanjut" />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
               <ReportDateFilters key={`${from}-${to}`} from={from} to={to} />
-              <div className="flex flex-col gap-2 xl:col-span-3">
+              <div className="flex flex-col gap-2 xl:col-span-2">
                 <Label htmlFor="follow-up-location">Area</Label>
                 <Select
                   name="locationId"
@@ -200,9 +209,27 @@ export async function FollowUpReportScreen({
                     <SelectItem value="">Semua area</SelectItem>
                     {options.locations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
-                        {location.name}
+                        {location.path}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2 xl:col-span-2">
+                <Label htmlFor="follow-up-scope">Cakupan area</Label>
+                <Select
+                  name="includeSub"
+                  defaultValue={
+                    filters.includeSubLocations === false ? "0" : "1"
+                  }
+                  items={SCOPE_ITEMS}
+                >
+                  <SelectTrigger id="follow-up-scope" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Termasuk sub-lokasi</SelectItem>
+                    <SelectItem value="0">Hanya area ini</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -228,7 +255,7 @@ export async function FollowUpReportScreen({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-3">
+              <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-2">
                 <Label htmlFor="follow-up-search">Cari</Label>
                 <InputGroup>
                   <InputGroupAddon>

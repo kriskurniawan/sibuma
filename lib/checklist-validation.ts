@@ -235,9 +235,7 @@ export const checklistScheduleUpdateSchema = checklistScheduleSchema
   });
 
 export const checklistAnswerSchema = z.object({
-  condition: z
-    .enum(["baik", "perlu_perhatian", "tidak_baik", "tidak_berlaku"])
-    .nullable(),
+  condition: z.string().trim().min(1).max(64).nullable(),
   note: z
     .string()
     .trim()
@@ -306,6 +304,41 @@ export const checklistFollowUpUpdateSchema = z.object({
     .optional()
     .default(""),
   dueDate: dateOnly.nullish(),
+});
+
+export const checklistConditionSchema = z.object({
+  label: z
+    .string()
+    .trim()
+    .min(2, "Nama status minimal 2 karakter.")
+    .max(40, "Nama status maksimal 40 karakter."),
+  tone: z
+    .enum(["success", "warning", "danger", "neutral"])
+    .optional()
+    .default("neutral"),
+  isIssue: z.boolean().optional().default(false),
+  requiresNote: z.boolean().optional().default(false),
+  active: z.boolean().optional().default(true),
+});
+
+export const checklistConditionUpdateSchema = z.object({
+  label: z
+    .string()
+    .trim()
+    .min(2, "Nama status minimal 2 karakter.")
+    .max(40, "Nama status maksimal 40 karakter.")
+    .optional(),
+  tone: z.enum(["success", "warning", "danger", "neutral"]).optional(),
+  isIssue: z.boolean().optional(),
+  requiresNote: z.boolean().optional(),
+  active: z.boolean().optional(),
+});
+
+export const checklistConditionOrderSchema = z.object({
+  ids: z
+    .array(id)
+    .min(1, "Tidak ada status yang diurutkan.")
+    .max(100, "Terlalu banyak status."),
 });
 
 export const checklistQrSchema = z

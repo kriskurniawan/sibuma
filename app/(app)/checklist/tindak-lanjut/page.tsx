@@ -15,6 +15,7 @@ export default async function ChecklistFollowUpPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  if (user.role === "super_admin") redirect("/");
 
   const params = await searchParams;
   const first = (value: string | string[] | undefined) =>

@@ -1,6 +1,0 @@
-{
-  "migrasi": { "key": "seed/dok-migrasi.jpg", "bytes": 275089 },
-  "laptop": { "key": "seed/dok-laptop.jpg", "bytes": 122768 },
-  "gudang": { "key": "seed/dok-gudang.jpg", "bytes": 319069 },
-  "paket": { "key": "seed/dok-paket.jpg", "bytes": 112472 }
-}

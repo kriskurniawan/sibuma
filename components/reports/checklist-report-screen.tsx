@@ -41,6 +41,7 @@ import {
 import { ChecklistReportGrid } from "@/components/reports/checklist-report-grid";
 import { ReportDateFilters } from "@/components/reports/report-date-filters";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
+import { isSuperAdmin } from "@/lib/access";
 import {
   getChecklistReportData,
   getChecklistReportOptions,
@@ -68,6 +69,11 @@ const STATUS_ITEMS: Record<string, string> = {
   dilewati: "Dilewati",
 };
 
+const SCOPE_ITEMS: Record<string, string> = {
+  "1": "Termasuk sub-lokasi",
+  "0": "Hanya area ini",
+};
+
 export async function ChecklistReportScreen({
   user,
   params,
@@ -86,25 +92,28 @@ export async function ChecklistReportScreen({
     from,
     to,
     locationId: first(params.locationId) || undefined,
+    includeSubLocations: first(params.includeSub) !== "0",
     templateId: first(params.templateId) || undefined,
     status: first(params.status) || undefined,
     search: first(params.search)?.trim() || undefined,
   };
 
   const printing = first(params.print) === "1";
+  const ownerId = isSuperAdmin(user) ? null : user.id;
   const [data, options] = await Promise.all([
     getChecklistReportData(
-      user.id,
+      ownerId,
       filters,
       printing
         ? undefined
         : pageRequest(first(params.page), first(params.size)),
     ),
-    getChecklistReportOptions(user.id),
+    getChecklistReportOptions(ownerId),
   ]);
 
   const exportParams = new URLSearchParams({ from, to });
   if (filters.locationId) exportParams.set("locationId", filters.locationId);
+  exportParams.set("includeSub", filters.includeSubLocations === false ? "0" : "1");
   if (filters.templateId) exportParams.set("templateId", filters.templateId);
   if (filters.status) exportParams.set("status", filters.status);
   if (filters.search) exportParams.set("search", filters.search);
@@ -117,7 +126,7 @@ export async function ChecklistReportScreen({
   const locationItems: Record<string, string> = {
     "": "Semua area",
     ...Object.fromEntries(
-      options.locations.map((location) => [location.id, location.name]),
+      options.locations.map((location) => [location.id, location.path]),
     ),
   };
   const templateItems: Record<string, string> = {
@@ -176,7 +185,7 @@ export async function ChecklistReportScreen({
           Rekap checklist {periodLabel}
         </h1>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
-          Atasan: {user.name} · Dicetak{" "}
+          Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
           {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")} WIB
         </p>
       </div>
@@ -226,9 +235,27 @@ export async function ChecklistReportScreen({
                     <SelectItem value="">Semua area</SelectItem>
                     {options.locations.map((location) => (
                       <SelectItem key={location.id} value={location.id}>
-                        {location.name}
+                        {location.path}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2 xl:col-span-2">
+                <Label htmlFor="checklist-scope">Cakupan area</Label>
+                <Select
+                  name="includeSub"
+                  defaultValue={
+                    filters.includeSubLocations === false ? "0" : "1"
+                  }
+                  items={SCOPE_ITEMS}
+                >
+                  <SelectTrigger id="checklist-scope" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Termasuk sub-lokasi</SelectItem>
+                    <SelectItem value="0">Hanya area ini</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

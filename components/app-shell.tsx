@@ -52,6 +52,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { avatarUrl } from "@/lib/avatar-url";
 import { ROLE_LABEL } from "@/lib/constants";
 import { formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
@@ -69,6 +70,27 @@ function navigationFor(role: SessionUser["role"]): {
   manage: NavItem[];
   mobile: NavItem[];
 } {
+  if (role === "super_admin") {
+    return {
+      main: [
+        { href: "/", label: "Beranda", icon: Home, exact: true },
+        { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
+      ],
+      manage: [
+        { href: "/tim", label: "Akun atasan", icon: UsersRound },
+        { href: "/audit", label: "Log audit", icon: ScrollText },
+        { href: "/pengaturan", label: "Pengaturan", icon: SlidersHorizontal },
+      ],
+      mobile: [
+        { href: "/", label: "Beranda", icon: Home, exact: true },
+        { href: "/tim", label: "Atasan", icon: UsersRound },
+        { href: "/laporan", label: "Laporan", icon: BarChart3 },
+        { href: "/audit", label: "Audit", icon: ScrollText },
+        { href: "/profil", label: "Profil", icon: UserRound },
+      ],
+    };
+  }
+
   if (role === "atasan") {
     return {
       main: [
@@ -83,7 +105,6 @@ function navigationFor(role: SessionUser["role"]): {
         { href: "/checklist/jadwal", label: "Jadwal checklist", icon: CalendarClock },
         { href: "/checklist/qr", label: "QR area", icon: QrCode },
         { href: "/audit", label: "Log audit", icon: ScrollText },
-        { href: "/pengaturan", label: "Pengaturan", icon: SlidersHorizontal },
       ],
       mobile: [
         { href: "/", label: "Beranda", icon: Home, exact: true },
@@ -277,7 +298,12 @@ export function AppShell({
                     />
                   }
                 >
-                  <Avatar name={user.name} seed={user.id} size="md" />
+                  <Avatar
+                    name={user.name}
+                    seed={user.id}
+                    src={avatarUrl(user.id, user.avatarKey)}
+                    size="md"
+                  />
                   <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
                     <span className="truncate text-sm font-medium text-sidebar-foreground">
                       {user.name}
@@ -351,7 +377,12 @@ export function AppShell({
               nativeButton={false}
               render={<Link href="/profil" />}
             >
-              <Avatar name={user.name} seed={user.id} size="xs" />
+              <Avatar
+                name={user.name}
+                seed={user.id}
+                src={avatarUrl(user.id, user.avatarKey)}
+                size="xs"
+              />
               <span className="max-w-36 truncate">{firstName}</span>
             </Button>
             <Link
@@ -359,7 +390,12 @@ export function AppShell({
               aria-label="Profil saya"
               className="rounded-full sm:hidden"
             >
-              <Avatar name={user.name} seed={user.id} size="sm" />
+              <Avatar
+                name={user.name}
+                seed={user.id}
+                src={avatarUrl(user.id, user.avatarKey)}
+                size="sm"
+              />
             </Link>
           </div>
         </header>

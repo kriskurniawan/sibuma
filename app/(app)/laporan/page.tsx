@@ -18,6 +18,7 @@ import { ReportDateFilters } from "@/components/reports/report-date-filters";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
 import { ChecklistReportScreen } from "@/components/reports/checklist-report-screen";
 import { FollowUpReportScreen } from "@/components/reports/follow-up-report-screen";
+import { isSuperAdmin } from "@/lib/access";
 import {
   Frame,
   FrameDescription,
@@ -79,7 +80,7 @@ export default async function ReportPage({
 }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "atasan") redirect("/riwayat");
+  if (user.role !== "atasan" && !isSuperAdmin(user)) redirect("/riwayat");
 
   const params = await searchParams;
   const tab = first(params.tab);
@@ -106,9 +107,10 @@ export default async function ReportPage({
   };
 
   const printing = first(params.print) === "1";
+  const ownerId = isSuperAdmin(user) ? null : user.id;
   const [data, options] = await Promise.all([
-    getReportData(user.id, filters, printing ? undefined : pageRequest(first(params.page), first(params.size))),
-    getReportOptions(user.id),
+    getReportData(ownerId, filters, printing ? undefined : pageRequest(first(params.page), first(params.size))),
+    getReportOptions(ownerId),
   ]);
 
   const exportParams = new URLSearchParams({ from, to });
@@ -146,9 +148,13 @@ export default async function ReportPage({
     <div className="flex flex-col gap-6">
       <div className="no-print">
         <PageHeader
-          eyebrow="Rekap tim"
+          eyebrow={isSuperAdmin(user) ? "Rekap organisasi" : "Rekap tim"}
           title="Laporan lembur."
-          description="Tinjau kehadiran, durasi, dokumentasi, dan koreksi anggota tim. Unduh CSV untuk penggajian atau cetak PDF untuk arsip."
+          description={
+            isSuperAdmin(user)
+              ? "Tinjau kehadiran, durasi, dokumentasi, dan koreksi seluruh tim. Unduh CSV untuk penggajian atau cetak PDF untuk arsip."
+              : "Tinjau kehadiran, durasi, dokumentasi, dan koreksi anggota tim. Unduh CSV untuk penggajian atau cetak PDF untuk arsip."
+          }
           action={
             <div className="flex flex-wrap gap-2">
               <Button
@@ -178,7 +184,7 @@ export default async function ReportPage({
           Rekap lembur {periodLabel}
         </h1>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
-          Atasan: {user.name} · Dicetak{" "}
+          Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
           {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")} WIB
         </p>
       </div>

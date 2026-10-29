@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { query, transaction } from "./db";
 import { rowToCamel } from "./db-model";
 import { insertChecklistAudit } from "./checklist-audit";
+import { getChecklistLocationScope } from "./checklist-location-scope";
 import type {
   ChecklistLocation,
   ChecklistPublicArea,
@@ -100,24 +101,6 @@ export async function resolveChecklistQrToken(
   };
 }
 
-export async function getChecklistLocationScope(
-  ownerId: string,
-  rootId?: string | null,
-) {
-  const rows = await query<{ id: string }>(
-    `WITH RECURSIVE scope AS (
-       SELECT id FROM checklist_locations
-       WHERE owner_id=$1 AND ($2::text IS NULL OR id=$2)
-       UNION ALL
-       SELECT l.id FROM checklist_locations l JOIN scope s ON l.parent_id=s.id
-       WHERE l.owner_id=$1
-     )
-     SELECT id FROM scope`,
-    [ownerId, rootId ?? null],
-  );
-  return rows.map((row) => row.id);
-}
-
 function publicLocationSelect(scopeFilter: string) {
   return `SELECT l.id,l.name,l.public_description,l.parent_id,p.name parent_name,
        li.inspection_id,li.status,li.occurrence_date,li.due_at,li.completed_at,
@@ -136,7 +119,7 @@ function publicLocationSelect(scopeFilter: string) {
          (SELECT count(*)::integer FROM checklist_answers a
            WHERE a.inspection_id=i.id) total_items,
          (SELECT count(*)::integer FROM checklist_answers a
-           WHERE a.inspection_id=i.id AND a.condition IN ('perlu_perhatian','tidak_baik')) issue_count,
+           WHERE a.inspection_id=i.id AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count,
          (SELECT count(*)::integer FROM checklist_follow_ups f
            WHERE f.inspection_id=i.id AND f.status NOT IN ('selesai','dibatalkan')) open_follow_ups
        FROM checklist_inspections i
@@ -163,7 +146,7 @@ async function getChecklistPublicInspection(
        (SELECT count(*)::integer FROM checklist_answers a
          WHERE a.inspection_id=i.id) total_items,
        (SELECT count(*)::integer FROM checklist_answers a
-         WHERE a.inspection_id=i.id AND a.condition IN ('perlu_perhatian','tidak_baik')) issue_count,
+         WHERE a.inspection_id=i.id AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count,
        (SELECT count(*)::integer FROM checklist_follow_ups f
          WHERE f.inspection_id=i.id AND f.status NOT IN ('selesai','dibatalkan')) open_follow_ups
      FROM checklist_inspections i

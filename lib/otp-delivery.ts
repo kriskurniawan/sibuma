@@ -4,7 +4,7 @@ import type { Employee } from "./types";
 import type { OtpChannel } from "./login-identity";
 
 export interface OtpDelivery {
-  status: "terkirim" | "gagal" | "demo";
+  status: "terkirim" | "gagal";
   channel: OtpChannel;
   destination: string;
   fallback: boolean;
@@ -31,10 +31,8 @@ async function sendEmail(email: string, code: string, challengeId: string): Prom
     return false;
   }
 }
-export async function deliverOtp(employee: Employee, channel: OtpChannel, code: string, challengeId: string, demo: boolean): Promise<OtpDelivery> {
+export async function deliverOtp(employee: Employee, channel: OtpChannel, code: string, challengeId: string): Promise<OtpDelivery> {
   const destination = channel === "email" ? employee.email! : employee.phone;
-  // Demo never contacts a provider. OTP exposure is allowed only in explicit demo mode.
-  if (demo) return { status: "demo", channel, destination, fallback: false };
   if (channel === "whatsapp") {
     const wa = await sendOtpWhatsApp(employee.phone, code);
     if (wa.status === "terkirim") return { status: "terkirim", channel, destination, fallback: false };

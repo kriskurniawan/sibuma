@@ -43,11 +43,21 @@ Atas persetujuan pengguna setelah migrasi, API/S3, cleanup lokal, dan browser te
 
 Penghapusan memakai satu transaksi tanpa `CASCADE`, dengan lock singkat dan perbandingan SHA-256 seluruh baris relasional sebelum/sesudah. Semua ID sumber diperiksa sebelum snapshot dihapus. Data aktif tidak berubah; `schema_migrations` mencatat hasil di `002_drop_legacy`.
 
-**Backup JSON historis tidak lagi tersedia di database.** Pemulihan ke depan bergantung pada backup/PITR Neon yang dikonfigurasi terpisah; jangan menganggap snapshot lama masih ada. Skrip verifikasi mendukung status legacy yang telah dipensiunkan, sedangkan skrip restorasi/cleanup lama dicegah membuat ulang tabel.
+**Backup JSON historis tidak lagi tersedia di database.** Pemulihan ke depan bergantung pada backup/PITR Neon yang dikonfigurasi terpisah; jangan menganggap snapshot lama masih ada. Skrip verifikasi mendukung status legacy yang telah dipensiunkan. Skrip restorasi/cleanup lama sudah dihapus agar tidak membuat ulang tabel.
 
 Jumlah saat penghapusan: 7 akun, 2 divisi, 7 SPKL, 18 penugasan, 18 absensi, 5 dokumentasi, 1 kebijakan, 3 OTP, 14 notifikasi, 148 audit. Tambahan 6 absensi/audit sejak tabel awal berasal dari finalisasi otomatis SPKL yang berakhir; seluruh baris pada saat penghapusan tetap identik.
 
-Sesudah penghapusan, `db:test`, `db:verify`, dan typecheck kembali lulus. Uji API/S3 tidak mengubah baris asli dan semua fixture dibersihkan. `db:cleanup-local` diulang sebagai no-op, sekaligus memastikan ketiga tabel tetap tidak ada dan tidak dibuat ulang.
+Sesudah penghapusan, `db:test`, `db:verify`, dan typecheck kembali lulus. Uji API/S3 tidak mengubah baris asli dan semua fixture dibersihkan. Cleanup lokal diulang sebagai no-op saat itu, sekaligus memastikan ketiga tabel tetap tidak ada dan tidak dibuat ulang.
+
+## Penghapusan mode demo (29 Oktober 2026)
+
+Mode demo dihapus dari aplikasi dan database. Tidak ada lagi login demo, reset data, seed contoh, status `demo`, atau `DEMO_MODE`.
+
+- Migrasi `007_remove_demo_status` mengubah baris OTP/notifikasi berstatus `demo` menjadi `gagal`, lalu mengetatkan check constraint.
+- Data contoh dihapus setelah backup database dan objek S3. Database aktif menyisakan satu akun atasan (`emp_budi`), satu baris kebijakan, dan catatan `schema_migrations`; sequence nomor SPKL direset.
+- `db:init` kini membuat skema dan satu akun atasan dari `BOOTSTRAP_SUPERVISOR_*` pada database kosong. Tidak ada seed data contoh.
+- Notifikasi tanpa konfigurasi Chatery dicatat `gagal` beserta alasannya, bukan `demo`.
+- Skrip satu kali `migrate-local-to-neon.mjs` dan `drop-legacy-tables.mjs` dihapus beserta perintah npm-nya.
 
 ## Operasi
 
@@ -56,15 +66,11 @@ npm run db:migrate:relational          # dry-run / status; idempoten jika sudah 
 npm run db:migrate:relational -- --apply
 npm run db:test                       # SQL/business tests; fixture unik, tanpa server/reset
 npm run db:verify                     # API/S3; server localhost dijalankan pengguna
-npm run db:cleanup-local              # selesai; sesudah retirement hanya memeriksa tanpa perubahan
-npm run db:drop-legacy                # dry-run penghapusan tabel lama
-npm run db:drop-legacy -- --apply      # sudah diterapkan; catatan di schema_migrations
 ```
 
-- `db:init` hanya untuk database baru yang kosong dan menolak `--force`.
-- Restorasi `db:migrate-local -- --apply` ditolak setelah relasional aktif.
-- Cleanup membandingkan semua ID hasil restorasi dengan tabel aktif, hash setiap arsip, hash/ukuran objek S3, dan hash file lokal sebelum menghapus hanya file manifest yang cocok. File yang berubah/tidak dikenal tidak dihapus.
-- Reset demo tetap merupakan tindakan destruktif eksplisit; tidak pernah dipakai migrasi atau tes.
+- `db:init` hanya untuk database baru yang kosong, membuat satu akun atasan dari `BOOTSTRAP_SUPERVISOR_*`, dan menolak `--force`.
+- Restorasi lokal lama dan cleanup sumber lokal sudah tidak tersedia karena skripnya dihapus setelah retirement.
+- Tidak ada reset data dari aplikasi; backup/pemulihan dilakukan di luar aplikasi melalui Neon.
 - Setelah mengganti arsitektur, restart dev server agar semua route dikompilasi ulang. Status health saja tidak menjamin seluruh route dev telah direkompilasi.
 
 ## Verifikasi saat ini
@@ -72,16 +78,16 @@ npm run db:drop-legacy -- --apply      # sudah diterapkan; catatan di schema_mig
 - Migrasi dry-run dan apply: nilai kolom/foreign key cocok.
 - `npm run db:test`: lulus unique phone/NIK, FK kepemilikan divisi, CHECK jadwal, legacy read-only, rollback tanpa partial write, finalisasi paralel idempoten (termasuk penutupan sesi tepat di endAt), pagination 12/10/2, filter status, KPI global, laporan/ekspor lengkap, serta batas 00:00 WIB dan lembur dari startAt.
 - Persistensi kebijakan global dan audit atomiknya diuji dalam transaksi yang selalu di-rollback, memeriksa data tersimpan sebelum rollback dan ketidakberadaan efek setelah rollback. Kebijakan asli tidak diubah atau dipulihkan lewat overwrite.
-- Semua fixture SQL dibersihkan; reset tidak dipanggil.
+- Semua fixture SQL dibersihkan; tidak ada reset data.
 - `npm run typecheck` dan build produksi relasional: lulus.
 - ReUI C1–C4: 8 file UI bersih; checklist DataGrid ditinjau, tanpa edit komponen terpasang. Lint belum dikonfigurasi.
 - Chrome headless 1440×1000 dan 390×844: pagination 12/10/2 tim/laporan, ukuran 25, filter/reset page, Hapus filter, Back mempertahankan pencarian, dan Skeleton navigasi mobile lulus. Tidak ada error halaman atau overflow horizontal. Jalur cetak `print=1` dari halaman kedua memuat 12 baris, CSV mencakup seluruh 12 pekerja. Screenshot ditinjau; fixture browser dibersihkan dan semua baris asli tetap identik.
 - `npm run db:verify` lulus pada 27 Oktober setelah pengguna merestart server dev: seluruh ID sumber, hash foto/proxy dan anonim API 401/S3 403, tambah/edit divisi/akun/SPKL, role guard, check-in lebih awal/paralel, upload S3 privat, dokumentasi wajib, durasi sebelum start=0, koreksi/audit, pembatalan, aktivasi akun, guard divisi/kebijakan, halaman/cetak/CSV, OTP salah/benar/sekali pakai dan identitas atasan.
 - Setiap uji API membersihkan hanya fixture sendiri dan membandingkan semua baris asli secara persis. Lulus tanpa reset; `runtimeVerifiedAt` dicatat di `schema_migrations` hanya setelah seluruh pemeriksaan dan cleanup sukses. Kegagalan awal kompilasi dev lama serta NIK fixture terlalu panjang telah diselesaikan tanpa melonggarkan autentikasi/validasi.
-- Cleanup lokal lulus 27 Oktober setelah marker runtime berhasil: `data/db.json`, kedua `.bak`, empat foto `public/demo/*.jpg`, dan `data/uploads/.gitkeep` dihapus setelah semua pemeriksaan selesai. Tidak ada penghapusan data aktif Neon atau objek seed S3. Pada tahap ini arsip dan snapshot masih dipertahankan; kemudian dihapus atas persetujuan pengguna melalui `002_drop_legacy` sebagaimana dijelaskan di atas.
+- Cleanup lokal lulus 27 Oktober setelah marker runtime berhasil: `data/db.json`, kedua `.bak`, empat foto contoh, dan `data/uploads/.gitkeep` dihapus setelah semua pemeriksaan selesai. Tidak ada penghapusan data aktif Neon atau objek contoh S3. Pada tahap ini arsip dan snapshot masih dipertahankan; kemudian dihapus atas persetujuan pengguna melalui `002_drop_legacy` sebagaimana dijelaskan di atas.
 - `npm run db:verify` diulang setelah cleanup dan kembali lulus seluruh pemeriksaan, termasuk foto/proxy/upload S3, dengan baris asli identik dan fixture bersih. Typecheck serta build produksi tanpa sumber lokal lulus.
-- Pemeriksaan setelah cleanup lokal (sebelum retirement): jumlah seluruh tabel tetap seperti tabel awal migrasi; 0 akun fixture tersisa; 4 hash arsip cocok; tepat 4 objek seed S3 dengan hash/ukuran cocok; seluruh Public Access Block aktif. `data/` dan `public/demo/` tidak ada dan tidak dibuat ulang oleh build; 34 production traces tidak menyertakan sumber lokal.
-- Deploy Vercel dan pengiriman Chatery nyata belum dilakukan. Rotasi kredensial yang pernah dibagikan sebelum produksi. `vercel.json` menetapkan `sin1`; workspace belum memiliki Git dan Vercel CLI belum tersedia.
+- Pemeriksaan setelah cleanup lokal (sebelum retirement): jumlah seluruh tabel tetap seperti tabel awal migrasi; 0 akun fixture tersisa; 4 hash arsip cocok; tepat 4 objek contoh S3 dengan hash/ukuran cocok; seluruh Public Access Block aktif. `data/` dan folder foto contoh tidak ada dan tidak dibuat ulang oleh build; 34 production traces tidak menyertakan sumber lokal.
+- Deploy Vercel dan pengiriman Chatery nyata belum dilakukan. Rotasi kredensial yang pernah dibagikan sebelum produksi. `vercel.json` menetapkan `sin1`; repositori Git sudah diinisialisasi dan Vercel CLI belum tersedia.
 
 ## Batas skala yang masih nyata
 

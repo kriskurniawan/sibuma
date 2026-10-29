@@ -29,6 +29,7 @@ import {
 import { PublicShell } from "@/components/checklist/public-shell";
 import {
   CHECKLIST_STATUS_LABEL,
+  type ChecklistConditionOption,
   type ChecklistPublicArea,
   type ChecklistPublicStaffTask,
 } from "@/lib/checklist-types";
@@ -38,6 +39,7 @@ export function PublicAreaDetail({
   qrName,
   area,
   staff,
+  conditions,
   backHref,
   detailHref,
   loginNext,
@@ -50,6 +52,7 @@ export function PublicAreaDetail({
     canFill: boolean;
     tasks: ChecklistPublicStaffTask[];
   };
+  conditions: ChecklistConditionOption[];
   backHref: string | null;
   detailHref: string;
   loginNext: string;
@@ -248,6 +251,7 @@ export function PublicAreaDetail({
                           {item.condition ? (
                             <ChecklistConditionBadge
                               condition={item.condition}
+                              conditions={conditions}
                             />
                           ) : (
                             <Badge variant="outline">Belum diperiksa</Badge>

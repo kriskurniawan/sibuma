@@ -56,7 +56,7 @@ const columns: ColumnDef<DataGridFeatures, ChecklistReportRow>[] = [
   },
   {
     id: "location",
-    accessorFn: (row) => row.inspection.locationName,
+    accessorFn: (row) => row.locationPath ?? row.inspection.locationName,
     header: "Lokasi",
     meta: {
       headerClassName: "whitespace-nowrap",
@@ -66,7 +66,9 @@ const columns: ColumnDef<DataGridFeatures, ChecklistReportRow>[] = [
       <div className="flex min-w-0 flex-col gap-0.5">
         <span className="flex items-center gap-1 text-sm text-foreground">
           <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">{row.original.inspection.locationName}</span>
+          <span className="truncate">
+            {row.original.locationPath ?? row.original.inspection.locationName}
+          </span>
         </span>
         <span className="text-xs text-muted-foreground">
           Jatuh tempo{" "}
@@ -349,7 +351,7 @@ export function ChecklistReportGrid({
                     <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <MapPin className="size-3 shrink-0" aria-hidden="true" />
                       <span className="truncate">
-                        {row.inspection.locationName}
+                        {row.locationPath ?? row.inspection.locationName}
                       </span>
                     </p>
 

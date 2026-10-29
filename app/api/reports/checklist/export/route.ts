@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/access";
+import { listChecklistConditions } from "@/lib/checklist-conditions";
 import {
-  CHECKLIST_CONDITION_LABEL,
   CHECKLIST_FOLLOW_UP_LABEL,
   CHECKLIST_PRIORITY_LABEL,
   CHECKLIST_STATUS_LABEL,
@@ -29,8 +30,8 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
-  if (user.role !== "atasan") {
-    return apiError("Hanya atasan yang dapat mengunduh rekap checklist.", 403);
+  if (user.role !== "atasan" && !isSuperAdmin(user)) {
+    return apiError("Kamu tidak memiliki izin untuk mengunduh rekap checklist.", 403);
   }
 
   const url = new URL(request.url);
@@ -42,10 +43,12 @@ export async function GET(request: Request) {
     ? url.searchParams.get("to")!
     : range.to;
   const kind = url.searchParams.get("kind") ?? "rekap";
+  const ownerId = isSuperAdmin(user) ? null : user.id;
   const filters: ChecklistReportFilters = {
     from,
     to,
     locationId: url.searchParams.get("locationId") || undefined,
+    includeSubLocations: url.searchParams.get("includeSub") !== "0",
     templateId: url.searchParams.get("templateId") || undefined,
     status: url.searchParams.get("status") || undefined,
     search: url.searchParams.get("search")?.trim() || undefined,
@@ -55,7 +58,13 @@ export async function GET(request: Request) {
   let lines: Array<Array<string | number | null | undefined>>;
 
   if (kind === "item" || kind === "butir") {
-    const rows = await getChecklistItemExportRows(user.id, filters);
+    const [rows, conditions] = await Promise.all([
+      getChecklistItemExportRows(ownerId, filters),
+      listChecklistConditions({ includeInactive: true }),
+    ]);
+    const conditionLabel = new Map(
+      conditions.map((condition) => [condition.id, condition.label]),
+    );
     header = [
       "Periode",
       "Jatuh tempo",
@@ -75,21 +84,19 @@ export async function GET(request: Request) {
       formatDateTime(row.dueAt),
       row.templateName,
       row.category,
-      row.locationName,
+      row.locationPath ?? row.locationName,
       CHECKLIST_STATUS_LABEL[row.status],
       row.position + 1,
       row.groupPath,
       row.prompt,
       row.condition
-        ? CHECKLIST_CONDITION_LABEL[
-            row.condition as keyof typeof CHECKLIST_CONDITION_LABEL
-          ]
+        ? (conditionLabel.get(row.condition) ?? row.condition)
         : "Belum diperiksa",
       row.note,
       row.updatedAt ? formatDateTime(row.updatedAt) : "",
     ]);
   } else if (kind === "tindak-lanjut") {
-    const data = await getChecklistFollowUpReportData(user.id, filters);
+    const data = await getChecklistFollowUpReportData(ownerId, filters);
     header = [
       "Dibuat",
       "Judul",
@@ -112,14 +119,14 @@ export async function GET(request: Request) {
       CHECKLIST_FOLLOW_UP_LABEL[row.followUp.status],
       row.followUp.dueDate ?? "",
       row.pic?.name ?? "",
-      row.inspection.locationName,
+      row.inspection.locationPath ?? row.inspection.locationName,
       row.inspection.templateName,
       `${row.inspection.periodLabel} (${row.inspection.occurrenceDate})`,
       row.followUp.progressNote,
       row.followUp.resultNote,
     ]);
   } else {
-    const data = await getChecklistReportData(user.id, filters);
+    const data = await getChecklistReportData(ownerId, filters);
     header = [
       "Periode",
       "Jatuh tempo",
@@ -139,7 +146,7 @@ export async function GET(request: Request) {
       formatDateTime(row.inspection.dueAt),
       row.inspection.templateName,
       row.inspection.category,
-      row.inspection.locationName,
+      row.locationPath ?? row.inspection.locationName,
       CHECKLIST_STATUS_LABEL[row.inspection.status],
       row.inspection.completedAt
         ? formatDateTime(row.inspection.completedAt)

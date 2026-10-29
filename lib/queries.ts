@@ -415,8 +415,7 @@ export async function getPolicy(): Promise<Policy> { return getPolicyRow(); }
  * Audit rows are scoped to the supervisor's own team and owned records.
  * A supervisor must never receive another supervisor's audit payload.
  */
-export async function getAuditLogs(userId: string, limit = 80): Promise<AuditLog[]> {
- const safeLimit = Math.max(1, Math.min(limit, 500));
+export async function getAuditLogs(userId: string, limit = 80): Promise<AuditLog[]> { const safeLimit = Math.max(1, Math.min(limit, 500));
  return select(
   "auditLogs",
   `(actor_id=$1
@@ -429,13 +428,31 @@ export async function getAuditLogs(userId: string, limit = 80): Promise<AuditLog
  );
 }
 
+/** Organization-wide audit trail; only call after a super-admin guard. */
+export async function getAllAuditLogs(limit = 80): Promise<AuditLog[]> {
+ const safeLimit = Math.max(1, Math.min(limit, 500));
+ return select(
+  "auditLogs",
+  "true",
+  [],
+  undefined,
+  `ORDER BY created_at DESC,id DESC LIMIT ${safeLimit}`,
+ );
+}
+
 export async function getAssignmentSchedules(userId: string) {
  const rows=await query(`SELECT w.employee_id,w.spkl_id,s.title,s.start_at,s.end_at,s.canceled_at FROM spkl_workers w JOIN spkls s ON s.id=w.spkl_id
  WHERE s.created_by=$1 AND s.end_at>=date_trunc('week',now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' - interval '7 days'`,[userId]);
  return rows.map(row=>({employeeId:row.employee_id,spklId:row.spkl_id,title:row.title,startAt:row.start_at.toISOString(),endAt:row.end_at.toISOString(),canceled:Boolean(row.canceled_at)}));
 }
 
-export async function getReportOptions(supervisorId: string) {
+export async function getReportOptions(supervisorId: string | null) {
+ if (!supervisorId) {
+  return {
+   employees: await select("employees", "role='pekerja' AND active", [], undefined, "ORDER BY name,id"),
+   spkls: await select("spkls", "true", [], undefined, "ORDER BY date DESC,id LIMIT 60"),
+  };
+ }
  const [employees,spkls]=await Promise.all([
  select("employees","supervisor_id=$1",[supervisorId],undefined,"ORDER BY name,id"),
  select("spkls","created_by=$1",[supervisorId],undefined,"ORDER BY date DESC,id LIMIT 60")]);
