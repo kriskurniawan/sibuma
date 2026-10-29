@@ -84,6 +84,10 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         description="Versi template bersifat tetap: hasil pemeriksaan lama tetap memakai item dari versi saat checklist dibuat. Terbitkan versi baru untuk mengubah item."
         action={
           <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={() => setTemplateOpen(true)}>
+              <Plus aria-hidden="true" />
+              Template baru
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -96,10 +100,6 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
             <Button size="sm" variant="outline" onClick={() => openLocation(null)}>
               <MapPin aria-hidden="true" />
               Lokasi baru
-            </Button>
-            <Button size="sm" onClick={() => setTemplateOpen(true)}>
-              <Plus aria-hidden="true" />
-              Template baru
             </Button>
           </div>
         }
@@ -137,7 +137,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               {setup.locations.map((location) => (
                 <li
                   key={location.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                  className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
                 >
                   <div className="flex min-w-0 items-start gap-2.5">
                     <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -178,6 +178,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                   <Button
                     size="sm"
                     variant="ghost"
+                    className="shrink-0"
                     onClick={() => openLocation(location)}
                   >
                     <Pencil aria-hidden="true" />
@@ -223,7 +224,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                 return (
                   <li
                     key={template.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                    className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
                   >
                     <div className="flex min-w-0 items-start gap-2.5">
                       <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -261,6 +262,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="shrink-0"
                       nativeButton={false}
                       render={
                         <Link href={`/checklist/template/${template.id}`} />
@@ -383,21 +385,28 @@ function LocationDialog({
       description="Lokasi dipakai untuk menandai tempat pemeriksaan pada jadwal."
       size="sm"
       footer={
-        <>
+        <div className="flex w-full gap-2.5">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={onClose}
             disabled={saving}
+            className="flex-1"
           >
             Batal
           </Button>
-          <Button type="button" size="sm" onClick={submit} disabled={saving}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={submit}
+            disabled={saving}
+            className="flex-1"
+          >
             {saving ? <Spinner /> : <MapPin aria-hidden="true" />}
             {saving ? "Menyimpan…" : "Simpan"}
           </Button>
-        </>
+        </div>
       }
     >
       <div className="flex flex-col gap-4">
@@ -568,21 +577,28 @@ function TemplateCreateDialog({
       description="Versi 1 langsung diterbitkan dengan item di bawah. Versi yang sudah terbit tidak dapat diubah."
       size="xl"
       footer={
-        <>
+        <div className="flex w-full gap-2.5">
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={onClose}
             disabled={saving}
+            className="flex-1"
           >
             Batal
           </Button>
-          <Button type="button" size="sm" onClick={submit} disabled={saving}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={submit}
+            disabled={saving}
+            className="flex-1"
+          >
             {saving ? <Spinner /> : <ClipboardList aria-hidden="true" />}
             {saving ? "Menyimpan…" : "Buat template"}
           </Button>
-        </>
+        </div>
       }
     >
       <div className="flex flex-col gap-4">

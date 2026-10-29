@@ -319,7 +319,10 @@ export async function getSpklDetail(
   spklId: string,
   user: SessionUser,
 ): Promise<SpklDetail | null> {
-  const [spkl] = await select("spkls", "id=$1 AND (created_by=$2 OR EXISTS(SELECT 1 FROM spkl_workers w WHERE w.spkl_id=spkls.id AND w.employee_id=$2))", [spklId,user.id]);
+  const [spkl] =
+    user.role === "super_admin"
+      ? await select("spkls", "id=$1", [spklId])
+      : await select("spkls", "id=$1 AND (created_by=$2 OR EXISTS(SELECT 1 FROM spkl_workers w WHERE w.spkl_id=spkls.id AND w.employee_id=$2))", [spklId,user.id]);
   if (!spkl) return null;
   await finalizeScope("s.id=$1",[spkl.id]);
   const db=await hydrateSpkls([spkl]);
@@ -328,7 +331,7 @@ export async function getSpklDetail(
     (item) => item.spklId === spkl.id && item.employeeId === user.id,
   );
   const isCreator = user.role === "atasan" && spkl.createdBy === user.id;
-  if (!assigned && !isCreator) return null;
+  if (user.role !== "super_admin" && !assigned && !isCreator) return null;
 
   const base = buildListItem(db, spkl, user.id);
   const map = employeeMap(db);

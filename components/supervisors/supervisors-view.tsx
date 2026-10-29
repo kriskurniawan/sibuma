@@ -405,6 +405,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
           <div className="flex flex-col gap-2">
             <Label htmlFor="supervisor-access-mode">Hak akses</Label>
             <Select
+              items={ACCESS_MODE_LABEL}
               value={form.accessMode}
               onValueChange={(value) =>
                 setForm((current) => ({

@@ -73,7 +73,8 @@ export function SpklDetailView({
 }: SpklDetailViewProps) {
   const [dialog, setDialog] = useState<"checkin" | "checkout" | null>(null);
   const { spkl, status, myAttendance } = detail;
-  const isSupervisor = user.role === "atasan";
+  const isWorker = user.role === "pekerja";
+  const canViewTeam = !isWorker;
   const running = myAttendance?.status === "berjalan";
   const checkedInEarly = myAttendance?.checkInAt
     ? isEarlyCheckIn(myAttendance.checkInAt, spkl.startAt)
@@ -100,7 +101,7 @@ export function SpklDetailView({
   const now = Date.now();
   const graceExpired = now > graceEnd.getTime();
 
-  const uploadBlockedReason = isSupervisor
+  const uploadBlockedReason = !isWorker
     ? "Hanya pekerja pada SPKL ini"
     : !myAttendance?.checkInAt
       ? "Absen masuk terlebih dahulu"
@@ -132,20 +133,26 @@ export function SpklDetailView({
       }),
   ];
 
-  const showCheckIn = !isSupervisor && detail.canCheckIn;
-  const showCheckOut = !isSupervisor && detail.canCheckOut;
+  const showCheckIn = isWorker && detail.canCheckIn;
+  const showCheckOut = isWorker && detail.canCheckOut;
+  const backTarget =
+    user.role === "super_admin"
+      ? { href: "/laporan", label: "Kembali ke laporan" }
+      : user.role === "atasan"
+        ? { href: "/lembur", label: "Kembali ke lembur" }
+        : { href: "/riwayat", label: "Kembali ke riwayat" };
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
-          href={isSupervisor ? "/laporan" : "/riwayat"}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          href={backTarget.href}
+          className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
         >
           <ArrowLeft className="size-3.5" />
-          {isSupervisor ? "Kembali ke laporan" : "Kembali ke riwayat"}
+          {backTarget.label}
         </Link>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           <SpklStatusBadge status={status} />
           {running && (
             <Badge variant="warning-light" dot>
@@ -206,7 +213,7 @@ export function SpklDetailView({
 
         <FramePanel className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center gap-2">
-            {isSupervisor ? (
+            {canViewTeam ? (
               <>
                 <Button
                   nativeButton={false}
@@ -400,7 +407,7 @@ export function SpklDetailView({
         </div>
 
         <aside className="flex min-w-0 flex-col gap-4">
-          {!isSupervisor && myAttendance && (
+          {isWorker && myAttendance && (
             <Frame spacing="sm">
               <FrameHeader className="flex-row items-center justify-between gap-3">
                 <div className="flex flex-col gap-1">
@@ -606,7 +613,7 @@ export function SpklDetailView({
             </AlertDescription>
           </Alert>
 
-          {isSupervisor && (
+          {canViewTeam && (
             <Frame spacing="sm">
               <FrameHeader>
                 <FrameTitle>Progres kehadiran</FrameTitle>

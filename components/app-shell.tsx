@@ -94,7 +94,12 @@ function navigationFor(
       mobile: [
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/tim", label: "Atasan", icon: UsersRound },
-        { href: "/laporan", label: "Laporan", icon: BarChart3 },
+        {
+          href: "/laporan",
+          label: "Laporan",
+          icon: BarChart3,
+          match: ["/spkl"],
+        },
         { href: "/audit", label: "Audit", icon: ScrollText },
         {
           href: "/menu",
@@ -162,7 +167,12 @@ function navigationFor(
     mobile: [
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
-      { href: "/riwayat", label: "Riwayat", icon: History },
+      {
+        href: "/riwayat",
+        label: "Riwayat",
+        icon: History,
+        match: ["/spkl"],
+      },
       { href: "/profil", label: "Profil", icon: UserRound },
     ],
   };
@@ -190,13 +200,20 @@ const CHECKLIST_ROOT_PATHS = new Set([
   "/checklist/tindak-lanjut",
 ]);
 
+/** Halaman daftar SPKL bergantung pada peran yang membuka detail. */
+function spklBackTarget(role: SessionUser["role"]) {
+  if (role === "super_admin") return { href: "/laporan", label: "Laporan" };
+  if (role === "atasan") return { href: "/lembur", label: "Lembur" };
+  return { href: "/riwayat", label: "Riwayat" };
+}
+
 /** Halaman detail atau form memakai tombol kembali di header mobile. */
-function mobileBackLink(pathname: string) {
+function mobileBackLink(pathname: string, role: SessionUser["role"]) {
   if (pathname === "/spkl/baru") return { href: "/lembur", label: "Lembur" };
   const edit = /^\/spkl\/([^/]+)\/edit$/.exec(pathname);
   if (edit) return { href: `/spkl/${edit[1]}`, label: "Detail SPKL" };
   if (pathname.startsWith("/spkl/")) {
-    return { href: "/lembur", label: "Lembur" };
+    return spklBackTarget(role);
   }
   if (/^\/checklist\/template\/[^/]+$/.test(pathname)) {
     return { href: "/checklist/template", label: "Template checklist" };
@@ -317,7 +334,7 @@ export function AppShell({
   const todayLabel = formatDateHuman(new Date().toISOString(), "EEEE, d MMMM");
   const sectionLabel = currentSectionLabel(pathname, nav);
   const firstName = user.name.split(" ")[0];
-  const backLink = mobileBackLink(pathname);
+  const backLink = mobileBackLink(pathname, user.role);
 
   let activeMobileHref: string | null = null;
   let activeMobileDepth = -1;

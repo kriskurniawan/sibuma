@@ -443,12 +443,12 @@ export function SpklForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={initial ? `/spkl/${initial.id}` : "/"}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
         >
           <ArrowLeft className="size-3.5" />
           {initial ? "Kembali ke detail SPKL" : "Kembali ke beranda"}
         </Link>
-        <StateBadge variant="primary-light" dot>
+        <StateBadge variant="primary-light" dot className="ml-auto">
           {mode === "create" ? "SPKL baru" : "Ubah SPKL"}
         </StateBadge>
       </div>

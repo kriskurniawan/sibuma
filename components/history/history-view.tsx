@@ -154,16 +154,6 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
         eyebrow="Arsip pribadi"
         title="Riwayat lembur."
         description="Semua SPKL yang pernah dan akan kamu jalani, lengkap dengan durasi, kehadiran, dan dokumentasi."
-        action={
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/" />}
-          >
-            <CalendarDays />
-            Kembali ke beranda
-          </Button>
-        }
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

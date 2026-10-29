@@ -91,7 +91,7 @@ export function ChecklistTemplateDetailView({
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <div>
+      <div className="hidden md:block">
         <Button
           size="sm"
           variant="ghost"

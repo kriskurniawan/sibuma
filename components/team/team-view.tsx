@@ -528,7 +528,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
         }
         action={
           <div className="flex w-full flex-col gap-2 print:hidden sm:w-auto">
-            <ReportPrintButton />
+            <ReportPrintButton variant="outline" />
             {!readOnly && (divisions.length === 0 ? (
               <Button
                 type="button"

@@ -182,6 +182,8 @@ export function SupervisorsGrid({
     getRowId: (row) => row.employee.id,
   });
 
+  const pageRows = table.getRowModel().rows.map((row) => row.original);
+
   return (
     <DataGrid
       table={table}
@@ -207,11 +209,112 @@ export function SupervisorsGrid({
       tableLayout={{ dense: true, width: "auto", headerBorder: true }}
       tableClassNames={TABLE_CLASSES}
     >
-      <DataGridContainer>
-        <DataGridScrollArea>
-          <DataGridTable />
-        </DataGridScrollArea>
-      </DataGridContainer>
+      <div className="hidden md:block">
+        <DataGridContainer>
+          <DataGridScrollArea>
+            <DataGridTable />
+          </DataGridScrollArea>
+        </DataGridContainer>
+      </div>
+
+      <div className="divide-y divide-border/70 md:hidden">
+        {pageRows.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
+            <UsersRound
+              className="size-6 text-muted-foreground"
+              strokeWidth={1.8}
+              aria-hidden="true"
+            />
+            <p className="text-sm font-medium text-foreground">
+              Tidak ada atasan yang cocok
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Ubah kata kunci pencarian atau tambahkan akun atasan baru.
+            </p>
+          </div>
+        ) : (
+          pageRows.map((row) => {
+            const employee = row.employee;
+            const access =
+              employee.accessMode === "read_only"
+                ? "warning-light"
+                : "success-light";
+
+            return (
+              <article key={employee.id} className="flex flex-col gap-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Avatar
+                      name={employee.name}
+                      seed={employee.id}
+                      src={avatarUrl(employee.id, employee.avatarKey)}
+                      size="md"
+                    />
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {employee.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        NIK {employee.nik}
+                      </p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {employee.phone}
+                      </p>
+                      <p className="break-all text-xs text-muted-foreground">
+                        {employee.email ?? "Email belum diisi"}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant={employee.active ? "success-light" : "outline"}
+                    dot={employee.active}
+                    className="shrink-0"
+                  >
+                    {employee.active ? "Aktif" : "Nonaktif"}
+                  </Badge>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 border-y border-border/70 py-2.5">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Anggota tim</p>
+                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
+                      {row.teamCount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {row.activeTeamCount} aktif
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Divisi</p>
+                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
+                      {row.divisionCount}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Hak akses</p>
+                    <Badge variant={access} className="mt-1">
+                      {ACCESS_MODE_LABEL[employee.accessMode]}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onEdit(row)}
+                  >
+                    <PencilLine aria-hidden="true" />
+                    Ubah akun
+                  </Button>
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
+
       <div className="border-t border-border/70 px-4 py-2">
         <DataGridPagination sizes={PAGE_SIZES} />
       </div>

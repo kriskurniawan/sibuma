@@ -241,7 +241,7 @@ export function LoginView({ next = "/" }: LoginViewProps) {
                         autoComplete="username"
                         autoCapitalize="none"
                         spellCheck={false}
-                        placeholder="nama@perusahaan.com atau 08xx"
+                        placeholder="Email atau nomor WhatsApp"
                         value={identifier}
                         disabled={busy}
                         onChange={(event) => {
