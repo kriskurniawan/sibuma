@@ -23,6 +23,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
+import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { LogoMark } from "@/components/logo";
 import { Avatar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -111,7 +112,6 @@ function navigationFor(role: SessionUser["role"]): {
         { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
         { href: "/lembur", label: "Lembur", icon: Clock3 },
         { href: "/laporan", label: "Laporan", icon: BarChart3 },
-        { href: "/profil", label: "Profil", icon: UserRound },
       ],
     };
   }
@@ -221,6 +221,10 @@ export function AppShell({
   const pathname = usePathname();
   const router = useRouter();
   const nav = navigationFor(user.role);
+  const mobileNav: Array<NavItem | "scan"> = [...nav.mobile];
+  if (user.role !== "super_admin") {
+    mobileNav.splice(Math.floor(mobileNav.length / 2), 0, "scan");
+  }
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function logout() {
@@ -412,14 +416,40 @@ export function AppShell({
         <div
           className={cn(
             "mx-auto grid max-w-md",
-            nav.mobile.length === 3
+            mobileNav.length === 3
               ? "grid-cols-3"
-              : nav.mobile.length >= 5
-                ? "grid-cols-5"
-                : "grid-cols-4",
+              : mobileNav.length === 4
+                ? "grid-cols-4"
+                : "grid-cols-5",
           )}
         >
-          {nav.mobile.map((item) => {
+          {mobileNav.map((item) => {
+            if (item === "scan") {
+              return (
+                <QrScanButton
+                  key="scan"
+                  trigger={(openScanner) => (
+                    <button
+                      type="button"
+                      onClick={openScanner}
+                      aria-label="Scan QR area"
+                      aria-haspopup="dialog"
+                      className="group -mt-4 flex flex-col items-center gap-1 rounded-lg px-2 pb-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    >
+                      <span className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-card transition-colors group-hover:bg-primary/80 group-active:translate-y-px">
+                        <QrCode
+                          className="size-6"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        />
+                      </span>
+                      Scan
+                    </button>
+                  )}
+                />
+              );
+            }
+
             const active = isCurrent(pathname, item);
             return (
               <Link

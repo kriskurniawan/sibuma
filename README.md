@@ -16,7 +16,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan di
 - Beranda berisi checklist aktif berikutnya lengkap dengan progres, antrean checklist, tindak lanjut yang ditugaskan, dan jadwal lembur ringkas.
 - Absen masuk/pulang dengan **verifikasi geofence** dan akurasi GPS. Absen masuk dibuka sejak 00:00 WIB pada tanggal SPKL, termasuk sebelum jam mulai.
 - Timer sesi berjalan serta riwayat lembur dan status kehadiran.
-- Unggah dokumentasi pekerjaan (foto + deskripsi + lokasi opsional) per sesi SPKL.
+- Unggah dokumentasi pekerjaan (foto + deskripsi + lokasi opsional) per sesi SPKL. Foto dapat diambil langsung dari kamera atau dipilih dari galeri; saat diproses di perangkat, nomor SPKL dan waktu unggah WIB dicetak di bagian bawah foto.
 - Mengisi **checklist operasional** yang ditugaskan: kondisi per item (baik / perlu perhatian / tidak baik / tidak berlaku), catatan wajib saat bermasalah, alasan saat tidak berlaku, dan foto sesuai kebijakan item. Item dapat dikelompokkan di bawah heading grup (mis. **Pemeriksaan Pompa → Periksa gear**); grup hanya judul dan tidak ikut dijawab atau dihitung progres. Semua anggota penugasan boleh mengisi dan menyelesaikan checklist; setiap item disimpan dengan pemeriksaan versi agar tidak saling menimpa.
 - Membuat dan memperbarui **tindak lanjut** dari item bermasalah, termasuk menutupnya tanpa persetujuan atasan.
 - Melihat catatan koreksi dan alasan yang diberikan atasan.
@@ -216,7 +216,7 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Durasi | Dihitung dari waktu server sejak `max(checkInAt, startAt)` sampai `checkOutAt`/`endAt`, lalu dibulatkan sesuai kebijakan (default 15 menit). Absen lebih awal tidak menambah durasi. |
 | Absen pulang | Wajib di dalam radius. Jika SPKL mewajibkan dokumentasi, minimal satu dokumentasi harus sudah diunggah. |
 | Penutupan otomatis | Sesi `berjalan` ditutup saat `endAt` terlewati; pekerja tanpa absen masuk dicatat `tidak_hadir`. |
-| Dokumentasi | Maksimal 12 file per sesi, 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). |
+| Dokumentasi | Maksimal 12 file per sesi, 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). Foto dari kamera atau galeri dikompresi di perangkat dan diberi cap **nomor SPKL + waktu unggah WIB**; cap memakai jam perangkat saat foto dipilih, sedangkan `takenAt` server tetap menjadi acuan audit. |
 | Koreksi | Hanya atasan pembuat SPKL. Alasan 10–500 karakter. Jam masuk boleh lebih awal dari `startAt`; durasi tetap dihitung sejak jam mulai. Durasi dihitung ulang dan status menjadi `dikoreksi`. |
 | Batas lembur | Divalidasi saat membuat/mengubah SPKL: harian default 480 menit (8 jam), mingguan default 2.400 menit (40 jam), dan mingguan ≥ harian. |
 | Kebijakan | Pembulatan hanya `0/5/10/15/30` menit; batas harian ≤ 480 menit; batas mingguan ≤ 2.400 menit. |

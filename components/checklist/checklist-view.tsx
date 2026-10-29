@@ -74,7 +74,7 @@ export function ChecklistView({
                 </span>
               )}
             </Button>
-            <QrScanButton />
+            <QrScanButton className="hidden md:inline-flex" />
             {canManage && (
               <>
                 <Button

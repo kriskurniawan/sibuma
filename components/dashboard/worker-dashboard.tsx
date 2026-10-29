@@ -97,7 +97,7 @@ export function WorkerDashboard({
               <ClipboardList />
               Semua checklist
             </Button>
-            <QrScanButton />
+            <QrScanButton className="hidden md:inline-flex" />
           </div>
         }
       />

@@ -66,7 +66,7 @@ export function DocumentationCard({
               {employee?.name ?? "Pekerja"}
             </p>
             <p className="text-xs text-muted-foreground">
-              {formatDateHuman(doc.takenAt, "d MMM, HH:mm")}
+              Diunggah {formatDateHuman(doc.takenAt, "d MMM, HH:mm")}
             </p>
           </div>
         </div>

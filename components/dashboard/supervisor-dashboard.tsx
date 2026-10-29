@@ -72,7 +72,7 @@ export function SupervisorDashboard({
               <ClipboardCheck />
               Buka checklist
             </Button>
-            <QrScanButton />
+            <QrScanButton className="hidden md:inline-flex" />
           </div>
         }
       />

@@ -233,10 +233,11 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
-/* Mobile action bars stack directly above the fixed tab bar. The tab bar is
-   hidden from md upward, so the bar then sits flush with the viewport edge. */
+/* Mobile action bars stack above the fixed tab bar. They also clear the
+   raised Scan button in the middle of the tab bar. The tab bar is hidden from
+   md upward, so the bar then sits flush with the viewport edge. */
 .above-mobile-nav {
-  bottom: calc(4.3125rem + max(0.5rem, env(safe-area-inset-bottom)));
+  bottom: calc(5.75rem + max(0.5rem, env(safe-area-inset-bottom)));
 }
 
 @media (min-width: 48rem) {

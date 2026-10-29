@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { compressImage } from "@/lib/compress-image";
 import {
   formatDateHuman,
   formatTime,
@@ -57,50 +58,6 @@ interface DocumentationPanelProps {
   maxBytes: number;
 }
 
-async function compressImage(file: File, maxBytes: number) {
-  if (file.size <= maxBytes && file.type === "image/jpeg") return file;
-  if (!file.type.startsWith("image/")) return file;
-
-  try {
-    const bitmap = await createImageBitmap(file);
-    const maxDimension = 1600;
-    const scale = Math.min(
-      1,
-      maxDimension / Math.max(bitmap.width, bitmap.height),
-    );
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const context = canvas.getContext("2d");
-    if (!context) {
-      bitmap.close();
-      return file;
-    }
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-
-    let quality = 0.84;
-    let blob: Blob | null = null;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
-      blob = await new Promise<Blob | null>((resolve) =>
-        canvas.toBlob(resolve, "image/jpeg", quality),
-      );
-      if (!blob || blob.size <= maxBytes) break;
-      quality -= 0.12;
-    }
-
-    if (!blob) return file;
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "dokumentasi";
-    return new File([blob], `${baseName}.jpg`, {
-      type: "image/jpeg",
-      // Compression runs in an event handler, never during render.
-      lastModified: Date.now(),
-    });
-  } catch {
-    return file;
-  }
-}
-
 export function DocumentationPanel({
   spklId,
   spklTitle,
@@ -122,8 +79,10 @@ export function DocumentationPanel({
   const [location, setLocation] = useState<GeoPoint | null>(null);
   const [locating, setLocating] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -139,7 +98,8 @@ export function DocumentationPanel({
     setUploading(false);
     if (preview) URL.revokeObjectURL(preview);
     setPreview(null);
-    if (inputRef.current) inputRef.current.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   function openUpload() {
@@ -162,6 +122,10 @@ export function DocumentationPanel({
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const chosen = event.target.files?.[0];
+    // Reset segera agar memilih file yang sama tetap memicu onChange.
+    event.target.value = "";
+    if (cameraRef.current) cameraRef.current.value = "";
+    if (galleryRef.current) galleryRef.current.value = "";
     if (!chosen) return;
     setError(null);
     if (!["image/jpeg", "image/png", "image/webp"].includes(chosen.type)) {
@@ -172,16 +136,34 @@ export function DocumentationPanel({
       setError("Ukuran file asli maksimal 12 MB.");
       return;
     }
-    const optimized = await compressImage(chosen, maxBytes);
-    if (optimized.size > maxBytes) {
-      setError(
-        `Foto masih ${fileSizeLabel(optimized.size)} setelah dikompresi. Maksimal ${fileSizeLabel(maxBytes)}.`,
-      );
-      return;
+    setProcessing(true);
+    try {
+      const selectedAt = new Date().toISOString();
+      const optimized = await compressImage(chosen, maxBytes, {
+        fallbackName: "dokumentasi",
+        lines: [
+          `SIBUMA · ${spklNumber}`,
+          `Diunggah ${formatDateHuman(selectedAt, "d MMM yyyy, HH.mm")} WIB`,
+        ],
+      });
+      if (optimized === chosen) {
+        setError(
+          "Cap waktu tidak dapat dicetak pada foto ini. Coba pilih foto lain atau ambil ulang dari kamera.",
+        );
+        return;
+      }
+      if (optimized.size > maxBytes) {
+        setError(
+          `Foto masih ${fileSizeLabel(optimized.size)} setelah dikompresi. Maksimal ${fileSizeLabel(maxBytes)}.`,
+        );
+        return;
+      }
+      if (preview) URL.revokeObjectURL(preview);
+      setFile(optimized);
+      setPreview(URL.createObjectURL(optimized));
+    } finally {
+      setProcessing(false);
     }
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(optimized);
-    setPreview(URL.createObjectURL(optimized));
   }
 
   async function submitUpload() {
@@ -301,7 +283,7 @@ export function DocumentationPanel({
         title="Tambah dokumentasi"
         description={`${spklNumber} · ${spklTitle}`}
         size="md"
-        dismissible={!uploading}
+        dismissible={!uploading && !processing}
         footer={
           <div className="flex w-full gap-2.5">
             <Button
@@ -311,7 +293,7 @@ export function DocumentationPanel({
                 setUploadOpen(false);
                 resetUpload();
               }}
-              disabled={uploading}
+              disabled={uploading || processing}
               className="flex-1"
             >
               Batal
@@ -319,7 +301,7 @@ export function DocumentationPanel({
             <Button
               type="button"
               onClick={submitUpload}
-              disabled={uploading || !file}
+              disabled={uploading || processing || !file}
               className="flex-1"
             >
               {uploading ? (
@@ -353,7 +335,8 @@ export function DocumentationPanel({
                     setFile(null);
                     if (preview) URL.revokeObjectURL(preview);
                     setPreview(null);
-                    if (inputRef.current) inputRef.current.value = "";
+                    if (cameraRef.current) cameraRef.current.value = "";
+                    if (galleryRef.current) galleryRef.current.value = "";
                   }}
                   className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-foreground/60 text-background backdrop-blur transition-colors hover:bg-foreground/80"
                   aria-label="Hapus foto"
@@ -362,11 +345,7 @@ export function DocumentationPanel({
                 </button>
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center transition-colors hover:border-primary/50 hover:bg-muted/60"
-              >
+              <div className="flex w-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
                 <IconTile
                   variant="soft"
                   size="default"
@@ -375,28 +354,75 @@ export function DocumentationPanel({
                 >
                   <Camera />
                 </IconTile>
-                <span className="text-sm font-semibold text-foreground">
-                  Ambil atau pilih foto
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-sm font-semibold text-foreground">
+                    Tambahkan foto pekerjaan
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    Waktu unggah WIB dan nomor SPKL tercetak otomatis di foto.
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => cameraRef.current?.click()}
+                    disabled={processing}
+                  >
+                    <Camera />
+                    Ambil foto
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => galleryRef.current?.click()}
+                    disabled={processing}
+                  >
+                    <ImagePlus />
+                    Pilih dari galeri
+                  </Button>
+                </div>
                 <span className="text-xs text-muted-foreground">
                   JPG, PNG, atau WEBP · otomatis dikompresi hingga{" "}
                   {fileSizeLabel(maxBytes)}
                 </span>
-              </button>
+              </div>
             )}
             <input
-              ref={inputRef}
+              ref={cameraRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              onChange={onFileChange}
+              className="hidden"
+            />
+            <input
+              ref={galleryRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={onFileChange}
               className="hidden"
             />
+            {processing && (
+              <p
+                className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                role="status"
+              >
+                <Spinner />
+                Mencetak cap waktu…
+              </p>
+            )}
             {file && (
               <p className="flex items-center gap-1.5 text-xs font-medium text-success-foreground">
                 <CheckCircle2 className="size-3.5" />
                 {file.name} · {fileSizeLabel(file.size)}
               </p>
             )}
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Cap waktu mengikuti jam perangkat saat foto dipilih. Waktu unggah
+              di server tetap menjadi acuan audit.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -496,6 +522,7 @@ export function DocumentationPanel({
                     {selected.employee?.name ?? "Pekerja"}
                   </p>
                   <p className="text-xs text-muted-foreground">
+                    Diunggah{" "}
                     {formatDateHuman(selected.takenAt, "EEEE, d MMMM yyyy")} ·{" "}
                     {formatTime(selected.takenAt)} WIB
                   </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ChangeEvent, ComponentProps } from "react";
+import type { ChangeEvent, ComponentProps, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ImageUp, QrCode, RefreshCw } from "lucide-react";
 import { Modal } from "@/components/modal";
@@ -76,11 +76,14 @@ export function QrScanButton({
   size = "sm",
   className,
   label = "Scan QR",
+  trigger,
 }: {
   variant?: ComponentProps<typeof Button>["variant"];
   size?: ComponentProps<typeof Button>["size"];
   className?: string;
   label?: string;
+  /** Ganti tampilan pemicu, mis. tombol tengah di bottom nav. */
+  trigger?: (openScanner: () => void) => ReactNode;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -324,16 +327,20 @@ export function QrScanButton({
 
   return (
     <>
-      <Button
-        type="button"
-        variant={variant}
-        size={size}
-        className={className}
-        onClick={openScanner}
-      >
-        <QrCode aria-hidden="true" />
-        {label}
-      </Button>
+      {trigger ? (
+        trigger(openScanner)
+      ) : (
+        <Button
+          type="button"
+          variant={variant}
+          size={size}
+          className={className}
+          onClick={openScanner}
+        >
+          <QrCode aria-hidden="true" />
+          {label}
+        </Button>
+      )}
 
       <Modal
         open={open}
