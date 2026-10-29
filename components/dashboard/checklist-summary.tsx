@@ -164,6 +164,9 @@ export function FollowUpSummaryRow({ row }: { row: ChecklistFollowUpRow }) {
           <span className="sr-only">Prioritas </span>
           {CHECKLIST_PRIORITY_LABEL[followUp.priority]}
         </span>
+        {followUp.safetyName && (
+          <span className="truncate">Petugas safety {followUp.safetyName}</span>
+        )}
       </div>
 
       <div className="flex min-w-0 items-center justify-between gap-3">

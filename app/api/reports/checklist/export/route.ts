@@ -19,6 +19,7 @@ import {
   type ExcelSheetInput,
 } from "@/lib/excel";
 import { apiError } from "@/lib/http";
+import { pdfFileResponse } from "@/lib/pdf";
 import { currentMonthRange, formatDateHuman, formatDateTime } from "@/lib/time";
 
 export const runtime = "nodejs";
@@ -193,7 +194,9 @@ export async function GET(request: Request) {
     ? url.searchParams.get("to")!
     : range.to;
   const kind = url.searchParams.get("kind") ?? "rekap";
-  const format = url.searchParams.get("format") === "xlsx" ? "xlsx" : "csv";
+  const formatParam = url.searchParams.get("format");
+  const format =
+    formatParam === "xlsx" ? "xlsx" : formatParam === "pdf" ? "pdf" : "csv";
   const ownerId = isSuperAdmin(user) ? null : user.id;
   const filters: ChecklistReportFilters = {
     from,
@@ -364,6 +367,92 @@ export async function GET(request: Request) {
       row.openFollowUps,
       row.assignees.map((person) => person.name).join(", "),
     ]);
+  }
+
+  if (format === "pdf") {
+    const isItem = kind === "item" || kind === "butir";
+    const isFollowUp = kind === "tindak-lanjut";
+    const title = isItem
+      ? "Rincian Item Checklist"
+      : isFollowUp
+        ? "Laporan Tindak Lanjut"
+        : "Rekap Checklist";
+    const slug = isItem
+      ? "rincian-item"
+      : isFollowUp
+        ? "tindak-lanjut"
+        : "rekap-checklist";
+    const widths: Record<string, number> = {
+      Periode: 1.1,
+      "Jatuh tempo": 1.7,
+      Template: 3,
+      Kategori: 1.8,
+      Lokasi: 2.6,
+      Status: 1.5,
+      "Status pemeriksaan": 1.5,
+      Selesai: 1.8,
+      "Ketepatan waktu": 1.5,
+      "Item diperiksa": 1.2,
+      Temuan: 0.9,
+      "Tindak lanjut terbuka": 1.2,
+      Petugas: 2.5,
+      No: 0.5,
+      Grup: 2.4,
+      Item: 3.8,
+      Kondisi: 2.2,
+      Catatan: 3.2,
+      Diperbarui: 1.8,
+      Dibuat: 1.8,
+      Judul: 3.2,
+      "Item terkait": 2.8,
+      Prioritas: 1.1,
+      Deadline: 1.3,
+      PIC: 2,
+      Progres: 3.2,
+      Hasil: 3.2,
+    };
+    if (isItem) {
+      widths.Periode = 1.6;
+      widths["Jatuh tempo"] = 2;
+    } else if (isFollowUp) {
+      widths.Periode = 2.6;
+      widths["Item terkait"] = 2.6;
+    } else {
+      widths.Periode = 1.2;
+      widths["Jatuh tempo"] = 2;
+    }
+    const notes = isItem
+      ? [
+          "Satu baris per item pemeriksaan. 'Belum diperiksa' berarti item belum memiliki kondisi.",
+        ]
+      : isFollowUp
+        ? [
+            "Deadline, prioritas, dan status mengikuti data tindak lanjut terbaru.",
+          ]
+        : [
+            "Periode berdasarkan tanggal jatuh tempo (occurrence). Temuan dan tindak lanjut mengikuti data terbaru.",
+          ];
+
+    return pdfFileResponse({
+      filename: `${slug}-${from}-${to}.pdf`,
+      title,
+      subtitle: period,
+      meta: [
+        `${isSuperAdmin(user) ? "Super admin" : "Atasan"}: ${user.name}`,
+        `Diekspor ${exportedAt} WIB`,
+      ],
+      exportedAt,
+      tables: [
+        {
+          columns: header.map((label) => ({
+            header: label,
+            width: widths[label] ?? 1.5,
+          })),
+          rows: lines,
+          notes,
+        },
+      ],
+    });
   }
 
   const body = `\uFEFF${[

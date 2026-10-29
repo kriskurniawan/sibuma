@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { ATTENDANCE_STATUS_LABEL } from "@/lib/constants";
 import { excelDate, excelFileResponse } from "@/lib/excel";
 import { apiError } from "@/lib/http";
+import { pdfFileResponse } from "@/lib/pdf";
 import { getReportData } from "@/lib/queries";
 import {
   currentMonthRange,
@@ -47,7 +48,9 @@ export async function GET(request: Request) {
     search: url.searchParams.get("search")?.trim() || undefined,
   });
 
-  const format = url.searchParams.get("format") === "xlsx" ? "xlsx" : "csv";
+  const formatParam = url.searchParams.get("format");
+  const format =
+    formatParam === "xlsx" ? "xlsx" : formatParam === "pdf" ? "pdf" : "csv";
   const period = `${formatDateHuman(`${from}T12:00:00`, "d MMMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMMM yyyy")}`;
   const exportedAt = formatDateHuman(
     new Date().toISOString(),
@@ -155,6 +158,113 @@ export async function GET(request: Request) {
             data.totals.documentation,
           ],
           notes: ["Total durasi dalam menit dan siap dijumlahkan untuk penggajian."],
+        },
+      ],
+    });
+  }
+
+  if (format === "pdf") {
+    return pdfFileResponse({
+      filename: `rekap-lembur-${from}-${to}.pdf`,
+      title: "Rekap Lembur",
+      subtitle: period,
+      meta: [
+        `${isSuperAdmin(user) ? "Super admin" : "Atasan"}: ${user.name}`,
+        `Diekspor ${exportedAt} WIB`,
+      ],
+      exportedAt,
+      kpis: [
+        {
+          label: "Total sesi",
+          value: data.totals.sessions,
+          hint: `${data.totals.employees} pekerja`,
+        },
+        {
+          label: "Hadir",
+          value: data.totals.present,
+          hint: `${data.totals.sessions - data.totals.present} sesi lainnya`,
+        },
+        {
+          label: "Tidak hadir",
+          value: data.totals.absent,
+          hint: "Termasuk sesi tanpa absensi",
+        },
+        {
+          label: "Total durasi",
+          value: durationLabel(data.totals.minutes),
+          hint: `${data.totals.documentation} foto dokumentasi`,
+        },
+      ],
+      tables: [
+        {
+          title: "Rincian absensi lembur",
+          columns: [
+            { header: "Tanggal", width: 1.1 },
+            { header: "Nomor SPKL", width: 1.8 },
+            { header: "Pekerjaan", width: 2.6 },
+            { header: "Nama pekerja", width: 2 },
+            { header: "NIK", width: 1.5 },
+            { header: "Status absensi", width: 1.4 },
+            { header: "Jam masuk", width: 0.8, align: "center" },
+            { header: "Jam pulang", width: 0.8, align: "center" },
+            { header: "Durasi", width: 1.3, align: "right" },
+            { header: "Dokumentasi", width: 1, align: "center" },
+            { header: "Catatan koreksi", width: 3.2 },
+          ],
+          rows: data.rows.map((row) => [
+            formatDateHuman(`${row.spkl.date.slice(0, 10)}T12:00:00`, "d MMM yyyy"),
+            row.spkl.number,
+            row.spkl.title,
+            row.employee.name,
+            row.employee.nik,
+            ATTENDANCE_STATUS_LABEL[row.attendance.status],
+            row.attendance.checkInAt
+              ? formatTime(row.attendance.checkInAt)
+              : "-",
+            row.attendance.checkOutAt
+              ? formatTime(row.attendance.checkOutAt)
+              : "-",
+            row.attendance.status === "tidak_hadir"
+              ? "0"
+              : durationLabel(row.attendance.durationMinutes),
+            row.documentationCount,
+            row.attendance.correctionReason || "-",
+          ]),
+          notes: [
+            "Durasi dihitung dari check-in efektif hingga check-out dan dibatasi jadwal SPKL.",
+            "Koreksi absensi ditandai pada kolom catatan dan tercatat di audit log.",
+          ],
+        },
+        {
+          title: "Ringkasan per pekerja",
+          columns: [
+            { header: "Nama pekerja", width: 2.2 },
+            { header: "NIK", width: 1.5 },
+            { header: "Sesi", width: 0.8, align: "right" },
+            { header: "Hadir", width: 0.8, align: "right" },
+            { header: "Tidak hadir", width: 1, align: "right" },
+            { header: "Total durasi", width: 1.5, align: "right" },
+            { header: "Dokumentasi", width: 1.1, align: "right" },
+          ],
+          rows: data.summaries.map((summary) => [
+            summary.employee.name,
+            summary.employee.nik,
+            summary.sessionCount,
+            summary.presentCount,
+            summary.absentCount,
+            durationLabel(summary.totalMinutes),
+            summary.documentationCount,
+          ]),
+          totals: [
+            "Total",
+            "",
+            data.totals.sessions,
+            data.totals.present,
+            data.totals.absent,
+            durationLabel(data.totals.minutes),
+            data.totals.documentation,
+          ],
+          notes: ["Total durasi siap dijumlahkan untuk penggajian."],
         },
       ],
     });

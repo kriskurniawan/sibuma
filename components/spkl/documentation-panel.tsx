@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
-  CheckCircle2,
+  Clock3,
   ImagePlus,
   MapPin,
   ShieldCheck,
@@ -12,6 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
 import { Modal } from "@/components/modal";
 import {
   Alert,
@@ -33,6 +34,8 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { compressImage } from "@/lib/compress-image";
+import { buildDocumentationMarker } from "@/lib/documentation-marker";
+import { readImageExif } from "@/lib/exif";
 import {
   formatDateHuman,
   formatTime,
@@ -55,7 +58,19 @@ interface DocumentationPanelProps {
   canUpload: boolean;
   uploadBlockedReason?: string;
   maxUploads: number;
+  remainingUploads: number;
   maxBytes: number;
+}
+
+interface PendingDocumentation {
+  id: string;
+  file: File;
+  preview: string;
+  capturedAt: string;
+  source: "exif" | "device";
+  timeLabel: "Diambil" | "Diunggah";
+  exifLocation: GeoPoint | null;
+  error?: string;
 }
 
 export function DocumentationPanel({
@@ -66,45 +81,64 @@ export function DocumentationPanel({
   canUpload,
   uploadBlockedReason,
   maxUploads,
+  remainingUploads,
   maxBytes,
 }: DocumentationPanelProps) {
   const router = useRouter();
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [selected, setSelected] = useState<DocumentationWithEmployee | null>(
     null,
   );
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [queue, setQueue] = useState<PendingDocumentation[]>([]);
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState<GeoPoint | null>(null);
   const [locating, setLocating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [processingLabel, setProcessingLabel] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const queueRef = useRef<PendingDocumentation[]>([]);
+  const nextIdRef = useRef(0);
 
   useEffect(() => {
     return () => {
-      if (preview) URL.revokeObjectURL(preview);
+      for (const photo of queueRef.current) {
+        URL.revokeObjectURL(photo.preview);
+      }
     };
-  }, [preview]);
+  }, []);
+
+  function nextPendingId() {
+    nextIdRef.current += 1;
+    return `photo-${nextIdRef.current}`;
+  }
 
   function resetUpload() {
-    setFile(null);
+    for (const photo of queueRef.current) {
+      URL.revokeObjectURL(photo.preview);
+    }
+    queueRef.current = [];
+    setQueue([]);
     setDescription("");
     setLocation(null);
     setError(null);
+    setNotice(null);
     setUploading(false);
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null);
-    if (cameraRef.current) cameraRef.current.value = "";
+    setProcessing(false);
+    setProcessingLabel(null);
+    setUploadProgress(null);
+    setCameraOpen(false);
     if (galleryRef.current) galleryRef.current.value = "";
   }
 
-  function openUpload() {
-    resetUpload();
-    setUploadOpen(true);
+  function refreshLocation() {
     if (!("geolocation" in navigator)) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
@@ -120,93 +154,241 @@ export function DocumentationPanel({
     );
   }
 
-  async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const chosen = event.target.files?.[0];
+  function openUpload() {
+    resetUpload();
+    setUploadOpen(true);
+    refreshLocation();
+  }
+
+  function onGalleryChange(event: ChangeEvent<HTMLInputElement>) {
+    const chosen = Array.from(event.target.files ?? []);
     // Reset segera agar memilih file yang sama tetap memicu onChange.
     event.target.value = "";
-    if (cameraRef.current) cameraRef.current.value = "";
     if (galleryRef.current) galleryRef.current.value = "";
-    if (!chosen) return;
+    void addFiles(chosen);
+  }
+
+  async function addFiles(
+    chosen: File[],
+    options?: { cameraCapturedAt?: string },
+  ) {
+    if (uploading || processing) return;
+    if (chosen.length === 0) return;
+
+    const slots = Math.max(0, remainingUploads - queueRef.current.length);
+    if (slots === 0) {
+      setError(
+        `Batas ${maxUploads} foto per sesi sudah tercapai. Selesaikan sesi lain atau hapus foto terlebih dahulu.`,
+      );
+      return;
+    }
+
+    const accepted = chosen.slice(0, slots);
+    const notices: string[] = [];
+    if (chosen.length > slots) {
+      notices.push(
+        `Hanya ${slots} foto lagi yang dapat ditambahkan pada sesi ini.`,
+      );
+    }
+
     setError(null);
-    if (!["image/jpeg", "image/png", "image/webp"].includes(chosen.type)) {
-      setError("Format foto harus JPG, PNG, atau WEBP.");
-      return;
-    }
-    if (chosen.size > 12 * 1024 * 1024) {
-      setError("Ukuran file asli maksimal 12 MB.");
-      return;
-    }
+    setNotice(null);
     setProcessing(true);
+    const next: PendingDocumentation[] = [];
+    let deviceOnly = 0;
     try {
-      const selectedAt = new Date().toISOString();
-      const optimized = await compressImage(chosen, maxBytes, {
-        fallbackName: "dokumentasi",
-        lines: [
-          `SIBUMA · ${spklNumber}`,
-          `Diunggah ${formatDateHuman(selectedAt, "d MMM yyyy, HH.mm")} WIB`,
-        ],
-      });
-      if (optimized === chosen) {
-        setError(
-          "Cap waktu tidak dapat dicetak pada foto ini. Coba pilih foto lain atau ambil ulang dari kamera.",
+      for (let index = 0; index < accepted.length; index += 1) {
+        setProcessingLabel(
+          `Menyiapkan foto ${index + 1} dari ${accepted.length}…`,
         );
-        return;
+        const file = accepted[index];
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+          notices.push(`${file.name}: format harus JPG, PNG, atau WEBP.`);
+          continue;
+        }
+        if (file.size > 12 * 1024 * 1024) {
+          notices.push(`${file.name}: ukuran asli maksimal 12 MB.`);
+          continue;
+        }
+
+        // Foto kamera memakai waktu tombol ambil. Foto galeri memakai EXIF;
+        // bila tidak ada, waktu unggah dipakai dan dicetak sebagai "Diunggah".
+        const exif = options?.cameraCapturedAt
+          ? null
+          : await readImageExif(file);
+        const capturedAt =
+          options?.cameraCapturedAt ??
+          exif?.takenAt ??
+          new Date().toISOString();
+        const source = exif?.takenAt ? "exif" : "device";
+        const timeLabel =
+          options?.cameraCapturedAt || exif?.takenAt ? "Diambil" : "Diunggah";
+        if (!options?.cameraCapturedAt && !exif?.takenAt) deviceOnly += 1;
+        const optimized = await compressImage(file, maxBytes, {
+          fallbackName: "dokumentasi",
+          lines: [
+            `SIBUMA · ${spklNumber}`,
+            `${timeLabel} ${formatDateHuman(
+              capturedAt,
+              "d MMM yyyy, HH.mm",
+            )} WIB`,
+          ],
+          comment: buildDocumentationMarker({
+            spklNumber,
+            takenAt: capturedAt,
+            source,
+          }),
+        });
+        if (optimized === file) {
+          notices.push(
+            `${file.name}: cap waktu tidak dapat dicetak. Coba foto lain.`,
+          );
+          continue;
+        }
+        if (optimized.size > maxBytes) {
+          notices.push(
+            `${file.name}: masih ${fileSizeLabel(optimized.size)} setelah dikompresi (maksimal ${fileSizeLabel(maxBytes)}).`,
+          );
+          continue;
+        }
+        next.push({
+          id: nextPendingId(),
+          file: optimized,
+          preview: URL.createObjectURL(optimized),
+          capturedAt,
+          source,
+          timeLabel,
+          exifLocation: exif?.location ?? null,
+        });
       }
-      if (optimized.size > maxBytes) {
-        setError(
-          `Foto masih ${fileSizeLabel(optimized.size)} setelah dikompresi. Maksimal ${fileSizeLabel(maxBytes)}.`,
-        );
-        return;
-      }
-      if (preview) URL.revokeObjectURL(preview);
-      setFile(optimized);
-      setPreview(URL.createObjectURL(optimized));
     } finally {
       setProcessing(false);
+      setProcessingLabel(null);
+    }
+
+    if (next.length > 0) {
+      queueRef.current = [...queueRef.current, ...next];
+      setQueue(queueRef.current);
+    }
+    const messages = [...notices];
+    if (deviceOnly > 0) {
+      messages.push(
+        `${deviceOnly} foto tanpa EXIF memakai waktu unggah dan dicetak sebagai "Diunggah".`,
+      );
+    }
+    if (messages.length > 0) {
+      const skipped = chosen.length - next.length;
+      setNotice(
+        `${skipped > 0 ? `${skipped} foto tidak ditambahkan. ` : ""}${messages[0]}${
+          messages.length > 1 ? ` (+${messages.length - 1} catatan lain)` : ""
+        }`,
+      );
     }
   }
 
+  function removePhoto(id: string) {
+    const target = queueRef.current.find((photo) => photo.id === id);
+    if (target) URL.revokeObjectURL(target.preview);
+    queueRef.current = queueRef.current.filter((photo) => photo.id !== id);
+    setQueue(queueRef.current);
+    setError(null);
+    setNotice(null);
+  }
+
   async function submitUpload() {
-    if (!file) {
-      setError("Pilih foto terlebih dahulu.");
+    const snapshot = [...queueRef.current];
+    if (snapshot.length === 0) {
+      setError("Pilih minimal satu foto terlebih dahulu.");
       return;
     }
     if (description.trim().length < 3) {
       setError("Tambahkan deskripsi minimal 3 karakter.");
       return;
     }
+    if (snapshot.length > remainingUploads) {
+      setError(
+        `Hanya ${remainingUploads} foto lagi yang dapat diunggah pada sesi ini.`,
+      );
+      return;
+    }
 
+    const text = description.trim();
     setUploading(true);
     setError(null);
+    setNotice(null);
+    const failed: PendingDocumentation[] = [];
+    let success = 0;
+    let firstError = "";
+
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("description", description.trim());
-      if (location) {
-        formData.append("location", JSON.stringify(location));
+      for (let index = 0; index < snapshot.length; index += 1) {
+        const photo = snapshot[index];
+        setUploadProgress({ current: index + 1, total: snapshot.length });
+        try {
+          const formData = new FormData();
+          formData.append("file", photo.file);
+          formData.append("description", text);
+          const photoLocation = photo.exifLocation ?? location;
+          if (photoLocation) {
+            formData.append("location", JSON.stringify(photoLocation));
+          }
+          const response = await fetch(`/api/spkl/${spklId}/documents`, {
+            method: "POST",
+            body: formData,
+          });
+          const data = (await response.json()) as {
+            ok: boolean;
+            message?: string;
+          };
+          if (!response.ok || !data.ok) {
+            if (!firstError) {
+              firstError = data.message ?? "Gagal mengunggah dokumentasi.";
+            }
+            failed.push({
+              ...photo,
+              error: data.message ?? "Gagal mengunggah dokumentasi.",
+            });
+            continue;
+          }
+          success += 1;
+          URL.revokeObjectURL(photo.preview);
+        } catch {
+          if (!firstError) {
+            firstError = "Tidak dapat menghubungi server.";
+          }
+          failed.push({
+            ...photo,
+            error: "Tidak dapat menghubungi server. Periksa koneksi.",
+          });
+        }
       }
-      const response = await fetch(`/api/spkl/${spklId}/documents`, {
-        method: "POST",
-        body: formData,
-      });
-      const data = (await response.json()) as {
-        ok: boolean;
-        message?: string;
-      };
-      if (!response.ok || !data.ok) {
-        setError(data.message ?? "Gagal mengunggah dokumentasi.");
-        return;
-      }
-      toast.success("Dokumentasi pekerjaan tersimpan.");
+    } finally {
+      queueRef.current = failed;
+      setQueue(failed);
+      setUploading(false);
+      setUploadProgress(null);
+    }
+
+    if (failed.length === 0) {
+      toast.success(
+        success > 1
+          ? `${success} dokumentasi pekerjaan tersimpan.`
+          : "Dokumentasi pekerjaan tersimpan.",
+      );
       setUploadOpen(false);
       resetUpload();
       router.refresh();
-    } catch {
-      setError("Tidak dapat menghubungi server. Periksa koneksi internetmu.");
-    } finally {
-      setUploading(false);
+      return;
     }
+
+    setError(
+      `${success} dari ${snapshot.length} foto berhasil diunggah. ${firstError}`,
+    );
+    if (success > 0) router.refresh();
   }
+
+  const remainingSlots = Math.max(0, remainingUploads - queue.length);
+  const exifLocationCount = queue.filter((photo) => photo.exifLocation).length;
 
   return (
     <Frame id="dokumentasi">
@@ -301,18 +483,23 @@ export function DocumentationPanel({
             <Button
               type="button"
               onClick={submitUpload}
-              disabled={uploading || processing || !file}
+              disabled={uploading || processing || queue.length === 0}
               className="flex-1"
             >
               {uploading ? (
                 <>
                   <Spinner />
-                  Mengunggah…
+                  Mengunggah{" "}
+                  {uploadProgress
+                    ? `${uploadProgress.current}/${uploadProgress.total}`
+                    : "…"}
                 </>
               ) : (
                 <>
                   <UploadCloud />
-                  Simpan foto
+                  {queue.length > 1
+                    ? `Simpan ${queue.length} foto`
+                    : "Simpan foto"}
                 </>
               )}
             </Button>
@@ -320,29 +507,55 @@ export function DocumentationPanel({
         }
       >
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label>Foto pekerjaan</Label>
-            {preview ? (
-              <div className="relative overflow-hidden rounded-lg bg-muted">
-                <img
-                  src={preview}
-                  alt="Pratinjau dokumentasi"
-                  className="max-h-72 w-full object-contain"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFile(null);
-                    if (preview) URL.revokeObjectURL(preview);
-                    setPreview(null);
-                    if (cameraRef.current) cameraRef.current.value = "";
-                    if (galleryRef.current) galleryRef.current.value = "";
-                  }}
-                  className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-full bg-foreground/60 text-background backdrop-blur transition-colors hover:bg-foreground/80"
-                  aria-label="Hapus foto"
-                >
-                  <X className="size-4" />
-                </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Label>Foto pekerjaan</Label>
+              <span className="text-xs text-muted-foreground">
+                {queue.length} dipilih · sisa {remainingSlots} slot
+              </span>
+            </div>
+
+            {queue.length > 0 ? (
+              <div className="grid grid-cols-3 gap-2">
+                {queue.map((photo) => (
+                  <div key={photo.id} className="flex min-w-0 flex-col gap-1">
+                    <div className="relative overflow-hidden rounded-md bg-muted">
+                      <img
+                        src={photo.preview}
+                        alt="Pratinjau dokumentasi"
+                        className="aspect-square w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(photo.id)}
+                        disabled={uploading || processing}
+                        className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-foreground/60 text-background backdrop-blur transition-colors hover:bg-foreground/80 disabled:opacity-50"
+                        aria-label={`Hapus foto ${photo.file.name}`}
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                    <span className="flex items-center gap-1 text-xs font-medium tabular-nums text-foreground">
+                      <Clock3 className="size-3" />
+                      {formatTime(photo.capturedAt)} WIB
+                    </span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {photo.timeLabel === "Diambil"
+                        ? photo.source === "exif"
+                          ? "Waktu kamera (EXIF)"
+                          : "Waktu tombol kamera"
+                        : "Waktu unggah"}
+                    </span>
+                    {photo.error && (
+                      <span
+                        className="line-clamp-2 text-xs text-destructive"
+                        title={photo.error}
+                      >
+                        Gagal: {photo.error}
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="flex w-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
@@ -359,49 +572,45 @@ export function DocumentationPanel({
                     Tambahkan foto pekerjaan
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    Waktu unggah WIB dan nomor SPKL tercetak otomatis di foto.
+                    Bisa beberapa foto sekaligus. Nomor SPKL dan waktu foto
+                    tercetak otomatis.
                   </span>
                 </div>
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => cameraRef.current?.click()}
-                    disabled={processing}
-                  >
-                    <Camera />
-                    Ambil foto
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => galleryRef.current?.click()}
-                    disabled={processing}
-                  >
-                    <ImagePlus />
-                    Pilih dari galeri
-                  </Button>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  JPG, PNG, atau WEBP · otomatis dikompresi hingga{" "}
-                  {fileSizeLabel(maxBytes)}
-                </span>
               </div>
             )}
-            <input
-              ref={cameraRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              onChange={onFileChange}
-              className="hidden"
-            />
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCameraOpen(true)}
+                disabled={
+                  processing || uploading || remainingSlots === 0
+                }
+              >
+                <Camera />
+                Ambil foto
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => galleryRef.current?.click()}
+                disabled={
+                  processing || uploading || remainingSlots === 0
+                }
+              >
+                <ImagePlus />
+                Pilih dari galeri
+              </Button>
+            </div>
+
             <input
               ref={galleryRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
-              onChange={onFileChange}
+              multiple
+              onChange={onGalleryChange}
               className="hidden"
             />
             {processing && (
@@ -410,18 +619,15 @@ export function DocumentationPanel({
                 role="status"
               >
                 <Spinner />
-                Mencetak cap waktu…
-              </p>
-            )}
-            {file && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-success-foreground">
-                <CheckCircle2 className="size-3.5" />
-                {file.name} · {fileSizeLabel(file.size)}
+                {processingLabel ?? "Mencetak cap waktu…"}
               </p>
             )}
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Cap waktu mengikuti jam perangkat saat foto dipilih. Waktu unggah
-              di server tetap menjadi acuan audit.
+              JPG, PNG, atau WEBP, otomatis dikompresi hingga{" "}
+              {fileSizeLabel(maxBytes)}. Foto kamera memakai waktu tombol ambil;
+              foto galeri memakai EXIF bila tersedia, jika tidak waktu unggah
+              dicetak dan ditandai &quot;Diunggah&quot;. Waktu unggah di server
+              tetap disimpan terpisah untuk audit.
             </p>
           </div>
 
@@ -444,19 +650,26 @@ export function DocumentationPanel({
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2.5">
             <div className="flex min-w-0 items-center gap-2">
               <MapPin className="size-4 shrink-0 text-primary" />
-              <div className="min-w-0">
+              <div className="flex min-w-0 flex-col gap-0.5">
                 <p className="text-xs font-medium text-foreground">
                   Lokasi foto{" "}
                   <span className="font-normal text-muted-foreground">
                     (opsional)
                   </span>
                 </p>
-                <p className="truncate text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {locating
                     ? "Mengambil titik GPS…"
-                    : location
-                      ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
-                      : "Tidak dilampirkan"}
+                    : exifLocationCount > 0
+                      ? `${exifLocationCount} foto memakai GPS dari EXIF`
+                      : location
+                        ? "Memakai lokasi perangkat sebagai cadangan"
+                        : "Foto tanpa GPS EXIF tidak akan punya lokasi"}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {location
+                    ? `Cadangan ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
+                    : "Lokasi cadangan belum diambil"}
                 </p>
               </div>
             </div>
@@ -489,13 +702,23 @@ export function DocumentationPanel({
           </div>
 
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Maksimal {maxUploads} foto per sesi. Unggahan ditutup setelah masa
-            tenggang dokumentasi berakhir.
+            Maksimal {maxUploads} foto per sesi, sisa {remainingSlots} slot. Satu
+            deskripsi berlaku untuk semua foto pada unggahan ini. Unggahan
+            ditutup setelah masa tenggang dokumentasi berakhir.
           </p>
+
+          {notice && (
+            <p
+              className="text-xs leading-relaxed text-muted-foreground"
+              role="status"
+            >
+              {notice}
+            </p>
+          )}
 
           {error && (
             <Alert variant="destructive">
-              <AlertTitle>Dokumentasi gagal disimpan</AlertTitle>
+              <AlertTitle>Terjadi kendala unggah</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
@@ -522,9 +745,12 @@ export function DocumentationPanel({
                     {selected.employee?.name ?? "Pekerja"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Diunggah{" "}
-                    {formatDateHuman(selected.takenAt, "EEEE, d MMMM yyyy")} ·{" "}
+                    Waktu foto {formatDateHuman(selected.takenAt, "d MMM yyyy")} ·{" "}
                     {formatTime(selected.takenAt)} WIB
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Diunggah {formatDateHuman(selected.createdAt, "d MMM yyyy")} ·{" "}
+                    {formatTime(selected.createdAt)} WIB
                   </p>
                 </div>
               </div>
@@ -537,7 +763,7 @@ export function DocumentationPanel({
                     <a
                       href={`https://www.openstreetmap.org/?mlat=${selected.location.latitude}&mlon=${selected.location.longitude}#map=17/${selected.location.latitude}/${selected.location.longitude}`}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                     />
                   }
                 >
@@ -578,6 +804,24 @@ export function DocumentationPanel({
           </div>
         )}
       </Modal>
+
+      <CameraCaptureDialog
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={async (file, capturedAt) => {
+          await addFiles([file], { cameraCapturedAt: capturedAt });
+        }}
+        disabled={processing || uploading || remainingSlots === 0}
+        disabledReason={
+          remainingSlots === 0
+            ? `Batas ${maxUploads} foto per sesi sudah tercapai.`
+            : processing || uploading
+              ? "Tunggu proses foto sebelumnya selesai."
+              : undefined
+        }
+        title="Ambil dokumentasi"
+        description={`${spklNumber} · ${spklTitle}`}
+      />
     </Frame>
   );
 }

@@ -271,6 +271,12 @@ export const checklistFollowUpSchema = z.object({
     .optional()
     .default(""),
   picId: id.nullish(),
+  safetyName: z
+    .string()
+    .trim()
+    .max(120, "Nama petugas safety maksimal 120 karakter.")
+    .optional()
+    .default(""),
   priority: z
     .enum(["rendah", "sedang", "tinggi", "mendesak"])
     .optional()

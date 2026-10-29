@@ -45,7 +45,7 @@ function bucket() {
 function assertS3Provider(provider: StorageProvider) {
   if (provider !== "s3") {
     throw new Error(
-      "Dokumentasi lama belum dipindahkan ke Neon Object Storage. Penyimpanan lokal tidak tersedia.",
+      "Dokumentasi lama belum dipindahkan ke object storage S3. Penyimpanan lokal tidak tersedia.",
     );
   }
 }

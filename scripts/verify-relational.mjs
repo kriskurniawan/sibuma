@@ -4,6 +4,7 @@ import { createHash, createHmac, randomUUID } from "node:crypto";
 import pg from "pg";
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { models, decode, encode, columns } from "../lib/db-model.ts";
+import { buildDocumentationMarker } from "../lib/documentation-marker.ts";
 
 // User-started local server only. NO reset. Every fixture uses a unique prefix.
 const base='http://localhost:3000';
@@ -17,6 +18,14 @@ const fixtureIds=new Set([supervisorId,workerId,divisionId]);
 const s3=new S3Client({endpoint:process.env.AWS_ENDPOINT_URL_S3,region:process.env.AWS_REGION,credentials:{accessKeyId:process.env.AWS_ACCESS_KEY_ID,secretAccessKey:process.env.AWS_SECRET_ACCESS_KEY},forcePathStyle:true,requestChecksumCalculation:'WHEN_REQUIRED'});
 const bucket=process.env.NEON_STORAGE_BUCKET;
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
+// Server now rejects JPEGs without the invisible SIBUMA marker; fixtures must
+// stamp their bytes the same way the browser does.
+function stampJpeg(bytes,comment) {
+ const payload=Buffer.from(comment,'utf8');
+ const segment=Buffer.alloc(4+payload.length);
+ segment[0]=0xff;segment[1]=0xfe;segment.writeUInt16BE(payload.length+2,2);payload.copy(segment,4);
+ return Buffer.concat([bytes.subarray(0,2),segment,bytes.subarray(2)]);
+}
 const cookie=id=>{
  const payload=Buffer.from(JSON.stringify({employeeId:id,exp:Date.now()+3600000})).toString('base64url');
  return `lembur_session=${payload}.${createHmac('sha256',process.env.SESSION_SECRET).update(payload).digest('base64url')}`;
@@ -77,12 +86,14 @@ try {
  const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Jakarta',hour:'2-digit',hour12:false}).format(new Date()));
  assert(hour<23,'Uji ini perlu dijalankan sebelum pukul 23 WIB.');
  const startTime=`${String(Math.min(23,hour+1)).padStart(2,'0')}:00`;
- const input={title:'SPKL verifikasi relasional',description:'Fixture untuk memverifikasi aturan absensi dan S3.',date,startTime,endTime:'23:59',divisionId:actualDivision,latitude:-6.2439,longitude:106.7989,address:'Lokasi uji',radiusMeters:120,requiresDocumentation:true,workerIds:[actualWorker]};
+ const [location]=(await pool.query("SELECT id,latitude,longitude FROM work_locations WHERE active=true ORDER BY id LIMIT 1")).rows;
+ assert(location,'Titik absensi belum tersedia. Jalankan npm run db:migrate:work-locations lebih dulu.');
+ const input={title:'SPKL verifikasi relasional',description:'Fixture untuk memverifikasi aturan absensi dan S3.',date,startTime,endTime:'23:59',divisionId:actualDivision,locationId:location.id,radiusMeters:120,requiresDocumentation:true,workerIds:[actualWorker]};
  const spklResult=await request('/api/spkl',supervisorId,input);assert.equal(spklResult.status,200,JSON.stringify(spklResult));
  const spklId=spklResult.data.id;fixtureIds.add(spklId);
  const edit=await request(`/api/spkl/${spklId}`,supervisorId,{...input,title:'SPKL verifikasi relasional diperbarui'},'PATCH');assert.equal(edit.status,200,JSON.stringify(edit));
  const forbidden=await request('/api/spkl',actualWorker,input);assert.equal(forbidden.status,403);
- const geolocation={latitude:input.latitude,longitude:input.longitude,accuracy:5};
+ const geolocation={latitude:Number(location.latitude),longitude:Number(location.longitude),accuracy:5};
  const checkins=await Promise.all([request(`/api/spkl/${spklId}/attendance`,actualWorker,geolocation),request(`/api/spkl/${spklId}/attendance`,actualWorker,geolocation)]);
  assert.equal(checkins.filter(r=>r.status===200).length,1,JSON.stringify(checkins));
  assert.equal(checkins.filter(r=>r.status===422).length,1,JSON.stringify(checkins));
@@ -90,16 +101,28 @@ try {
  assert(new Date(attendance.checkInAt)<new Date(spklResult.data.spkl.startAt));
  const blockedCheckout=await request(`/api/attendance/${attendance.id}/checkout`,actualWorker,geolocation);assert.equal(blockedCheckout.status,422);
  passed.push('SPKL buat/edit, role guard, absen lebih awal, check-in paralel satu baris');
+ const workerPage=await fetch(`${base}/spkl/${spklId}`,{headers:{cookie:cookie(actualWorker)}});
+ assert.equal(workerPage.status,200);
+ assert((await workerPage.text()).includes('Tambah foto'),'Panel dokumentasi tidak menampilkan aksi unggah');
  const bytes=Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64');
- const form=new FormData();form.set('file',new File([bytes],'verifikasi.jpg',{type:'image/jpeg'}));form.set('description','Fixture upload Neon relasional.');
+ const unsignedForm=new FormData();unsignedForm.set('file',new File([bytes],'verifikasi-tanpa-cap.jpg',{type:'image/jpeg'}));unsignedForm.set('description','Fixture upload tanpa cap waktu SIBUMA.');
+ const unsigned=await request(`/api/spkl/${spklId}/documents`,actualWorker,unsignedForm);assert.equal(unsigned.status,400,JSON.stringify(unsigned));
+ const stamped=stampJpeg(bytes,buildDocumentationMarker({spklNumber:spklResult.data.spkl.number,takenAt:new Date(Date.now()-60*60_000).toISOString(),source:'device'}));
+ const form=new FormData();form.set('file',new File([stamped],'verifikasi.jpg',{type:'image/jpeg'}));form.set('description','Fixture upload Neon relasional.');
  const upload=await request(`/api/spkl/${spklId}/documents`,actualWorker,form);assert.equal(upload.status,200,JSON.stringify(upload));
  const doc=upload.data.documentation;uploads.add(doc.storageKey);
- const saved=await s3.send(new GetObjectCommand({Bucket:bucket,Key:doc.storageKey}));assert.equal(hash(await saved.Body.transformToByteArray()),hash(bytes));
+ const wrongSpklForm=new FormData();wrongSpklForm.set('file',new File([stampJpeg(bytes,buildDocumentationMarker({spklNumber:'SPKL-LAIN',takenAt:new Date().toISOString(),source:'device'}))],'spkl-lain.jpg',{type:'image/jpeg'}));wrongSpklForm.set('description','Fixture cap waktu dari SPKL lain.');
+ const wrongSpkl=await request(`/api/spkl/${spklId}/documents`,actualWorker,wrongSpklForm);assert.equal(wrongSpkl.status,400,JSON.stringify(wrongSpkl));
+ const oldForm=new FormData();oldForm.set('file',new File([stampJpeg(bytes,buildDocumentationMarker({spklNumber:spklResult.data.spkl.number,takenAt:new Date(Date.now()-3*24*60*60*1000).toISOString(),source:'device'}))],'terlalu-lama.jpg',{type:'image/jpeg'}));oldForm.set('description','Fixture waktu foto terlalu lama.');
+ const tooOld=await request(`/api/spkl/${spklId}/documents`,actualWorker,oldForm);assert.equal(tooOld.status,400,JSON.stringify(tooOld));
+ const saved=await s3.send(new GetObjectCommand({Bucket:bucket,Key:doc.storageKey}));assert.equal(hash(await saved.Body.transformToByteArray()),hash(stamped));
+ assert(Math.abs(new Date(doc.takenAt).getTime()-(Date.now()-60*60_000))<2*60_000,doc.takenAt);
+ assert(Math.abs(new Date(doc.createdAt).getTime()-Date.now())<2*60_000,doc.createdAt);
  assert.equal((await fetch(`${base}/api/uploads/${doc.storageKey}`,{headers:{cookie:cookie(otherWorkerId)}})).status,403);
  assert.equal((await fetch(`${base}/api/uploads/${doc.storageKey}`)).status,401);
  assert.equal((await fetch(`${process.env.AWS_ENDPOINT_URL_S3.replace(/\/$/,'')}/${bucket}/${doc.storageKey}`)).status,403);
  const checkout=await request(`/api/attendance/${attendance.id}/checkout`,actualWorker,geolocation);assert.equal(checkout.status,200,JSON.stringify(checkout));assert.equal(checkout.data.attendance.durationMinutes,0);
- passed.push('Upload S3 asli, dokumen wajib, akses pekerja lain 403, durasi sebelum start=0');
+ passed.push('Upload S3 asli, cap waktu wajib (mentah/SPKL lain/terlalu lama ditolak), akses pekerja lain 403, durasi sebelum start=0');
  const corrected=await request(`/api/attendance/${attendance.id}/correct`,supervisorId,{checkInLocal:`${date}T${startTime}`,checkOutLocal:`${date}T23:59`,reason:'Koreksi fixture pengujian relasional.'},'PATCH');assert.equal(corrected.status,200,JSON.stringify(corrected));
  const audits=(await pool.query('SELECT action FROM audit_logs WHERE object_id=$1',[attendance.id])).rows.map(r=>r.action);assert(audits.includes('absensi_dikoreksi'));
  passed.push('Koreksi + audit atomik');

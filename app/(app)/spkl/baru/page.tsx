@@ -8,6 +8,7 @@ import {
   getPolicy,
   getTeam,
 } from "@/lib/queries";
+import { listWorkLocations } from "@/lib/work-locations";
 import { todayLocal } from "@/lib/time";
 
 export const metadata = {
@@ -20,11 +21,12 @@ export default async function CreateSpklPage() {
   if (user.role !== "atasan") redirect("/");
   if (isReadOnly(user)) redirect("/lembur");
 
-  const [team, policy, schedules, divisions] = await Promise.all([
+  const [team, policy, schedules, divisions, locations] = await Promise.all([
     getTeam(user.id),
     getPolicy(),
     getAssignmentSchedules(user.id),
     getDivisions(user.id),
+    listWorkLocations(),
   ]);
 
   return (
@@ -32,6 +34,7 @@ export default async function CreateSpklPage() {
       mode="create"
       team={team.filter((employee) => employee.active)}
       divisions={divisions}
+      locations={locations}
       policy={policy}
       schedules={schedules}
       defaultDate={todayLocal()}

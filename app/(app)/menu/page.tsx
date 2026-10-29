@@ -4,6 +4,7 @@ import {
   BarChart3,
   CalendarClock,
   ChevronRight,
+  Hammer,
   ListChecks,
   QrCode,
   ScrollText,
@@ -77,6 +78,12 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
           description: "Temuan yang masih terbuka atau diproses.",
           icon: ListChecks,
         },
+        {
+          href: "/pekerjaan",
+          label: "Pekerjaan harian",
+          description: "Pekerjaan harian beserta dokumentasi foto.",
+          icon: Hammer,
+        },
       ],
     },
     {
@@ -86,7 +93,7 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
         {
           href: "/laporan",
           label: "Laporan & rekap",
-          description: "Checklist, temuan, dan lembur tim.",
+          description: "Checklist, temuan, pekerjaan harian, dan lembur tim.",
           icon: BarChart3,
         },
         {

@@ -10,6 +10,7 @@ import {
   getTeam,
 } from "@/lib/queries";
 import { toLocalDateInput, toLocalTimeInput } from "@/lib/time";
+import { listWorkLocations } from "@/lib/work-locations";
 
 export const metadata = {
   title: "Ubah SPKL",
@@ -26,13 +27,15 @@ export default async function EditSpklPage({
   if (isReadOnly(user)) redirect(`/spkl/${(await params).id}`);
 
   const { id } = await params;
-  const [detail, team, policy, schedules, divisions] = await Promise.all([
-    getSpklDetail(id, user),
-    getTeam(user.id),
-    getPolicy(),
-    getAssignmentSchedules(user.id),
-    getDivisions(user.id),
-  ]);
+  const [detail, team, policy, schedules, divisions, locations] =
+    await Promise.all([
+      getSpklDetail(id, user),
+      getTeam(user.id),
+      getPolicy(),
+      getAssignmentSchedules(user.id),
+      getDivisions(user.id),
+      listWorkLocations({ includeInactive: true }),
+    ]);
 
   if (!detail) notFound();
   if (!detail.canManage) redirect(`/spkl/${id}`);
@@ -54,6 +57,7 @@ export default async function EditSpklPage({
       mode="edit"
       team={team.filter((employee) => employee.active)}
       divisions={divisions}
+      locations={locations}
       policy={policy}
       schedules={schedules}
       defaultDate={toLocalDateInput(detail.spkl.startAt)}
@@ -64,7 +68,7 @@ export default async function EditSpklPage({
         date: toLocalDateInput(detail.spkl.startAt),
         startTime: toLocalTimeInput(detail.spkl.startAt),
         endTime: toLocalTimeInput(detail.spkl.endAt),
-        location: detail.spkl.location,
+        workLocationId: detail.spkl.workLocationId,
         radiusMeters: detail.spkl.radiusMeters,
         divisionId: detail.spkl.divisionId ?? "",
         requiresDocumentation: detail.spkl.requiresDocumentation,

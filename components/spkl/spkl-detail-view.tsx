@@ -137,7 +137,7 @@ export function SpklDetailView({
   const showCheckOut = isWorker && detail.canCheckOut;
   const backTarget =
     user.role === "super_admin"
-      ? { href: "/laporan", label: "Kembali ke laporan" }
+      ? { href: "/laporan?tab=lembur", label: "Kembali ke laporan" }
       : user.role === "atasan"
         ? { href: "/lembur", label: "Kembali ke lembur" }
         : { href: "/riwayat", label: "Kembali ke riwayat" };
@@ -395,6 +395,10 @@ export function SpklDetailView({
             canUpload={detail.canUpload}
             uploadBlockedReason={uploadBlockedReason}
             maxUploads={UPLOAD_MAX_PER_SESSION}
+            remainingUploads={Math.max(
+              0,
+              UPLOAD_MAX_PER_SESSION - myDocCount,
+            )}
             maxBytes={UPLOAD_MAX_BYTES}
           />
 
@@ -559,7 +563,13 @@ export function SpklDetailView({
                 <DataRow label="Radius" value={`${spkl.radiusMeters} meter`} />
                 <DataRow
                   label="Divisi"
-                  value={detail.division?.name ?? "Belum ditentukan"}
+                  value={
+                    detail.divisions.length > 0
+                      ? detail.divisions
+                          .map((division) => division.name)
+                          .join(", ")
+                      : detail.division?.name ?? "Belum ditentukan"
+                  }
                 />
                 <DataRow
                   label="Pembuat"

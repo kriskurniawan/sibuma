@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Save, Settings2 } from "lucide-react";
+import { Save, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
@@ -233,12 +233,12 @@ export function PolicyForm({ policy }: { policy: Policy }) {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
-              <Label htmlFor="default-radius">Radius default</Label>
+              <Label htmlFor="default-radius">Radius default titik</Label>
               <Input
                 id="default-radius"
                 type="number"
                 min={25}
-                max={2_000}
+                max={1_000}
                 step={5}
                 value={values.defaultRadiusMeters}
                 onChange={(event) =>
@@ -247,7 +247,7 @@ export function PolicyForm({ policy }: { policy: Policy }) {
                 className="tabular-nums"
               />
               <p className="text-xs text-muted-foreground">
-                Meter untuk SPKL baru
+                Meter untuk titik absensi baru
               </p>
             </div>
 
@@ -288,18 +288,6 @@ export function PolicyForm({ policy }: { policy: Policy }) {
                 }))
               }
             />
-          </div>
-
-          <div className="flex items-start gap-2 border-t border-border pt-4">
-            <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="text-xs font-medium text-foreground">Titik absen default</p>
-              <p className="text-sm">{policy.defaultLocation.address || "Belum diatur"}</p>
-              <p className="text-xs text-muted-foreground tabular-nums">
-                {policy.defaultLocation.latitude.toFixed(5)},{" "}
-                {policy.defaultLocation.longitude.toFixed(5)}
-              </p>
-            </div>
           </div>
 
           <p className="text-xs text-muted-foreground">

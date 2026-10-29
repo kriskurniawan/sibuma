@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -49,6 +49,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/modal";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { AnswerCard, type AnswerDraftState } from "@/components/checklist/answer-card";
 import {
   ChecklistFollowUpBadge,
@@ -61,6 +62,7 @@ import { ChecklistFollowUpUpdateDialog } from "@/components/checklist/follow-up-
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
 import { checklistIntervalLabel } from "@/lib/checklist-schedule";
 import {
+  CHECKLIST_MAX_PHOTOS,
   conditionRequiresNote,
   isIssueCondition,
   type ChecklistAnswer,
@@ -97,6 +99,8 @@ export function ChecklistDetail({
 }) {
   const router = useRouter();
   const { inspection } = detail;
+  const isMobile = useIsMobile();
+  const reopenContentRef = useRef<HTMLDivElement>(null);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
@@ -792,6 +796,9 @@ export function ChecklistDetail({
                       <span>
                         {row.pic ? `PIC ${row.pic.name}` : "Tanpa PIC"}
                       </span>
+                      {row.followUp.safetyName && (
+                        <span>Petugas safety {row.followUp.safetyName}</span>
+                      )}
                       <span className="tabular-nums">
                         {row.followUp.dueDate
                           ? `Deadline ${formatDateTime(dueIso(row.followUp.dueDate), "d MMM yyyy")}`
@@ -822,7 +829,10 @@ export function ChecklistDetail({
                         photos={photos}
                         inspectionId={inspection.id}
                         followUpId={row.followUp.id}
-                        canUpload={canEditFollowUp(row) && photos.length < 6}
+                        canUpload={
+                          canEditFollowUp(row) &&
+                          photos.length < CHECKLIST_MAX_PHOTOS
+                        }
                         canDelete={canEditFollowUp(row)}
                         stage="perbaikan"
                         onChanged={() => router.refresh()}
@@ -917,7 +927,10 @@ export function ChecklistDetail({
           if (!open && !reopening) setReopenOpen(false);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent
+          ref={reopenContentRef}
+          initialFocus={isMobile ? reopenContentRef : undefined}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>Buka kembali checklist?</AlertDialogTitle>
             <AlertDialogDescription>

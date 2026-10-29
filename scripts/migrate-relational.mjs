@@ -22,6 +22,10 @@ try {
   await client.query('ROLLBACK');
  } else {
   await client.query(await readFile(new URL('../db/migrations/003_employee_email_otp.sql',import.meta.url),'utf8'));
+  // Tabel titik absensi harus ada sebelum baris SPKL disalin karena model kini
+  // memetakan kolom work_location_id. Seed dan tautan dijalankan lagi setelah
+  // snapshot masuk (lihat di bawah).
+  await client.query(await readFile(new URL('../db/migrations/013_work_locations.sql',import.meta.url),'utf8'));
   // Block old whole-state writers while taking the final snapshot. Later they
   // receive an explicit error from the read-only trigger rather than diverge.
   await client.query('LOCK TABLE app_state IN ACCESS EXCLUSIVE MODE');
@@ -54,10 +58,14 @@ try {
    assert.equal(saved.length,entities.length);
   }
   await client.query('SET CONSTRAINTS ALL IMMEDIATE');
+  // Seed titik default dari kebijakan dan impor titik SPKL historis, lalu
+  // hubungkan tiap SPKL lama ke titiknya.
+  await client.query(await readFile(new URL('../db/migrations/013_work_locations.sql',import.meta.url),'utf8'));
   const next=Math.max(data.meta.nextSpklSequence,...data.spkls.map(row=>Number(row.number.split('/').at(-1))+1).filter(Number.isFinite));
   await client.query("SELECT setval('spkl_number_sequence',$1,false)",[next]);
   const hash=createHash('sha256').update(canonical(source.data)).digest('hex');
   await client.query('INSERT INTO schema_migrations(id,source_version,source_sha256,verification) VALUES($1,$2,$3,$4::jsonb)',[migrationId,source.state_version,hash,JSON.stringify({counts,allMappedValuesMatch:true,foreignKeysValidated:true})]);
+  await client.query("INSERT INTO schema_migrations(id,verification) VALUES($1,$2::jsonb) ON CONFLICT(id) DO NOTHING",["013_work_locations",JSON.stringify({seededFromLegacySnapshot:true})]);
   await client.query(`CREATE OR REPLACE FUNCTION reject_legacy_state_write() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'Legacy app_state is read-only after relational migration. Restart application with relational code.'; END $$`);
   await client.query('CREATE TRIGGER app_state_readonly BEFORE INSERT OR UPDATE OR DELETE ON app_state FOR EACH STATEMENT EXECUTE FUNCTION reject_legacy_state_write()');
   if(process.argv.includes('--apply')) {

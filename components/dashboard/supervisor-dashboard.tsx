@@ -13,6 +13,7 @@ import {
   ChecklistSummaryRow,
   FollowUpSummaryRow,
 } from "@/components/dashboard/checklist-summary";
+import { ManualWorkSummary } from "@/components/dashboard/manual-work-summary";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { MobileSummary } from "@/components/mobile-summary";
 import { IconTile } from "@/components/reui/icon-tile";
@@ -37,6 +38,10 @@ import type {
   ChecklistInspectionRow,
   ChecklistTotals,
 } from "@/lib/checklist-types";
+import type {
+  ManualWorkRow,
+  ManualWorkTotals,
+} from "@/lib/manual-work-types";
 import type { SupervisorOverview } from "@/lib/queries";
 import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
@@ -49,6 +54,8 @@ export function SupervisorDashboard({
   checklistTotals,
   followUps,
   openFollowUpTotal,
+  manualWorks,
+  manualWorkTotals,
 }: {
   user: SessionUser;
   overview: SupervisorOverview;
@@ -56,6 +63,8 @@ export function SupervisorDashboard({
   checklistTotals: ChecklistTotals;
   followUps: ChecklistFollowUpRow[];
   openFollowUpTotal: number;
+  manualWorks: ManualWorkRow[];
+  manualWorkTotals: ManualWorkTotals;
 }) {
   const firstName = user.name.split(" ")[0];
   const readOnly = isReadOnly(user);
@@ -428,6 +437,14 @@ export function SupervisorDashboard({
           </FramePanel>
         </Frame>
       </div>
+
+      <ManualWorkSummary
+        items={manualWorks}
+        totals={manualWorkTotals}
+        canManage={!readOnly}
+        canAssign={!readOnly}
+        readOnly={readOnly}
+      />
     </div>
   );
 }

@@ -13,7 +13,10 @@ import {
   checklistNotStartedMessage,
 } from "@/lib/checklist-schedule";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
-import type { ChecklistFollowUp } from "@/lib/checklist-types";
+import {
+  CHECKLIST_MAX_PHOTOS,
+  type ChecklistFollowUp,
+} from "@/lib/checklist-types";
 import { pool, query, transaction } from "@/lib/db";
 import { rowToCamel } from "@/lib/db-model";
 import { apiError, apiOk } from "@/lib/http";
@@ -194,7 +197,11 @@ export async function POST(
         [id, answerId, followUpId],
         connection,
       );
-      if (count.total >= 6) throw new Error("Maksimal 6 foto per item atau tindak lanjut.");
+      if (count.total >= CHECKLIST_MAX_PHOTOS) {
+        throw new Error(
+          `Maksimal ${CHECKLIST_MAX_PHOTOS} foto per item atau tindak lanjut.`,
+        );
+      }
 
       const now = new Date().toISOString();
       const photoId = `cp_${crypto.randomUUID()}`;

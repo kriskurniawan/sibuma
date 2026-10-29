@@ -38,6 +38,7 @@ const OBJECT_LABEL: Record<AuditLog["objectType"], string> = {
   autentikasi: "Autentikasi",
   checklist: "Checklist",
   tindak_lanjut: "Tindak lanjut",
+  pekerjaan: "Pekerjaan harian",
 };
 
 export function OrganizationDashboard({
@@ -283,7 +284,7 @@ export function OrganizationDashboard({
               variant="outline"
               size="sm"
               nativeButton={false}
-              render={<Link href="/laporan" />}
+              render={<Link href="/laporan?tab=lembur" />}
             >
               <ClipboardList aria-hidden="true" />
               Laporan lembur

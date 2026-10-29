@@ -104,6 +104,7 @@ export const CHECKLIST_INTERVAL_UNIT_LABEL: Record<
 export const CHECKLIST_MAX_ASSIGNEES = 500;
 export const CHECKLIST_MAX_ITEMS = 100;
 export const CHECKLIST_MAX_GROUPS = 30;
+export const CHECKLIST_MAX_PHOTOS = 6;
 
 export function isIssueCondition(
   condition: ChecklistCondition | null,
@@ -265,6 +266,7 @@ export interface ChecklistFollowUp {
   title: string;
   description: string;
   picId: string | null;
+  safetyName: string;
   priority: ChecklistPriority;
   dueDate: string | null;
   status: ChecklistFollowUpStatus;

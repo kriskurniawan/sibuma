@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef, useState, type ChangeEvent } from "react";
-import { ImagePlus, RotateCcw, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Camera, ImagePlus, RotateCcw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
 import { Modal } from "@/components/modal";
 import {
   AlertDialog,
@@ -18,8 +19,22 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { compressImage } from "@/lib/compress-image";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
+import {
+  CHECKLIST_MAX_PHOTOS,
+  type ChecklistPhoto,
+  type ChecklistPhotoStage,
+} from "@/lib/checklist-types";
 import { formatDateTime } from "@/lib/time";
-import type { ChecklistPhoto, ChecklistPhotoStage } from "@/lib/checklist-types";
+
+const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
+
+type FailedPhoto = {
+  id: string;
+  file: File;
+  preview: string;
+  message: string;
+};
 
 export function ChecklistPhotoGallery({
   photos,
@@ -43,58 +58,280 @@ export function ChecklistPhotoGallery({
   onChanged: () => void;
   onUploadingChange?: (uploading: boolean) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const failedRef = useRef<FailedPhoto[]>([]);
+  const nextIdRef = useRef(0);
+  const [failedPhotos, setFailedPhotos] = useState<FailedPhoto[]>([]);
+  // ID foto yang sudah diunggah tetapi daftar dari server belum memuatnya.
+  // Foto yang sama tidak dihitung dua kali setelah refresh selesai.
+  const [optimisticIds, setOptimisticIds] = useState<string[]>([]);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<ChecklistPhoto | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ChecklistPhoto | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const allowDelete = canDelete ?? canUpload;
+  const visibleIds = new Set(photos.map((photo) => photo.id));
+  const pendingUploads = optimisticIds.filter((id) => !visibleIds.has(id)).length;
+  const totalCount =
+    photos.length + failedPhotos.length + pendingUploads;
+  const atLimit = totalCount >= CHECKLIST_MAX_PHOTOS;
+  const remainingSlots = Math.max(0, CHECKLIST_MAX_PHOTOS - totalCount);
 
-  async function uploadFile(file: File) {
+  useEffect(() => {
+    return () => {
+      for (const photo of failedRef.current) {
+        URL.revokeObjectURL(photo.preview);
+      }
+    };
+  }, []);
+
+  function replaceFailed(next: FailedPhoto[]) {
+    failedRef.current = next;
+    setFailedPhotos(next);
+  }
+
+  function removeFailed(id: string) {
+    const target = failedRef.current.find((photo) => photo.id === id);
+    if (target) URL.revokeObjectURL(target.preview);
+    replaceFailed(failedRef.current.filter((photo) => photo.id !== id));
+    setError(null);
+  }
+
+  function clearFailed() {
+    for (const photo of failedRef.current) {
+      URL.revokeObjectURL(photo.preview);
+    }
+    replaceFailed([]);
+    setError(null);
+  }
+
+  function onGalleryChange(event: ChangeEvent<HTMLInputElement>) {
+    const chosen = Array.from(event.target.files ?? []);
+    // Reset segera agar memilih file yang sama tetap memicu onChange.
+    event.target.value = "";
+    void addFiles(chosen);
+  }
+
+  async function uploadOne(file: File) {
+    const optimized = await compressImage(file, UPLOAD_MAX_BYTES);
+    if (optimized.size > UPLOAD_MAX_BYTES) {
+      throw new Error(
+        "Foto masih terlalu besar setelah dikompresi. Pilih foto lain.",
+      );
+    }
+    const body = new FormData();
+    body.set("file", optimized);
+    body.set("stage", followUpId ? "perbaikan" : stage);
+    if (answerId) body.set("answerId", answerId);
+    if (followUpId) body.set("followUpId", followUpId);
+    const response = await fetch(
+      `/api/checklist/inspections/${inspectionId}/photos`,
+      { method: "POST", body },
+    );
+    let message = "Gagal mengunggah foto.";
+    let photoId = "";
+    try {
+      const data = (await response.json()) as {
+        message?: string;
+        photo?: { id?: string };
+      };
+      if (data.message) message = data.message;
+      if (data.photo?.id) photoId = data.photo.id;
+    } catch {
+      // Respons non-JSON tetap memakai pesan umum di atas.
+    }
+    if (!response.ok) throw new Error(message);
+    return photoId;
+  }
+
+  async function addFiles(chosen: File[]) {
+    if (!canUpload || uploading) return;
+    if (chosen.length === 0) return;
+
+    const notices: string[] = [];
+    const valid = chosen.filter((file) => {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        notices.push(`${file.name}: format harus JPG, PNG, atau WEBP.`);
+        return false;
+      }
+      if (file.size > MAX_SOURCE_BYTES) {
+        notices.push(`${file.name}: ukuran asli maksimal 12 MB.`);
+        return false;
+      }
+      return true;
+    });
+
+    const slots = Math.max(0, CHECKLIST_MAX_PHOTOS - totalCount);
+    if (slots === 0) {
+      setNotice(null);
+      setError(
+        `Batas ${CHECKLIST_MAX_PHOTOS} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
+      );
+      return;
+    }
+
+    const accepted = valid.slice(0, slots);
+    if (valid.length > slots) {
+      notices.push(
+        `Hanya ${slots} foto lagi yang dapat ditambahkan pada item ini.`,
+      );
+    }
+    if (accepted.length === 0) {
+      setError(null);
+      setNotice(notices[0] ?? null);
+      return;
+    }
+
+    setError(null);
+    setNotice(null);
     setUploading(true);
     onUploadingChange?.(true);
+    let success = 0;
+    let firstError = "";
+    const failures: FailedPhoto[] = [];
+
     try {
-      const optimized = await compressImage(file, UPLOAD_MAX_BYTES);
-      if (optimized.size > UPLOAD_MAX_BYTES) {
-        setPendingFile(null);
-        toast.error("Foto masih terlalu besar setelah dikompresi. Pilih foto lain.");
-        return;
+      for (let index = 0; index < accepted.length; index += 1) {
+        const file = accepted[index];
+        setProgress({ current: index + 1, total: accepted.length });
+        try {
+          const photoId = await uploadOne(file);
+          success += 1;
+          if (photoId) {
+            setOptimisticIds((ids) =>
+              ids.includes(photoId) ? ids : [...ids, photoId],
+            );
+          }
+        } catch (uploadError) {
+          const message =
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Gagal mengunggah foto. Periksa koneksi.";
+          if (!firstError) firstError = message;
+          nextIdRef.current += 1;
+          failures.push({
+            id: `failed-${nextIdRef.current}`,
+            file,
+            preview: URL.createObjectURL(file),
+            message,
+          });
+        }
       }
-      const body = new FormData();
-      body.set("file", optimized);
-      body.set("stage", followUpId ? "perbaikan" : stage);
-      if (answerId) body.set("answerId", answerId);
-      if (followUpId) body.set("followUpId", followUpId);
-      const response = await fetch(
-        `/api/checklist/inspections/${inspectionId}/photos`,
-        { method: "POST", body },
-      );
-      const data = (await response.json()) as { ok?: boolean; message?: string };
-      if (!response.ok) {
-        setPendingFile(file);
-        toast.error(data.message ?? "Gagal mengunggah foto.");
-        return;
-      }
-      setPendingFile(null);
-      toast.success("Foto ditambahkan.");
-      onChanged();
-    } catch {
-      setPendingFile(file);
-      toast.error("Gagal mengunggah foto. Periksa koneksi lalu coba lagi.");
     } finally {
       setUploading(false);
+      setProgress(null);
       onUploadingChange?.(false);
+    }
+
+    if (failures.length > 0) {
+      replaceFailed([...failedRef.current, ...failures]);
+    }
+    if (success > 0) {
+      toast.success(
+        success === 1 ? "Foto ditambahkan." : `${success} foto ditambahkan.`,
+      );
+      onChanged();
+    }
+    if (failures.length > 0) {
+      setError(
+        `${failures.length} foto gagal diunggah. ${firstError} Kamu dapat mencoba lagi tanpa memilih ulang.`,
+      );
+      toast.error(
+        failures.length === 1
+          ? "Satu foto gagal diunggah."
+          : `${failures.length} foto gagal diunggah.`,
+      );
+    }
+    if (notices.length > 0) {
+      setNotice(
+        `${notices[0]}${notices.length > 1 ? ` (+${notices.length - 1} catatan lain)` : ""}`,
+      );
     }
   }
 
-  async function upload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    setPendingFile(null);
-    await uploadFile(file);
+  async function retryFailed() {
+    if (!canUpload || uploading || failedRef.current.length === 0) return;
+
+    const snapshot = [...failedRef.current];
+    const slots = Math.max(
+      0,
+      CHECKLIST_MAX_PHOTOS - (photos.length + pendingUploads),
+    );
+    if (slots === 0) {
+      setNotice(null);
+      setError(
+        `Batas ${CHECKLIST_MAX_PHOTOS} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
+      );
+      return;
+    }
+
+    const attempted = snapshot.slice(0, slots);
+    const skipped = snapshot.slice(slots);
+    setError(null);
+    setNotice(
+      skipped.length > 0
+        ? `Hanya ${slots} foto dapat diunggah karena batas ${CHECKLIST_MAX_PHOTOS} foto.`
+        : null,
+    );
+    setUploading(true);
+    onUploadingChange?.(true);
+    let success = 0;
+    let firstError = "";
+    const failures: FailedPhoto[] = [];
+
+    try {
+      for (let index = 0; index < attempted.length; index += 1) {
+        const photo = attempted[index];
+        setProgress({ current: index + 1, total: attempted.length });
+        try {
+          const photoId = await uploadOne(photo.file);
+          success += 1;
+          URL.revokeObjectURL(photo.preview);
+          if (photoId) {
+            setOptimisticIds((ids) =>
+              ids.includes(photoId) ? ids : [...ids, photoId],
+            );
+          }
+        } catch (uploadError) {
+          const message =
+            uploadError instanceof Error
+              ? uploadError.message
+              : "Gagal mengunggah foto. Periksa koneksi.";
+          if (!firstError) firstError = message;
+          failures.push({ ...photo, message });
+        }
+      }
+    } finally {
+      setUploading(false);
+      setProgress(null);
+      onUploadingChange?.(false);
+    }
+
+    replaceFailed([...failures, ...skipped]);
+    if (success > 0) {
+      toast.success(
+        success === 1 ? "Foto ditambahkan." : `${success} foto ditambahkan.`,
+      );
+      onChanged();
+    }
+    if (failures.length > 0) {
+      setError(
+        `${failures.length} foto masih gagal diunggah. ${firstError}`,
+      );
+      toast.error(
+        failures.length === 1
+          ? "Satu foto masih gagal diunggah."
+          : `${failures.length} foto masih gagal diunggah.`,
+      );
+    }
   }
 
   async function remove() {
@@ -137,7 +374,7 @@ export function ChecklistPhotoGallery({
               alt={photo.caption || "Foto checklist"}
               loading="lazy"
               decoding="async"
-              className="size-full object-cover transition-opacity group-hover:opacity-90"
+              className="size-full object-cover group-hover:opacity-90"
             />
             {photo.stage === "perbaikan" && (
               <span className="absolute inset-x-0 bottom-0 bg-foreground/70 py-0.5 text-center text-xs leading-none text-background">
@@ -147,54 +384,138 @@ export function ChecklistPhotoGallery({
           </button>
         ))}
 
+        {failedPhotos.map((photo) => (
+          <div key={photo.id} className="flex w-16 flex-col gap-1">
+            <div className="relative">
+              <div
+                className="size-16 overflow-hidden rounded-md bg-muted ring-1 ring-destructive/50"
+                title={photo.message}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={photo.preview}
+                  alt="Pratinjau foto yang gagal diunggah"
+                  className="size-full object-cover"
+                />
+              </div>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="secondary"
+                className="absolute -right-1.5 -top-1.5"
+                onClick={() => removeFailed(photo.id)}
+                disabled={uploading}
+                aria-label="Hapus foto yang gagal diunggah"
+              >
+                <X aria-hidden="true" />
+              </Button>
+            </div>
+            <span className="truncate text-center text-xs text-destructive">
+              Gagal
+            </span>
+          </div>
+        ))}
+
         {canUpload && (
           <>
             <input
-              ref={inputRef}
+              ref={galleryRef}
               type="file"
               accept="image/jpeg,image/png,image/webp"
+              multiple
               className="sr-only"
-              onChange={upload}
-              aria-label="Pilih foto checklist"
+              onChange={onGalleryChange}
+              aria-label="Pilih beberapa foto checklist dari galeri"
             />
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => inputRef.current?.click()}
-              disabled={uploading}
+              onClick={() => setCameraOpen(true)}
+              disabled={uploading || atLimit}
+              title={
+                atLimit
+                  ? `Maksimal ${CHECKLIST_MAX_PHOTOS} foto per item atau tindak lanjut.`
+                  : undefined
+              }
             >
-              {uploading ? <Spinner /> : <ImagePlus />}
-              {uploading ? "Mengunggah…" : "Tambah foto"}
+              <Camera aria-hidden="true" />
+              Kamera
             </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => galleryRef.current?.click()}
+              disabled={uploading || atLimit}
+              title={
+                atLimit
+                  ? `Maksimal ${CHECKLIST_MAX_PHOTOS} foto per item atau tindak lanjut.`
+                  : undefined
+              }
+            >
+              <ImagePlus aria-hidden="true" />
+              Galeri
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {totalCount}/{CHECKLIST_MAX_PHOTOS} foto
+            </span>
           </>
         )}
-        {photos.length === 0 && !canUpload && (
+
+        {photos.length === 0 && failedPhotos.length === 0 && !canUpload && (
           <span className="text-xs text-muted-foreground">Belum ada foto.</span>
         )}
       </div>
 
-      {pendingFile && !uploading && canUpload && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Foto gagal diunggah.</span>
+      {uploading && progress && (
+        <p
+          className="flex items-center gap-2 text-xs text-muted-foreground"
+          role="status"
+        >
+          <Spinner />
+          Mengunggah foto {progress.current} dari {progress.total}…
+        </p>
+      )}
+
+      {notice && (
+        <p className="text-xs text-muted-foreground" role="status">
+          {notice}
+        </p>
+      )}
+
+      {error && (
+        <p className="text-xs text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
+      {canUpload && failedPhotos.length > 0 && !uploading && (
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => uploadFile(pendingFile)}
+            onClick={retryFailed}
           >
-            <RotateCcw />
-            Coba lagi
+            <RotateCcw aria-hidden="true" />
+            Coba unggah {failedPhotos.length} foto
           </Button>
           <Button
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => setPendingFile(null)}
+            onClick={clearFailed}
           >
             Abaikan
           </Button>
         </div>
+      )}
+
+      {atLimit && (
+        <p className="text-xs text-muted-foreground">
+          Batas {CHECKLIST_MAX_PHOTOS} foto tercapai.
+        </p>
       )}
 
       <Modal
@@ -230,6 +551,24 @@ export function ChecklistPhotoGallery({
           />
         )}
       </Modal>
+
+      <CameraCaptureDialog
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onCapture={async (file) => {
+          await addFiles([file]);
+        }}
+        disabled={atLimit || uploading}
+        disabledReason={
+          atLimit
+            ? `Batas ${CHECKLIST_MAX_PHOTOS} foto tercapai. Hapus foto lama terlebih dahulu.`
+            : uploading
+              ? "Tunggu unggahan foto sebelumnya selesai."
+              : undefined
+        }
+        title="Ambil foto checklist"
+        description={`${remainingSlots} slot foto tersisa`}
+      />
 
       <AlertDialog
         open={deleteTarget !== null}

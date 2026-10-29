@@ -44,6 +44,19 @@ export interface AttendanceLocation extends GeoPoint {
   capturedAt: string;
 }
 
+/** Titik absensi resmi yang dikelola super admin. */
+export interface WorkLocation extends GeoPoint {
+  id: string;
+  name: string;
+  address: string;
+  radiusMeters: number;
+  active: boolean;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type SpklStatus = "terjadwal" | "berlangsung" | "selesai" | "dibatalkan";
 
 export interface Spkl {
@@ -55,6 +68,7 @@ export interface Spkl {
   startAt: string;
   endAt: string;
   location: GeoPoint;
+  workLocationId: string | null;
   radiusMeters: number;
   createdBy: string;
   divisionId: string | null;
@@ -179,7 +193,8 @@ export interface AuditLog {
     | "kebijakan"
     | "autentikasi"
     | "checklist"
-    | "tindak_lanjut";
+    | "tindak_lanjut"
+    | "pekerjaan";
   objectId: string;
   summary: string;
   before: unknown;
@@ -199,6 +214,7 @@ export interface Database {
   spklWorkers: SpklWorker[];
   attendances: Attendance[];
   documentations: Documentation[];
+  workLocations: WorkLocation[];
   policy: Policy;
   otps: OtpRecord[];
   notifications: NotificationLog[];
@@ -237,6 +253,7 @@ export interface SpklListItem {
   documentationCount: number;
   creator: Employee | null;
   division: Division | null;
+  divisions: Division[];
   workers: Employee[];
 }
 

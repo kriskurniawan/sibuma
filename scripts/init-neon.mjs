@@ -86,6 +86,13 @@ try {
     "009_super_admin.sql",
     "010_employee_avatar.sql",
     "011_employee_access_mode.sql",
+    "012_manual_works.sql",
+    "013_work_locations.sql",
+    "014_manual_work_locations.sql",
+    "015_manual_work_photo_capture.sql",
+    "016_work_location_radius.sql",
+    "018_follow_up_safety.sql",
+    "019_manual_work_safety.sql",
   ]) {
     await connection.query(await readFile(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
   }
@@ -107,9 +114,26 @@ try {
     ["policy", 15, 480, 2400, 60, false, 120, 100, -6.2439, 106.7989, "Menara Sentraya, Jl. Iskandarsyah Raya No. 1, Jakarta Selatan", "Asia/Jakarta", now, admin.id],
   );
 
+  // Titik absensi resmi pertama. Atasan hanya dapat memilih titik dari tabel ini.
+  await connection.query(
+    `INSERT INTO work_locations
+      (id,name,address,latitude,longitude,radius_meters,active,created_by,updated_by,created_at,updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,true,$7,$7,$8,$8)`,
+    [
+      "wl_default",
+      "Titik absen utama",
+      "Menara Sentraya, Jl. Iskandarsyah Raya No. 1, Jakarta Selatan",
+      -6.2439,
+      106.7989,
+      120,
+      admin.id,
+      now,
+    ],
+  );
+
   await connection.query("SET CONSTRAINTS ALL IMMEDIATE");
   await connection.query("SELECT setval('spkl_number_sequence',1,false)");
-  for (const id of ["001_relational", "003_employee_email_otp", "004_checklists", "005_checklist_public", "006_checklist_item_groups", "007_remove_demo_status", "008_checklist_conditions", "009_super_admin", "010_employee_avatar", "011_employee_access_mode"]) {
+  for (const id of ["001_relational", "003_employee_email_otp", "004_checklists", "005_checklist_public", "006_checklist_item_groups", "007_remove_demo_status", "008_checklist_conditions", "009_super_admin", "010_employee_avatar", "011_employee_access_mode", "012_manual_works", "013_work_locations", "014_manual_work_locations", "015_manual_work_photo_capture", "016_work_location_radius", "018_follow_up_safety", "019_manual_work_safety"]) {
     await connection.query(
       "INSERT INTO schema_migrations(id,verification) VALUES($1,$2::jsonb)",
       [id, JSON.stringify({ initializedEmptyDatabase: true })],

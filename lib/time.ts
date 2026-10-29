@@ -164,6 +164,16 @@ export function durationLabel(minutes: number | null) {
   return `${h} j ${m} m`;
 }
 
+/** Selisih dua waktu ISO dalam menit, dibulatkan dan tidak pernah negatif. */
+export function minutesBetween(startAt: string, endAt: string) {
+  return Math.max(
+    0,
+    Math.round(
+      (new Date(endAt).getTime() - new Date(startAt).getTime()) / 60_000,
+    ),
+  );
+}
+
 export function durationClock(seconds: number) {
   const s = Math.max(0, Math.floor(seconds));
   const h = Math.floor(s / 3600);

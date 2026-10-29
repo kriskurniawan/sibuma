@@ -108,21 +108,29 @@ const columns: ColumnDef<DataGridFeatures, ChecklistFollowUpRow>[] = [
       headerClassName: "whitespace-nowrap",
       cellClassName: "max-w-48",
     },
-    cell: ({ row }) =>
-      row.original.pic ? (
-        <div className="flex items-center gap-2">
-          <Avatar
-            name={row.original.pic.name}
-            seed={row.original.pic.id}
-            size="xs"
-          />
-          <span className="truncate text-xs text-foreground">
-            {row.original.pic.name}
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        {row.original.pic ? (
+          <div className="flex items-center gap-2">
+            <Avatar
+              name={row.original.pic.name}
+              seed={row.original.pic.id}
+              size="xs"
+            />
+            <span className="truncate text-xs text-foreground">
+              {row.original.pic.name}
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">Belum ditentukan</span>
+        )}
+        {row.original.followUp.safetyName && (
+          <span className="text-xs text-muted-foreground">
+            Petugas safety {row.original.followUp.safetyName}
           </span>
-        </div>
-      ) : (
-        <span className="text-xs text-muted-foreground">Belum ditentukan</span>
-      ),
+        )}
+      </div>
+    ),
   },
   {
     id: "area",

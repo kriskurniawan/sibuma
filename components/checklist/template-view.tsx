@@ -48,6 +48,10 @@ import type {
   ChecklistSetup,
 } from "@/lib/checklist-types";
 
+const TEMPLATE_NEW_HASH = "#template-baru";
+const LOCATION_NEW_HASH = "#lokasi-baru";
+const LOCATION_EDIT_PREFIX = "#lokasi-ubah-";
+
 export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   const router = useRouter();
   const [locationOpen, setLocationOpen] = useState(false);
@@ -59,9 +63,69 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
     setup.locations.map((location) => [location.id, location.name]),
   );
 
+  // Trigger dialog lewat hash agar klik pertama tetap tercatat sebelum React
+  // selesai hidrasi. Setelah hidrasi, hash yang tersisa langsung membuka dialog.
+  useEffect(() => {
+    function openFromHash() {
+      const hash = window.location.hash;
+      if (hash === TEMPLATE_NEW_HASH) {
+        setTemplateOpen(true);
+        return;
+      }
+      if (hash === LOCATION_NEW_HASH) {
+        setEditingLocation(null);
+        setLocationOpen(true);
+        return;
+      }
+      if (hash.startsWith(LOCATION_EDIT_PREFIX)) {
+        const rawId = hash.slice(LOCATION_EDIT_PREFIX.length);
+        let id = rawId;
+        try {
+          id = decodeURIComponent(rawId);
+        } catch {
+          return;
+        }
+        const target = setup.locations.find((location) => location.id === id);
+        if (target) {
+          setEditingLocation(target);
+          setLocationOpen(true);
+        }
+      }
+    }
+
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, [setup.locations]);
+
+  function clearDialogHash() {
+    const hash = window.location.hash;
+    if (
+      hash === TEMPLATE_NEW_HASH ||
+      hash === LOCATION_NEW_HASH ||
+      hash.startsWith(LOCATION_EDIT_PREFIX)
+    ) {
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
+  }
+
   function openLocation(location: ChecklistLocation | null) {
     setEditingLocation(location);
     setLocationOpen(true);
+  }
+
+  function closeLocation() {
+    setLocationOpen(false);
+    clearDialogHash();
+  }
+
+  function closeTemplate() {
+    setTemplateOpen(false);
+    clearDialogHash();
   }
 
   return (
@@ -85,7 +149,15 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         descriptionClassName="hidden md:block"
         action={
           <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
-            <Button type="button" size="sm" onClick={() => setTemplateOpen(true)}>
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<a href={TEMPLATE_NEW_HASH} />}
+              onClick={(event) => {
+                event.preventDefault();
+                setTemplateOpen(true);
+              }}
+            >
               <Plus aria-hidden="true" />
               Template baru
             </Button>
@@ -98,7 +170,16 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               <QrCode aria-hidden="true" />
               QR area
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={() => openLocation(null)}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<a href={LOCATION_NEW_HASH} />}
+              onClick={(event) => {
+                event.preventDefault();
+                openLocation(null);
+              }}
+            >
               <MapPin aria-hidden="true" />
               Lokasi baru
             </Button>
@@ -126,7 +207,15 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               title="Belum ada lokasi"
               description="Tambahkan lokasi seperti gudang, kantor, atau area produksi sebelum membuat jadwal."
               action={
-                <Button type="button" size="sm" onClick={() => openLocation(null)}>
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  render={<a href={LOCATION_NEW_HASH} />}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    openLocation(null);
+                  }}
+                >
                   <Plus aria-hidden="true" />
                   Tambah lokasi
                 </Button>
@@ -174,11 +263,17 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                     </div>
                   </div>
                   <Button
-                    type="button"
                     size="sm"
                     variant="ghost"
                     className="shrink-0"
-                    onClick={() => openLocation(location)}
+                    nativeButton={false}
+                    render={
+                      <a href={`${LOCATION_EDIT_PREFIX}${encodeURIComponent(location.id)}`} />
+                    }
+                    onClick={(event) => {
+                      event.preventDefault();
+                      openLocation(location);
+                    }}
                   >
                     <Pencil aria-hidden="true" />
                     Ubah
@@ -210,7 +305,15 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               title="Belum ada template"
               description="Template menentukan item pemeriksaan. Buat template pertama lalu terbitkan versinya."
               action={
-                <Button type="button" size="sm" onClick={() => setTemplateOpen(true)}>
+                <Button
+                  size="sm"
+                  nativeButton={false}
+                  render={<a href={TEMPLATE_NEW_HASH} />}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    setTemplateOpen(true);
+                  }}
+                >
                   <Plus aria-hidden="true" />
                   Buat template
                 </Button>
@@ -280,7 +383,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
 
       <LocationDialog
         open={locationOpen}
-        onClose={() => setLocationOpen(false)}
+        onClose={closeLocation}
         location={editingLocation}
         locations={setup.locations}
         onSaved={() => router.refresh()}
@@ -288,7 +391,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
 
       <TemplateCreateDialog
         open={templateOpen}
-        onClose={() => setTemplateOpen(false)}
+        onClose={closeTemplate}
         onCreated={(id) => router.push(`/checklist/template/${id}`)}
       />
     </div>

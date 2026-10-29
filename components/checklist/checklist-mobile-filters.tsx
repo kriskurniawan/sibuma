@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 import { Check, MapPin, Search, SlidersHorizontal, X } from "lucide-react";
+import { FilterPending } from "@/components/filters/filter-pending";
+import {
+  useDebouncedFilterValue,
+  useFilterNavigation,
+  useOptimisticFilterValue,
+} from "@/components/filters/use-filter-navigation";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -60,38 +65,36 @@ export function ChecklistMobileFilters({
   };
   locations: ChecklistLocationOption[];
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [, startTransition] = useTransition();
-
-  const [search, setSearch] = useState(filters.search);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [open, setOpen] = useState(false);
-  const [draftStatus, setDraftStatus] = useState(filters.status);
-  const [draftLocation, setDraftLocation] = useState(filters.locationId);
-  const [draftIncludeSub, setDraftIncludeSub] = useState(
-    filters.includeSubLocations,
+  const { isPending, navigate } = useFilterNavigation({
+    status: "aktif",
+    includeSub: "1",
+  });
+  const [status, setStatus] = useOptimisticFilterValue(
+    filters.status,
+    isPending,
   );
+  const [locationId, setLocationId] = useOptimisticFilterValue(
+    filters.locationId,
+    isPending,
+  );
+  const [includeSub, setIncludeSub] = useOptimisticFilterValue(
+    filters.includeSubLocations,
+    isPending,
+  );
+  const search = useDebouncedFilterValue(filters.search, (next) =>
+    navigate({ search: next }),
+  );
+  const [open, setOpen] = useState(false);
   const [locationQuery, setLocationQuery] = useState("");
-
-  useEffect(() => {
-    setSearch(filters.search);
-  }, [filters.search]);
-
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current);
-    };
-  }, []);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const advancedCount =
-    (filters.locationId ? 1 : 0) +
-    (filters.locationId && !filters.includeSubLocations ? 1 : 0) +
-    (QUICK_VALUES.has(filters.status) ? 0 : 1);
+    (locationId ? 1 : 0) +
+    (locationId && !includeSub ? 1 : 0) +
+    (QUICK_VALUES.has(status) ? 0 : 1);
 
   const selectedLocation = locations.find(
-    (location) => location.id === filters.locationId,
+    (location) => location.id === locationId,
   );
 
   const filteredLocations = useMemo(() => {
@@ -102,62 +105,27 @@ export function ChecklistMobileFilters({
     );
   }, [locationQuery, locations]);
 
-  function navigate(updates: Record<string, string | null>) {
-    const params = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(updates)) {
-      if (
-        !value ||
-        (key === "status" && value === "aktif") ||
-        (key === "includeSub" && value === "1")
-      ) {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
+  function selectStatus(next: string) {
+    setStatus(next);
+    navigate({ status: next });
+  }
+
+  function selectLocation(next: string | null) {
+    if (next) {
+      setLocationId(next);
+      navigate({ locationId: next });
+      return;
     }
-    params.delete("page");
-    const query = params.toString();
-    startTransition(() => {
-      router.replace(query ? `${pathname}?${query}` : pathname, {
-        scroll: false,
-      });
-    });
-  }
-
-  function submitSearch(value: string) {
-    if (timer.current) clearTimeout(timer.current);
-    navigate({ search: value.trim() || null });
-  }
-
-  function changeSearch(value: string) {
-    setSearch(value);
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => submitSearch(value), 400);
-  }
-
-  function openFilters() {
-    setDraftStatus(filters.status);
-    setDraftLocation(filters.locationId);
-    setDraftIncludeSub(filters.includeSubLocations);
-    setLocationQuery("");
-    setOpen(true);
-  }
-
-  function applyFilters() {
-    navigate({
-      status: draftStatus,
-      locationId: draftLocation || null,
-      includeSub: draftLocation ? (draftIncludeSub ? null : "0") : null,
-    });
-    setOpen(false);
+    setLocationId("");
+    setIncludeSub(true);
+    navigate({ locationId: null, includeSub: null });
   }
 
   function resetFilters() {
-    if (timer.current) clearTimeout(timer.current);
-    setSearch("");
-    setDraftStatus("aktif");
-    setDraftLocation("");
-    setDraftIncludeSub(true);
+    search.reset();
+    setStatus("aktif");
+    setLocationId("");
+    setIncludeSub(true);
     setLocationQuery("");
     navigate({
       status: null,
@@ -165,7 +133,6 @@ export function ChecklistMobileFilters({
       includeSub: null,
       search: null,
     });
-    setOpen(false);
   }
 
   return (
@@ -181,24 +148,23 @@ export function ChecklistMobileFilters({
             enterKeyHint="search"
             aria-label="Cari checklist"
             placeholder="Cari checklist…"
-            value={search}
-            onChange={(event) => changeSearch(event.target.value)}
+            value={search.text}
+            onChange={(event) => search.change(event.target.value)}
+            onFocus={search.onFocus}
+            onBlur={search.onBlur}
             onKeyDown={(event) => {
               if (event.key === "Enter") {
                 event.preventDefault();
-                submitSearch(event.currentTarget.value);
+                search.commitNow(event.currentTarget.value);
               }
             }}
           />
-          {search && (
+          {search.text && (
             <InputGroupAddon align="inline-end">
               <InputGroupButton
                 size="icon-xs"
                 aria-label="Hapus pencarian"
-                onClick={() => {
-                  setSearch("");
-                  submitSearch("");
-                }}
+                onClick={() => search.commitNow("")}
               >
                 <X aria-hidden="true" />
               </InputGroupButton>
@@ -215,7 +181,10 @@ export function ChecklistMobileFilters({
               ? `Buka filter checklist, ${advancedCount} filter aktif`
               : "Buka filter checklist"
           }
-          onClick={openFilters}
+          onClick={() => {
+            setLocationQuery("");
+            setOpen(true);
+          }}
         >
           <SlidersHorizontal aria-hidden="true" />
           Filter
@@ -229,10 +198,10 @@ export function ChecklistMobileFilters({
 
       <div className="no-scrollbar -mx-1 overflow-x-auto px-1">
         <Tabs
-          value={filters.status}
-          onValueChange={(value) =>
-            navigate({ status: value ? String(value) : null })
-          }
+          value={status}
+          onValueChange={(value) => {
+            if (value) selectStatus(String(value));
+          }}
         >
           <TabsList aria-label="Status checklist" className="w-max">
             {QUICK_STATUS.map((option) => (
@@ -244,7 +213,7 @@ export function ChecklistMobileFilters({
         </Tabs>
       </div>
 
-      {(selectedLocation || filters.locationId) && (
+      {(selectedLocation || locationId || isPending) && (
         <div className="flex flex-wrap items-center gap-2">
           {selectedLocation && (
             <Button
@@ -252,9 +221,7 @@ export function ChecklistMobileFilters({
               variant="outline"
               size="sm"
               className="max-w-full"
-              onClick={() =>
-                navigate({ locationId: null, includeSub: null })
-              }
+              onClick={() => selectLocation(null)}
             >
               <MapPin aria-hidden="true" />
               <span className="truncate">{selectedLocation.path}</span>
@@ -262,18 +229,22 @@ export function ChecklistMobileFilters({
               <span className="sr-only">Hapus filter lokasi</span>
             </Button>
           )}
-          {filters.locationId && !filters.includeSubLocations && (
+          {locationId && !includeSub && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => navigate({ includeSub: null })}
+              onClick={() => {
+                setIncludeSub(true);
+                navigate({ includeSub: null });
+              }}
             >
               Hanya area ini
               <X aria-hidden="true" />
               <span className="sr-only">Hapus batas cakupan area</span>
             </Button>
           )}
+          <FilterPending pending={isPending} />
         </div>
       )}
 
@@ -282,11 +253,14 @@ export function ChecklistMobileFilters({
           side="bottom"
           className="max-h-[85dvh] gap-0"
           aria-describedby={undefined}
+          initialFocus={titleRef}
         >
           <SheetHeader className="border-b border-border/70">
-            <SheetTitle>Filter checklist</SheetTitle>
+            <SheetTitle ref={titleRef} tabIndex={-1} className="outline-none">
+              Filter checklist
+            </SheetTitle>
             <SheetDescription>
-              Pilih area dan status yang ingin ditampilkan.
+              Pilih area dan status. Perubahan langsung diterapkan.
             </SheetDescription>
           </SheetHeader>
 
@@ -310,12 +284,12 @@ export function ChecklistMobileFilters({
               <div className="rounded-lg border border-border/70">
                 <button
                   type="button"
-                  onClick={() => setDraftLocation("")}
-                  aria-pressed={draftLocation === ""}
+                  onClick={() => selectLocation(null)}
+                  aria-pressed={locationId === ""}
                   className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
                 >
                   <span className="min-w-0 flex-1 truncate">Semua lokasi</span>
-                  {draftLocation === "" && (
+                  {locationId === "" && (
                     <Check
                       className="size-4 shrink-0 text-primary"
                       aria-hidden="true"
@@ -326,14 +300,14 @@ export function ChecklistMobileFilters({
                   <button
                     key={location.id}
                     type="button"
-                    onClick={() => setDraftLocation(location.id)}
-                    aria-pressed={draftLocation === location.id}
+                    onClick={() => selectLocation(location.id)}
+                    aria-pressed={locationId === location.id}
                     className="flex w-full items-center gap-2 border-t border-border/70 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none"
                   >
                     <span className="min-w-0 flex-1 truncate">
                       {location.path}
                     </span>
-                    {draftLocation === location.id && (
+                    {locationId === location.id && (
                       <Check
                         className="size-4 shrink-0 text-primary"
                         aria-hidden="true"
@@ -349,14 +323,18 @@ export function ChecklistMobileFilters({
               </div>
             </div>
 
-            {draftLocation && (
+            {locationId && (
               <div className="flex items-start gap-3">
                 <Checkbox
                   id="mobile-include-sub"
-                  checked={draftIncludeSub}
-                  onCheckedChange={(checked) =>
-                    setDraftIncludeSub(checked === true)
-                  }
+                  checked={includeSub}
+                  onCheckedChange={(checked) => {
+                    const nextIncludeSub = checked === true;
+                    setIncludeSub(nextIncludeSub);
+                    navigate({
+                      includeSub: nextIncludeSub ? null : "0",
+                    });
+                  }}
                 />
                 <div className="flex flex-col gap-0.5">
                   <Label htmlFor="mobile-include-sub">
@@ -372,8 +350,10 @@ export function ChecklistMobileFilters({
             <div className="flex flex-col gap-2">
               <Label htmlFor="mobile-status">Status terperinci</Label>
               <Select
-                value={draftStatus}
-                onValueChange={(value) => setDraftStatus(String(value))}
+                value={status}
+                onValueChange={(value) => {
+                  if (value !== null) selectStatus(String(value));
+                }}
                 items={DETAILED_STATUS}
               >
                 <SelectTrigger id="mobile-status" className="w-full">
@@ -399,8 +379,12 @@ export function ChecklistMobileFilters({
             >
               Reset
             </Button>
-            <Button type="button" className="flex-1" onClick={applyFilters}>
-              Terapkan filter
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
+              Selesai
             </Button>
           </SheetFooter>
         </SheetContent>

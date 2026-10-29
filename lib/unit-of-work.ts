@@ -3,9 +3,10 @@ import { getPolicyRow, insert, query, select, transaction, update, type Connecti
 import { models, snake, type Model } from "./db-model";
 import type { Database } from "./types";
 import { finalizeExpired } from "./attendance-finalization";
+import { listWorkLocationsByIds } from "./work-locations";
 
 export type MutationScope =
-  | { kind: "spkl"; id?: string; workerIds?: string[]; divisionId?: string; sequence?: boolean; startAt?: string }
+  | { kind: "spkl"; id?: string; workerIds?: string[]; divisionId?: string; sequence?: boolean; startAt?: string; workLocationId?: string }
   | { kind: "attendance"; id: string }
   | { kind: "employee"; id?: string; supervisorId: string; phone?: string | null; email?: string; nik?: string }
   | { kind: "division"; supervisorId: string }
@@ -15,7 +16,7 @@ export type MutationScope =
   | { kind: "notification" };
 
 export async function emptyData(connection: Connection): Promise<Database> {
-  return { schemaVersion: 4, seededAt: "", meta: { nextSpklSequence: 0 }, policy: await getPolicyRow(connection), employees: [], divisions: [], spkls: [], spklWorkers: [], attendances: [], documentations: [], otps: [], notifications: [], auditLogs: [] };
+  return { schemaVersion: 4, seededAt: "", meta: { nextSpklSequence: 0 }, policy: await getPolicyRow(connection), employees: [], divisions: [], spkls: [], spklWorkers: [], attendances: [], documentations: [], workLocations: [], otps: [], notifications: [], auditLogs: [] };
 }
 async function loadScope(scope: MutationScope, connection: Connection) {
   const db = await emptyData(connection);
@@ -37,6 +38,9 @@ async function loadScope(scope: MutationScope, connection: Connection) {
     db.spklWorkers = await select("spklWorkers", "spkl_id=ANY($1::text[])", [ids], connection);
     db.attendances = await select("attendances", "spkl_id=$1", [id ?? ""], connection, "FOR UPDATE");
     db.documentations = await select("documentations", "spkl_id=$1", [id ?? ""], connection);
+    const requestedLocationId = scope.kind === "spkl" ? scope.workLocationId : undefined;
+    const locationIds = [...new Set([requestedLocationId, ...db.spkls.map((row) => row.workLocationId)].filter((value): value is string => Boolean(value)))];
+    db.workLocations = await listWorkLocationsByIds(locationIds, connection);
     db.employees = await select("employees", "id=ANY($1::text[])", [[...new Set([...workerIds, ...db.spklWorkers.map((row) => row.employeeId)])]], connection);
     const divisionId = scope.kind === "spkl" ? scope.divisionId : undefined;
     db.divisions = await select("divisions", "id=ANY($1::text[])", [[...new Set([divisionId, ...db.spkls.map((row) => row.divisionId)].filter(Boolean))]], connection);

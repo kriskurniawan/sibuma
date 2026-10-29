@@ -88,7 +88,7 @@ export function LemburView({
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button
               nativeButton={false}
-              render={<Link href="/laporan" />}
+              render={<Link href="/laporan?tab=lembur" />}
               variant="outline"
             >
               <BarChart3 aria-hidden="true" />

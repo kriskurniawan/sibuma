@@ -61,6 +61,7 @@ const camelKey = (value: string) =>
 
 const FOLLOW_UP_FIELDS = [
   "id", "inspection_id", "answer_id", "owner_id", "title", "description", "pic_id",
+  "safety_name",
   "priority", "due_date", "status", "progress_note", "cancel_reason", "result_note",
   "created_by", "started_at", "completed_at", "completed_by", "created_at", "updated_at",
 ] as const;
@@ -248,7 +249,7 @@ export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTo
 
 async function followUpRows(where: string, values: unknown[], suffix = "") {
   const rows = await query(
-    `SELECT f.id,f.inspection_id,f.answer_id,f.owner_id,f.title,f.description,f.pic_id,f.priority,
+    `SELECT f.id,f.inspection_id,f.answer_id,f.owner_id,f.title,f.description,f.pic_id,f.safety_name,f.priority,
        f.due_date,f.status,f.progress_note,f.cancel_reason,f.result_note,f.created_by,f.started_at,
        f.completed_at,f.completed_by,f.created_at,f.updated_at,
        a.prompt,p.name pic_name,p.nik pic_nik,c.name creator_name,
@@ -413,7 +414,7 @@ export async function getChecklistFollowUps(
   }
   if (filters.search?.trim()) {
     values.push(filters.search.trim());
-    where += ` AND position(lower($${values.length}) in lower(f.title||' '||f.description||' '||i.template_name||' '||i.location_name||' '||coalesce(p.name,'')))>0`;
+    where += ` AND position(lower($${values.length}) in lower(f.title||' '||f.description||' '||i.template_name||' '||i.location_name||' '||coalesce(p.name,'')||' '||f.safety_name))>0`;
   }
   if (filters.mine) {
     where += ` AND f.pic_id=$1`;

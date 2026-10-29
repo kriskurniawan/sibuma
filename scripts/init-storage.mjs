@@ -55,18 +55,37 @@ try {
   await client.send(new CreateBucketCommand({ Bucket: bucket }));
 }
 
-await client.send(
-  new PutPublicAccessBlockCommand({
-    Bucket: bucket,
-    PublicAccessBlockConfiguration: {
-      BlockPublicAcls: true,
-      IgnorePublicAcls: true,
-      BlockPublicPolicy: true,
-      RestrictPublicBuckets: true,
-    },
-  }),
-);
+let publicAccessBlocked = true;
+try {
+  await client.send(
+    new PutPublicAccessBlockCommand({
+      Bucket: bucket,
+      PublicAccessBlockConfiguration: {
+        BlockPublicAcls: true,
+        IgnorePublicAcls: true,
+        BlockPublicPolicy: true,
+        RestrictPublicBuckets: true,
+      },
+    }),
+  );
+} catch (error) {
+  const status = error?.$metadata?.httpStatusCode;
+  const unsupported =
+    status === 501 ||
+    error?.name === "NotImplemented" ||
+    error?.name === "MalformedXML";
+  if (!unsupported) throw error;
+  publicAccessBlocked = false;
+  console.warn(
+    `Provider tidak mendukung Public Access Block (${error?.name ?? status}).`,
+  );
+  console.warn(
+    "Pastikan bucket hanya dapat diakses memakai kredensial lewat konsol penyedia.",
+  );
+}
 
 console.log(
-  `Bucket "${bucket}" siap dipakai; akses publik diblokir (privat).`,
+  publicAccessBlocked
+    ? `Bucket "${bucket}" siap dipakai; akses publik diblokir (privat).`
+    : `Bucket "${bucket}" siap dipakai. Verifikasi status privat di konsol penyedia.`,
 );

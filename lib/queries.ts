@@ -109,6 +109,16 @@ function buildListItem(
     db.employees.find((employee) => employee.id === spkl.createdBy) ?? null;
   const division =
     db.divisions.find((item) => item.id === spkl.divisionId) ?? null;
+  const divisions = [
+    ...new Set(
+      workers
+        .map((employee) => employee.divisionId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ]
+    .map((id) => db.divisions.find((item) => item.id === id))
+    .filter((item): item is Division => Boolean(item))
+    .sort((a, b) => a.name.localeCompare(b.name, "id"));
 
   return {
     spkl,
@@ -119,6 +129,7 @@ function buildListItem(
     documentationCount: docsForSpkl(db, spkl.id).length,
     creator,
     division,
+    divisions,
     workers,
   };
 }
@@ -424,7 +435,8 @@ export async function getAuditLogs(userId: string, limit = 80): Promise<AuditLog
   `(actor_id=$1
     OR actor_id IN (SELECT id FROM employees WHERE supervisor_id=$1)
     OR (object_type='spkl' AND object_id IN (SELECT id FROM spkls WHERE created_by=$1))
-    OR (object_type='checklist' AND object_id IN (SELECT id FROM checklist_inspections WHERE owner_id=$1)))`,
+    OR (object_type='checklist' AND object_id IN (SELECT id FROM checklist_inspections WHERE owner_id=$1))
+    OR (object_type='pekerjaan' AND object_id IN (SELECT id FROM manual_works WHERE owner_id=$1)))`,
   [userId],
   undefined,
   `ORDER BY created_at DESC,id DESC LIMIT ${safeLimit}`,

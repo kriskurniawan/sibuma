@@ -7,6 +7,7 @@ import {
   getChecklistDashboard,
   getChecklistFollowUps,
 } from "@/lib/checklist-queries";
+import { getManualWorkDashboard } from "@/lib/manual-work-queries";
 import {
   getAllAuditLogs,
   getSupervisorOverview,
@@ -20,6 +21,7 @@ export const metadata = {
 
 const CHECKLIST_PREVIEW = { pageIndex: 0, pageSize: 5 };
 const FOLLOW_UP_PREVIEW = { pageIndex: 0, pageSize: 4 };
+const MANUAL_WORK_PREVIEW = 3;
 
 export default async function HomePage() {
   const user = await getCurrentUser();
@@ -43,10 +45,11 @@ export default async function HomePage() {
   }
 
   if (user.role === "atasan") {
-    const [checklists, followUps, overview] = await Promise.all([
+    const [checklists, followUps, overview, manualWorks] = await Promise.all([
       getChecklistDashboard(user, { status: "aktif" }, CHECKLIST_PREVIEW),
       getChecklistFollowUps(user, { status: "aktif" }, FOLLOW_UP_PREVIEW),
       getSupervisorOverview(user),
+      getManualWorkDashboard(user, MANUAL_WORK_PREVIEW),
     ]);
 
     return (
@@ -57,11 +60,13 @@ export default async function HomePage() {
         checklistTotals={checklists.totals}
         followUps={followUps.items}
         openFollowUpTotal={followUps.total}
+        manualWorks={manualWorks.items}
+        manualWorkTotals={manualWorks.totals}
       />
     );
   }
 
-  const [checklists, followUps, overview] = await Promise.all([
+  const [checklists, followUps, overview, manualWorks] = await Promise.all([
     getChecklistDashboard(user, { status: "aktif" }, CHECKLIST_PREVIEW),
     getChecklistFollowUps(
       user,
@@ -69,6 +74,7 @@ export default async function HomePage() {
       FOLLOW_UP_PREVIEW,
     ),
     getWorkerOverview(user),
+    getManualWorkDashboard(user, MANUAL_WORK_PREVIEW),
   ]);
 
   return (
@@ -79,6 +85,8 @@ export default async function HomePage() {
       checklistTotals={checklists.totals}
       followUps={followUps.items}
       myFollowUpTotal={followUps.total}
+      manualWorks={manualWorks.items}
+      manualWorkTotals={manualWorks.totals}
     />
   );
 }

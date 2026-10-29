@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   Clock3,
   Eye,
+  Hammer,
   History,
   Home,
   LayoutGrid,
@@ -116,6 +117,7 @@ function navigationFor(
       main: [
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
+        { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
         { href: "/lembur", label: "Lembur", icon: Clock3 },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
       ],
@@ -142,13 +144,14 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/tindak-lanjut", "/laporan"]
+            ? ["/tim", "/checklist/tindak-lanjut", "/pekerjaan", "/laporan"]
             : [
                 "/tim",
                 "/checklist/template",
                 "/checklist/jadwal",
                 "/checklist/qr",
                 "/checklist/tindak-lanjut",
+                "/pekerjaan",
                 "/audit",
                 "/laporan",
               ],
@@ -161,6 +164,7 @@ function navigationFor(
     main: [
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
+      { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
       { href: "/riwayat", label: "Riwayat lembur", icon: History },
     ],
     manage: [],
@@ -209,6 +213,14 @@ function spklBackTarget(role: SessionUser["role"]) {
 
 /** Halaman detail atau form memakai tombol kembali di header mobile. */
 function mobileBackLink(pathname: string, role: SessionUser["role"]) {
+  if (pathname === "/pekerjaan/baru") {
+    return { href: "/pekerjaan", label: "Pekerjaan harian" };
+  }
+  const workEdit = /^\/pekerjaan\/([^/]+)\/ubah$/.exec(pathname);
+  if (workEdit) return { href: `/pekerjaan/${workEdit[1]}`, label: "Detail pekerjaan" };
+  if (pathname.startsWith("/pekerjaan/")) {
+    return { href: "/pekerjaan", label: "Pekerjaan harian" };
+  }
   if (pathname === "/spkl/baru") return { href: "/lembur", label: "Lembur" };
   const edit = /^\/spkl\/([^/]+)\/edit$/.exec(pathname);
   if (edit) return { href: `/spkl/${edit[1]}`, label: "Detail SPKL" };
@@ -233,6 +245,9 @@ function currentSectionLabel(
 ) {
   if (pathname === "/menu") return "Menu";
   if (pathname === "/profil") return "Profil saya";
+  if (pathname === "/pekerjaan/baru") return "Pekerjaan baru";
+  if (/^\/pekerjaan\/[^/]+\/ubah$/.test(pathname)) return "Ubah pekerjaan";
+  if (pathname.startsWith("/pekerjaan/")) return "Detail pekerjaan";
   if (pathname.startsWith("/spkl/baru")) return "Buat SPKL";
   if (pathname.startsWith("/spkl/")) return "Detail SPKL";
   if (pathname.startsWith("/checklist/tindak-lanjut")) return "Tindak lanjut";

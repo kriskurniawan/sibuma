@@ -24,16 +24,17 @@ export async function finalizeScope(where: string, values: unknown[]) {
 
 export async function hydrateSpkls(spkls: Spkl[], connection?: Connection): Promise<Database> {
   const ids = spkls.map((row) => row.id);
-  const [spklWorkers, attendances, documentations, policy, divisions] = await Promise.all([
+  const [spklWorkers, attendances, documentations, policy] = await Promise.all([
     select("spklWorkers", "spkl_id=ANY($1::text[])", [ids], connection),
     select("attendances", "spkl_id=ANY($1::text[])", [ids], connection),
     select("documentations", "spkl_id=ANY($1::text[])", [ids], connection),
     getPolicyRow(connection),
-    select("divisions", "id=ANY($1::text[])", [spkls.map((row) => row.divisionId).filter(Boolean)], connection),
   ]);
   const employeeIds = [...new Set([...spklWorkers.map((row) => row.employeeId), ...spkls.map((row) => row.createdBy)])];
   const employees = await select("employees", "id=ANY($1::text[])", [employeeIds], connection);
-  return { schemaVersion: 4, seededAt: "", meta: { nextSpklSequence: 0 }, spkls, spklWorkers, attendances, documentations, policy, divisions, employees, otps: [], notifications: [], auditLogs: [] };
+  const divisionIds = [...new Set([...spkls.map((row) => row.divisionId), ...employees.map((row) => row.divisionId)].filter((id): id is string => Boolean(id)))];
+  const divisions = await select("divisions", "id=ANY($1::text[])", [divisionIds], connection);
+  return { schemaVersion: 4, seededAt: "", meta: { nextSpklSequence: 0 }, spkls, spklWorkers, attendances, documentations, workLocations: [], policy, divisions, employees, otps: [], notifications: [], auditLogs: [] };
 }
 
 export async function overviewData(user: SessionUser) {

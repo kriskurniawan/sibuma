@@ -3,21 +3,24 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+const DEFAULT_TAB = "checklist";
+
 const TABS = [
-  { value: "lembur", label: "Lembur" },
   { value: "checklist", label: "Checklist" },
   { value: "tindak-lanjut", label: "Tindak lanjut" },
+  { value: "pekerjaan", label: "Pekerjaan harian" },
+  { value: "lembur", label: "Lembur" },
 ];
 
 export function ReportTabs() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const current = searchParams.get("tab") ?? "lembur";
+  const current = searchParams.get("tab") ?? DEFAULT_TAB;
 
   function change(value: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (value === "lembur") params.delete("tab");
+    if (value === DEFAULT_TAB) params.delete("tab");
     else params.set("tab", value);
     params.delete("page");
     params.delete("size");
@@ -30,11 +33,11 @@ export function ReportTabs() {
 
   return (
     <Tabs
-      value={TABS.some((tab) => tab.value === current) ? current : "lembur"}
+      value={TABS.some((tab) => tab.value === current) ? current : DEFAULT_TAB}
       onValueChange={(value) => change(value as string)}
       className="no-print"
     >
-      <TabsList variant="line">
+      <TabsList variant="line" className="max-w-full overflow-x-auto">
         {TABS.map((tab) => (
           <TabsTrigger key={tab.value} value={tab.value}>
             {tab.label}

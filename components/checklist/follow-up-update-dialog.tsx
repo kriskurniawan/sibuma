@@ -112,6 +112,7 @@ export function ChecklistFollowUpUpdateDialog({
       title={row?.followUp.title ?? "Perbarui tindak lanjut"}
       description="Perubahan status dan catatan progres tersimpan di riwayat tindak lanjut."
       size="md"
+      mobileSheet
       footer={
         <>
           <Button
@@ -138,6 +139,9 @@ export function ChecklistFollowUpUpdateDialog({
             </p>
             <p className="text-xs text-muted-foreground">
               {row.pic ? `PIC ${row.pic.name}` : "Belum ada PIC"}
+              {row.followUp.safetyName
+                ? ` · Petugas safety ${row.followUp.safetyName}`
+                : ""}
               {row.followUp.dueDate
                 ? ` · Deadline ${formatDateTime(`${row.followUp.dueDate}T23:59:59+07:00`, "d MMM yyyy")}`
                 : ""}

@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Copy,
+  Hammer,
   Inbox,
   KeyRound,
   ListChecks,
@@ -73,6 +74,7 @@ const OBJECT_LABEL: Record<AuditType, string> = {
   autentikasi: "Autentikasi",
   checklist: "Checklist",
   tindak_lanjut: "Tindak lanjut",
+  pekerjaan: "Pekerjaan harian",
 };
 
 const OBJECT_VARIANT = {
@@ -84,6 +86,7 @@ const OBJECT_VARIANT = {
   autentikasi: "outline",
   checklist: "primary-light",
   tindak_lanjut: "info-light",
+  pekerjaan: "warning-light",
 } as const;
 
 const OBJECT_ICON_TONE = {
@@ -95,6 +98,7 @@ const OBJECT_ICON_TONE = {
   autentikasi: "text-muted-foreground",
   checklist: "text-primary",
   tindak_lanjut: "text-info",
+  pekerjaan: "text-warning",
 } as const;
 
 const ACTION_LABEL: Record<string, string> = {
@@ -111,6 +115,8 @@ const ACTION_LABEL: Record<string, string> = {
   divisi_dibuat: "Divisi dibuat",
   divisi_diubah: "Divisi diubah",
   kebijakan_diubah: "Kebijakan diubah",
+  lokasi_absen_ditambah: "Titik absensi ditambahkan",
+  lokasi_absen_diubah: "Titik absensi diubah",
   login_otp: "Login OTP",
   sesi_ditutup_otomatis: "Sesi ditutup otomatis",
   tidak_hadir_dicatat: "Tidak hadir dicatat",
@@ -135,6 +141,14 @@ const ACTION_LABEL: Record<string, string> = {
   checklist_dibuka_kembali: "Checklist dibuka kembali",
   tindak_lanjut_dibuat: "Tindak lanjut dibuat",
   tindak_lanjut_diubah: "Tindak lanjut diperbarui",
+  pekerjaan_dibuat: "Pekerjaan harian dibuat",
+  pekerjaan_diubah: "Pekerjaan harian diubah",
+  pekerjaan_dimulai: "Pekerjaan harian dimulai",
+  pekerjaan_diselesaikan: "Pekerjaan harian diselesaikan",
+  pekerjaan_dibatalkan: "Pekerjaan harian dibatalkan",
+  pekerjaan_dibuka_kembali: "Pekerjaan harian dibuka kembali",
+  pekerjaan_foto_diunggah: "Foto pekerjaan diunggah",
+  pekerjaan_foto_dihapus: "Foto pekerjaan dihapus",
 };
 
 const OBJECT_ICON = {
@@ -146,6 +160,7 @@ const OBJECT_ICON = {
   autentikasi: KeyRound,
   checklist: ClipboardCheck,
   tindak_lanjut: ListChecks,
+  pekerjaan: Hammer,
 } as const;
 
 const NOTIFICATION_LABEL: Record<NotificationLog["type"], string> = {
@@ -176,6 +191,7 @@ const AUDIT_FILTERS: Array<{ value: "semua" | AuditType; label: string }> = [
   { value: "autentikasi", label: "Autentikasi" },
   { value: "checklist", label: "Checklist" },
   { value: "tindak_lanjut", label: "Tindak lanjut" },
+  { value: "pekerjaan", label: "Pekerjaan harian" },
 ];
 
 const NOTIFICATION_FILTERS: Array<{

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ListChecks } from "lucide-react";
 import { toast } from "sonner";
+import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,7 @@ export function ChecklistFollowUpDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [picId, setPicId] = useState("");
+  const [safetyName, setSafetyName] = useState("");
   const [priority, setPriority] = useState<ChecklistPriority>("sedang");
   const [dueDate, setDueDate] = useState("");
   const [saving, setSaving] = useState(false);
@@ -61,6 +63,7 @@ export function ChecklistFollowUpDialog({
         : "",
     );
     setPicId("");
+    setSafetyName("");
     setPriority("sedang");
     setDueDate("");
   }, [open, answer]);
@@ -82,6 +85,7 @@ export function ChecklistFollowUpDialog({
           title: trimmedTitle,
           description: description.trim(),
           picId: picId || null,
+          safetyName: safetyName.trim(),
           priority,
           dueDate: dueDate || null,
         }),
@@ -121,6 +125,7 @@ export function ChecklistFollowUpDialog({
           : "Catat pekerjaan perbaikan untuk temuan pada checklist ini."
       }
       size="md"
+      mobileSheet
       footer={
         <>
           <Button
@@ -228,12 +233,26 @@ export function ChecklistFollowUpDialog({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="follow-up-due">Deadline (opsional)</Label>
+          <Label htmlFor="follow-up-safety">Nama petugas safety</Label>
           <Input
+            id="follow-up-safety"
+            value={safetyName}
+            onChange={(event) => setSafetyName(event.target.value)}
+            maxLength={120}
+            placeholder="Contoh: Budi Santoso"
+          />
+          <p className="text-xs text-muted-foreground">
+            Diisi manual dengan nama petugas safety yang mendampingi.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="follow-up-due">Deadline (opsional)</Label>
+          <DatePicker
             id="follow-up-due"
-            type="date"
             value={dueDate}
-            onChange={(event) => setDueDate(event.target.value)}
+            onChange={setDueDate}
+            placeholder="Pilih deadline (opsional)"
           />
         </div>
       </div>

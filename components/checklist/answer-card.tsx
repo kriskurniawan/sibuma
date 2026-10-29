@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
 import { ChecklistConditionBadge, ChecklistFollowUpBadge } from "@/components/checklist/checklist-badges";
 import {
+  CHECKLIST_MAX_PHOTOS,
   CHECKLIST_PHOTO_POLICY_LABEL,
   conditionRequiresNote,
   findChecklistCondition,
@@ -453,7 +454,7 @@ export function AnswerCard({
             photos={photos}
             inspectionId={inspectionId}
             answerId={answer.id}
-            canUpload={canFill && photos.length < 6}
+            canUpload={canFill && photos.length < CHECKLIST_MAX_PHOTOS}
             canDelete={canFill}
             onUploadingChange={(uploading) =>
               onUploadingChange?.(answer.id, uploading)

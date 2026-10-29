@@ -91,9 +91,9 @@ export async function POST(request: Request) {
       const id = `cf_${crypto.randomUUID()}`;
       await query(
         `INSERT INTO checklist_follow_ups
-          (id,inspection_id,answer_id,owner_id,title,description,pic_id,priority,due_date,status,
+          (id,inspection_id,answer_id,owner_id,title,description,pic_id,safety_name,priority,due_date,status,
            progress_note,result_note,created_by,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'terbuka','','',$10,$11,$12)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'terbuka','','',$11,$12,$13)`,
         [
           id,
           inspection.id,
@@ -102,6 +102,7 @@ export async function POST(request: Request) {
           parsed.data.title,
           parsed.data.description,
           parsed.data.picId ?? null,
+          parsed.data.safetyName,
           parsed.data.priority,
           parsed.data.dueDate ?? null,
           user.id,

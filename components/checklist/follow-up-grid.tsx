@@ -99,19 +99,27 @@ const columns = (
     accessorFn: (row) => row.pic?.name ?? "",
     header: "PIC",
     meta: { headerClassName: "whitespace-nowrap" },
-    cell: ({ row }) =>
-      row.original.pic ? (
-        <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
-          <Avatar
-            name={row.original.pic.name}
-            seed={row.original.pic.id}
-            size="xs"
-          />
-          {row.original.pic.name}
-        </span>
-      ) : (
-        <span className="text-xs text-muted-foreground">Tanpa PIC</span>
-      ),
+    cell: ({ row }) => (
+      <div className="flex flex-col gap-0.5">
+        {row.original.pic ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-foreground">
+            <Avatar
+              name={row.original.pic.name}
+              seed={row.original.pic.id}
+              size="xs"
+            />
+            {row.original.pic.name}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Tanpa PIC</span>
+        )}
+        {row.original.followUp.safetyName && (
+          <span className="text-xs text-muted-foreground">
+            Petugas safety {row.original.followUp.safetyName}
+          </span>
+        )}
+      </div>
+    ),
   },
   {
     id: "priority",
@@ -279,14 +287,21 @@ export function ChecklistFollowUpGrid({
                   </div>
 
                   <div className="flex min-w-0 items-center justify-between gap-3">
-                    {row.pic ? (
-                      <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                        <Avatar name={row.pic.name} seed={row.pic.id} size="xs" />
-                        <span className="truncate">{row.pic.name}</span>
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Tanpa PIC</span>
-                    )}
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      {row.pic ? (
+                        <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                          <Avatar name={row.pic.name} seed={row.pic.id} size="xs" />
+                          <span className="truncate">{row.pic.name}</span>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Tanpa PIC</span>
+                      )}
+                      {row.followUp.safetyName && (
+                        <span className="truncate text-xs text-muted-foreground">
+                          Petugas safety {row.followUp.safetyName}
+                        </span>
+                      )}
+                    </div>
                     {canEdit ? (
                       <Button
                         type="button"

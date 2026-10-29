@@ -1,14 +1,14 @@
 import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
-import { DEFAULT_MAP_CENTER } from "@/lib/constants";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { notifySpkl } from "@/lib/notifications";
 import { scheduleWarnings } from "@/lib/schedule";
 import { mutateDb, pushAudit } from "@/lib/store";
-import { zonedToIso } from "@/lib/time";
+import { durationLabel, minutesBetween, zonedToIso } from "@/lib/time";
 import type { Employee, Spkl, SpklWorker } from "@/lib/types";
 import { spklInputSchema } from "@/lib/validation";
+import { workLocationAddress } from "@/lib/work-locations";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -48,7 +48,24 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await mutateDb({ kind: "spkl", workerIds, divisionId: input.divisionId, sequence: true, startAt }, (db) => {
+    const result = await mutateDb({ kind: "spkl", workerIds, divisionId: input.divisionId, sequence: true, startAt, workLocationId: input.locationId }, (db) => {
+      const duration = minutesBetween(startAt, endAt);
+      if (duration > db.policy.dailyLimitMinutes) {
+        throw new Error(
+          `Durasi SPKL ${durationLabel(duration)} melewati batas harian ${durationLabel(db.policy.dailyLimitMinutes)}.`,
+        );
+      }
+
+      const workLocation = db.workLocations.find(
+        (location) => location.id === input.locationId,
+      );
+      if (!workLocation) {
+        throw new Error("Titik absensi tidak ditemukan.");
+      }
+      if (!workLocation.active) {
+        throw new Error("Titik absensi sudah nonaktif. Pilih titik lain.");
+      }
+
       const division = db.divisions.find(
         (item) =>
           item.id === input.divisionId &&
@@ -65,12 +82,11 @@ export async function POST(request: Request) {
           employee.active &&
           employee.accessMode !== "read_only" &&
           employee.supervisorId === user.id &&
-          employee.divisionId === division.id &&
           workerIds.includes(employee.id),
       );
       if (team.length !== workerIds.length) {
         throw new Error(
-          `Satu atau lebih pekerja tidak ditemukan, tidak aktif, atau bukan anggota divisi ${division.name}.`,
+          "Satu atau lebih pekerja tidak ditemukan, tidak aktif, atau bukan bagian dari timmu.",
         );
       }
 
@@ -105,12 +121,11 @@ export async function POST(request: Request) {
         startAt,
         endAt,
         location: {
-          latitude: input.latitude,
-          longitude: input.longitude,
-          address:
-            input.address ||
-            `${input.latitude.toFixed(5)}, ${input.longitude.toFixed(5)}`,
+          latitude: workLocation.latitude,
+          longitude: workLocation.longitude,
+          address: workLocationAddress(workLocation),
         },
+        workLocationId: workLocation.id,
         radiusMeters: input.radiusMeters,
         createdBy: user.id,
         divisionId: division.id,

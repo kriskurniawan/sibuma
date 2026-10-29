@@ -1,6 +1,6 @@
 import { addDays, parseISO, startOfWeek } from "date-fns";
 import { APP_TIMEZONE } from "./constants";
-import { toLocalDateInput } from "./time";
+import { minutesBetween, toLocalDateInput } from "./time";
 
 export interface ScheduledItem {
   employeeId: string;
@@ -29,15 +29,6 @@ function overlaps(
   );
 }
 
-function minutes(startAt: string, endAt: string) {
-  return Math.max(
-    0,
-    Math.round(
-      (new Date(endAt).getTime() - new Date(startAt).getTime()) / 60_000,
-    ),
-  );
-}
-
 export function scheduleWarnings(input: {
   employeeIds: string[];
   startAt: string;
@@ -53,7 +44,7 @@ export function scheduleWarnings(input: {
   const day = toLocalDateInput(input.startAt, APP_TIMEZONE);
   const weekStart = startOfWeek(newStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
-  const duration = minutes(input.startAt, input.endAt);
+  const duration = minutesBetween(input.startAt, input.endAt);
 
   for (const employeeId of input.employeeIds) {
     const existing = input.schedules.filter(
@@ -79,7 +70,7 @@ export function scheduleWarnings(input: {
     );
     const dailyTotal =
       dailyExisting.reduce(
-        (total, item) => total + minutes(item.startAt, item.endAt),
+        (total, item) => total + minutesBetween(item.startAt, item.endAt),
         0,
       ) + duration;
     if (dailyTotal > input.dailyLimitMinutes) {
@@ -96,7 +87,7 @@ export function scheduleWarnings(input: {
     });
     const weeklyTotal =
       weeklyExisting.reduce(
-        (total, item) => total + minutes(item.startAt, item.endAt),
+        (total, item) => total + minutesBetween(item.startAt, item.endAt),
         0,
       ) + duration;
     if (weeklyTotal > input.weeklyLimitMinutes) {

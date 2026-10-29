@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Ban, PencilLine, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type { Spkl, SpklStatus } from "@/lib/types";
 
 export function SpklManageActions({
@@ -35,6 +36,8 @@ export function SpklManageActions({
   compact?: boolean;
 }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const cancelContentRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -103,7 +106,11 @@ export function SpklManageActions({
           if (!nextOpen) setError(null);
         }}
       >
-        <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogContent
+          ref={cancelContentRef}
+          initialFocus={isMobile ? cancelContentRef : undefined}
+          className="sm:max-w-md"
+        >
           <AlertDialogHeader>
             <AlertDialogMedia className="bg-destructive/10 text-destructive">
               <ShieldAlert />

@@ -2,13 +2,16 @@
 
 import { useEffect, type ComponentProps } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Printer } from "lucide-react";
+import { FileDown, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function ReportPrintButton({
   variant = "default",
+  href,
 }: {
   variant?: ComponentProps<typeof Button>["variant"];
+  /** Bila diisi, tombol mengunduh PDF server, bukan mencetak halaman. */
+  href?: string;
 }) {
   const pathname = usePathname();
   const params = useSearchParams();
@@ -24,6 +27,19 @@ export function ReportPrintButton({
     search.set("print", "1");
     search.delete("page");
     window.open(`${pathname}?${search}`, "_blank", "noopener,noreferrer");
+  }
+  if (href) {
+    return (
+      <Button
+        size="sm"
+        variant={variant}
+        nativeButton={false}
+        render={<a href={href} />}
+      >
+        <FileDown aria-hidden="true" />
+        Unduh PDF
+      </Button>
+    );
   }
   return (
     <Button type="button" size="sm" variant={variant} onClick={printAll}>

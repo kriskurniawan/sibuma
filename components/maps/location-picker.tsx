@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Crosshair,
   LocateFixed,
@@ -34,18 +34,25 @@ interface LocationPickerProps {
   value: LocationValue;
   onChange: (value: LocationValue) => void;
   error?: string;
+  showRadius?: boolean;
 }
 
 export function LocationPicker({
   value,
   onChange,
   error,
+  showRadius = true,
 }: LocationPickerProps) {
   const [search, setSearch] = useState("");
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [reverseLoading, setReverseLoading] = useState(false);
   const reverseRequest = useRef(0);
+  const latestValue = useRef(value);
+
+  useEffect(() => {
+    latestValue.current = value;
+  }, [value]);
 
   const markers: MapMarker[] = [
     {
@@ -83,7 +90,7 @@ export function LocationPicker({
       if (reverseRequest.current !== requestId) return;
       if (data.display_name) {
         onChange({
-          ...value,
+          ...latestValue.current,
           latitude,
           longitude,
           address: data.display_name,
@@ -217,7 +224,7 @@ export function LocationPicker({
             longitude: value.longitude,
           }}
           markers={markers}
-          radiusMeters={value.radiusMeters}
+          radiusMeters={showRadius ? value.radiusMeters : undefined}
           zoom={16}
           interactive
           onMapClick={(coordinate) =>
@@ -261,54 +268,58 @@ export function LocationPicker({
             />
           </InputGroup>
         </div>
-        <div className="flex flex-col gap-1.5 sm:w-36">
-          <Label htmlFor="radius">Radius absen</Label>
-          <InputGroup>
-            <InputGroupInput
-              id="radius"
-              type="number"
-              min={25}
-              max={1000}
-              step={5}
-              value={value.radiusMeters}
-              onChange={(event) =>
-                onChange({
-                  ...value,
-                  radiusMeters: Math.max(
-                    25,
-                    Math.min(1000, Number(event.target.value) || 25),
-                  ),
-                })
-              }
-            />
-            <InputGroupAddon align="inline-end">
-              <InputGroupText className="text-xs font-medium">m</InputGroupText>
-            </InputGroupAddon>
-          </InputGroup>
-        </div>
+        {showRadius && (
+          <div className="flex flex-col gap-1.5 sm:w-36">
+            <Label htmlFor="radius">Radius absen</Label>
+            <InputGroup>
+              <InputGroupInput
+                id="radius"
+                type="number"
+                min={25}
+                max={1000}
+                step={5}
+                value={value.radiusMeters}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    radiusMeters: Math.max(
+                      25,
+                      Math.min(1000, Number(event.target.value) || 25),
+                    ),
+                  })
+                }
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupText className="text-xs font-medium">m</InputGroupText>
+              </InputGroupAddon>
+            </InputGroup>
+          </div>
+        )}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <input
-          type="range"
-          min={25}
-          max={500}
-          step={5}
-          value={Math.min(500, value.radiusMeters)}
-          onChange={(event) =>
-            onChange({ ...value, radiusMeters: Number(event.target.value) })
-          }
-          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
-          aria-label="Atur radius absen"
-        />
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>25 m</span>
-          <span className="text-primary">
-            Lingkaran radius terlihat di peta
-          </span>
-          <span>500 m</span>
+      {showRadius && (
+        <div className="flex flex-col gap-1.5">
+          <input
+            type="range"
+            min={25}
+            max={1_000}
+            step={5}
+            value={Math.min(1_000, value.radiusMeters)}
+            onChange={(event) =>
+              onChange({ ...value, radiusMeters: Number(event.target.value) })
+            }
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-primary"
+            aria-label="Atur radius absen"
+          />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>25 m</span>
+            <span className="text-primary">
+              Lingkaran radius terlihat di peta
+            </span>
+            <span>1.000 m</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <FieldError>{error}</FieldError>
     </div>

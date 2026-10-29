@@ -5,6 +5,7 @@ import {
   Clock3,
   ListChecks,
   LoaderCircle,
+  RotateCcw,
 } from "lucide-react";
 import { MobileSummary } from "@/components/mobile-summary";
 import {
@@ -39,6 +40,9 @@ export function ChecklistFollowUpView({
   filters: { status: string; search: string; mine: boolean };
   canEdit: boolean;
 }) {
+  const filtered =
+    filters.status !== "aktif" || Boolean(filters.search) || filters.mine;
+
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <div className="hidden items-center justify-between gap-2 md:flex">
@@ -146,21 +150,39 @@ export function ChecklistFollowUpView({
           {items.length === 0 ? (
             <EmptyState
               icon={ListChecks}
-              title="Tidak ada tindak lanjut"
+              title={
+                filtered
+                  ? "Tidak ada tindak lanjut sesuai filter"
+                  : "Tidak ada tindak lanjut"
+              }
               description={
-                canEdit
-                  ? "Tambahkan temuan dari item checklist yang bermasalah."
-                  : "Belum ada temuan untuk tim ini."
+                filtered
+                  ? "Ubah atau reset filter untuk melihat temuan lain."
+                  : canEdit
+                    ? "Tambahkan temuan dari item checklist yang bermasalah."
+                    : "Belum ada temuan untuk tim ini."
               }
               action={
-                <Button
-                  size="sm"
-                  nativeButton={false}
-                  render={<Link href="/checklist" />}
-                >
-                  <ListChecks aria-hidden="true" />
-                  Buka checklist
-                </Button>
+                filtered ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href="/checklist/tindak-lanjut" />}
+                  >
+                    <RotateCcw aria-hidden="true" />
+                    Reset filter
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    nativeButton={false}
+                    render={<Link href="/checklist" />}
+                  >
+                    <ListChecks aria-hidden="true" />
+                    Buka checklist
+                  </Button>
+                )
               }
             />
           ) : (

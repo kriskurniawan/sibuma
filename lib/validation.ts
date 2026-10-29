@@ -34,9 +34,7 @@ export const spklInputSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid."),
   startTime: localTime,
   endTime: localTime,
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  address: z.string().trim().max(240).optional().default(""),
+  locationId: z.string().trim().min(1, "Pilih titik absensi."),
   radiusMeters: z
     .number()
     .int()
@@ -204,7 +202,7 @@ export const policySchema = z
       .number()
       .int()
       .min(25, "Radius default minimal 25 meter.")
-      .max(2_000, "Radius default maksimal 2.000 meter."),
+      .max(1_000, "Radius default maksimal 1.000 meter."),
     maxGpsAccuracyMeters: z
       .number()
       .int()
@@ -220,4 +218,56 @@ export const policySchema = z
           "Batas mingguan harus lebih besar atau sama dengan batas harian.",
       });
     }
+  });
+
+export const workLocationSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Nama titik lokasi minimal 2 karakter.")
+    .max(80, "Nama titik lokasi maksimal 80 karakter."),
+  address: z
+    .string()
+    .trim()
+    .max(240, "Alamat titik lokasi maksimal 240 karakter.")
+    .optional()
+    .default(""),
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  radiusMeters: z
+    .number()
+    .int()
+    .min(25, "Radius absen minimal 25 meter.")
+    .max(1_000, "Radius absen maksimal 1.000 meter.")
+    .default(120),
+  active: z.boolean().default(true),
+});
+
+// PATCH tidak memakai default agar field yang tidak dikirim tidak menimpa
+// nilai lama (misalnya alamat saat hanya mengubah status aktif).
+export const workLocationUpdateSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(2, "Nama titik lokasi minimal 2 karakter.")
+      .max(80, "Nama titik lokasi maksimal 80 karakter.")
+      .optional(),
+    address: z
+      .string()
+      .trim()
+      .max(240, "Alamat titik lokasi maksimal 240 karakter.")
+      .optional(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    radiusMeters: z
+      .number()
+      .int()
+      .min(25, "Radius absen minimal 25 meter.")
+      .max(1_000, "Radius absen maksimal 1.000 meter.")
+      .optional(),
+    active: z.boolean().optional(),
+  })
+  .refine((value) => Object.values(value).some((item) => item !== undefined), {
+    message: "Tidak ada perubahan yang dikirim.",
   });

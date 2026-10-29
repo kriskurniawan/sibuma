@@ -3,7 +3,6 @@ import { pageRequest } from "@/lib/pagination";
 import { redirect } from "next/navigation";
 import {
   AlertCircle,
-  BarChart3,
   Camera,
   CheckCircle2,
   Clock3,
@@ -11,14 +10,14 @@ import {
   FileBarChart2,
   FileSpreadsheet,
   RotateCcw,
-  Search,
   UsersRound,
 } from "lucide-react";
 import { ReportDataGrid } from "@/components/reports/report-data-grid";
-import { ReportDateFilters } from "@/components/reports/report-date-filters";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
 import { ChecklistReportScreen } from "@/components/reports/checklist-report-screen";
 import { FollowUpReportScreen } from "@/components/reports/follow-up-report-screen";
+import { ManualWorkReportScreen } from "@/components/reports/manual-work-report-screen";
 import { isSuperAdmin } from "@/lib/access";
 import {
   Frame,
@@ -37,19 +36,6 @@ import {
   StatCard,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getReportData,
@@ -84,12 +70,18 @@ export default async function ReportPage({
   if (user.role !== "atasan" && !isSuperAdmin(user)) redirect("/riwayat");
 
   const params = await searchParams;
-  const tab = first(params.tab);
-  if (tab === "checklist") {
+  const tab = first(params.tab) ?? "checklist";
+  if (
+    tab === "checklist" ||
+    !["lembur", "tindak-lanjut", "pekerjaan"].includes(tab)
+  ) {
     return <ChecklistReportScreen user={user} params={params} />;
   }
   if (tab === "tindak-lanjut") {
     return <FollowUpReportScreen user={user} params={params} />;
+  }
+  if (tab === "pekerjaan") {
+    return <ManualWorkReportScreen user={user} params={params} />;
   }
 
   const fallback = currentMonthRange();
@@ -118,6 +110,7 @@ export default async function ReportPage({
   if (filters.employeeId) exportParams.set("employeeId", filters.employeeId);
   if (filters.spklId) exportParams.set("spklId", filters.spklId);
   if (filters.search) exportParams.set("search", filters.search);
+  const pdfHref = `/api/reports/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), format: "pdf" }).toString()}`;
 
   const periodLabel = `${formatDateHuman(`${from}T12:00:00`, "d MMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMM yyyy")}`;
   const isFiltered = Boolean(
@@ -132,18 +125,20 @@ export default async function ReportPage({
       ? 0
       : Math.round((data.totals.present / data.totals.sessions) * 100);
 
-  const employeeItems: Record<string, string> = {
-    "": "Semua pekerja",
-    ...Object.fromEntries(
-      options.employees.map((employee) => [employee.id, employee.name]),
-    ),
-  };
-  const spklItems: Record<string, string> = {
-    "": "Semua SPKL",
-    ...Object.fromEntries(
-      options.spkls.map((spkl) => [spkl.id, `${spkl.number} · ${spkl.title}`]),
-    ),
-  };
+  const employeeOptions = [
+    { value: "", label: "Semua pekerja" },
+    ...options.employees.map((employee) => ({
+      value: employee.id,
+      label: employee.name,
+    })),
+  ];
+  const spklOptions = [
+    { value: "", label: "Semua SPKL" },
+    ...options.spkls.map((spkl) => ({
+      value: spkl.id,
+      label: `${spkl.number} · ${spkl.title}`,
+    })),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -153,8 +148,8 @@ export default async function ReportPage({
           title="Laporan lembur."
           description={
             isSuperAdmin(user)
-              ? "Tinjau kehadiran, durasi, dokumentasi, dan koreksi seluruh tim. Unduh Excel untuk penggajian, CSV untuk integrasi, atau cetak PDF untuk arsip."
-              : "Tinjau kehadiran, durasi, dokumentasi, dan koreksi anggota tim. Unduh Excel untuk penggajian, CSV untuk integrasi, atau cetak PDF untuk arsip."
+              ? "Tinjau kehadiran, durasi, dokumentasi, dan koreksi seluruh tim. Unduh Excel untuk penggajian, CSV untuk integrasi, atau PDF untuk arsip."
+              : "Tinjau kehadiran, durasi, dokumentasi, dan koreksi anggota tim. Unduh Excel untuk penggajian, CSV untuk integrasi, atau PDF untuk arsip."
           }
           action={
             <div className="flex flex-wrap gap-2">
@@ -184,7 +179,7 @@ export default async function ReportPage({
                 <Download aria-hidden="true" />
                 Unduh CSV
               </Button>
-              <ReportPrintButton />
+              <ReportPrintButton href={pdfHref} />
             </div>
           }
         />
@@ -216,7 +211,7 @@ export default async function ReportPage({
               variant="ghost"
               size="sm"
               nativeButton={false}
-              render={<Link href="/laporan" />}
+              render={<Link href="/laporan?tab=lembur" />}
             >
               <RotateCcw aria-hidden="true" />
               Reset filter
@@ -225,83 +220,40 @@ export default async function ReportPage({
         </FrameHeader>
 
         <FramePanel>
-          <form
-            method="get"
-            aria-label="Filter laporan"
-            className="flex flex-col gap-4"
-          >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <ReportDateFilters
-                key={`${from}-${to}`}
-                from={from}
-                to={to}
-              />
-              <div className="flex flex-col gap-2 xl:col-span-2">
-                <Label htmlFor="employeeId">Pekerja</Label>
-                <Select
-                  name="employeeId"
-                  defaultValue={filters.employeeId ?? ""}
-                  items={employeeItems}
-                >
-                  <SelectTrigger id="employeeId" className="w-full">
-                    <SelectValue placeholder="Semua pekerja" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Semua pekerja</SelectItem>
-                    {options.employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2 xl:col-span-3">
-                <Label htmlFor="spklId">SPKL</Label>
-                <Select
-                  name="spklId"
-                  defaultValue={filters.spklId ?? ""}
-                  items={spklItems}
-                >
-                  <SelectTrigger id="spklId" className="w-full">
-                    <SelectValue placeholder="Semua SPKL" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Semua SPKL</SelectItem>
-                    {options.spkls.map((spkl) => (
-                      <SelectItem key={spkl.id} value={spkl.id}>
-                        {spkl.number} · {spkl.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-3">
-                <Label htmlFor="search">Cari</Label>
-                <InputGroup>
-                  <InputGroupAddon>
-                    <Search aria-hidden="true" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="search"
-                    name="search"
-                    defaultValue={filters.search ?? ""}
-                    placeholder="Nama pekerja, SPKL, atau nomor…"
-                  />
-                </InputGroup>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit">
-                <BarChart3 aria-hidden="true" />
-                Terapkan filter
-              </Button>
+          <ReportFilterBar
+            ariaLabel="Filter laporan"
+            from={from}
+            to={to}
+            search={filters.search ?? ""}
+            searchId="search"
+            searchPlaceholder="Nama pekerja, SPKL, atau nomor…"
+            searchClassName="sm:col-span-2 xl:col-span-3"
+            selectFilters={[
+              {
+                key: "employeeId",
+                id: "employeeId",
+                label: "Pekerja",
+                value: filters.employeeId ?? "",
+                placeholder: "Semua pekerja",
+                options: employeeOptions,
+                className: "xl:col-span-2",
+              },
+              {
+                key: "spklId",
+                id: "spklId",
+                label: "SPKL",
+                value: filters.spklId ?? "",
+                placeholder: "Semua SPKL",
+                options: spklOptions,
+                className: "xl:col-span-3",
+              },
+            ]}
+            summary={
               <p className="text-xs text-muted-foreground">
                 {data.totals.sessions} sesi ditemukan pada {periodLabel}.
               </p>
-            </div>
-          </form>
+            }
+          />
         </FramePanel>
       </Frame>
 
@@ -415,7 +367,7 @@ export default async function ReportPage({
               title="Belum ada data pada periode ini"
               description="Ubah rentang tanggal atau filter pekerja. Sesudah SPKL berakhir, ketidakhadiran otomatis dicatat sebagai data laporan."
               action={
-                <Button nativeButton={false} render={<Link href="/laporan" />}>
+                <Button nativeButton={false} render={<Link href="/laporan?tab=lembur" />}>
                   <RotateCcw aria-hidden="true" />
                   Ubah filter
                 </Button>

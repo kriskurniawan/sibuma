@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 const SIZE_CLASSES = {
@@ -27,6 +36,7 @@ export function Modal({
   footer,
   size = "md",
   dismissible = true,
+  mobileSheet = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -36,19 +46,66 @@ export function Modal({
   footer?: ReactNode;
   size?: keyof typeof SIZE_CLASSES;
   dismissible?: boolean;
+  mobileSheet?: boolean;
 }) {
+  const isMobile = useIsMobile();
+  // Di perangkat sentuh, fokuskan wadah dialog agar keyboard tidak langsung
+  // terbuka; pengguna mengetuk kolom sendiri saat siap mengisi.
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  function handleOpenChange(nextOpen: boolean, details: { reason: string }) {
+    if (nextOpen) return;
+    if (!dismissible && details.reason !== "close-press") return;
+    onClose();
+  }
+
+  if (mobileSheet && isMobile) {
+    return (
+      <Sheet
+        open={open}
+        onOpenChange={handleOpenChange}
+        disablePointerDismissal={!dismissible}
+      >
+        <SheetContent
+          ref={contentRef}
+          side="bottom"
+          showCloseButton={dismissible}
+          className="max-h-[85dvh] gap-0"
+          initialFocus={contentRef}
+        >
+          <SheetHeader className="border-b border-border/70">
+            {title ? (
+              <SheetTitle>{title}</SheetTitle>
+            ) : (
+              <SheetTitle className="sr-only">Dialog</SheetTitle>
+            )}
+            {description && (
+              <SheetDescription>{description}</SheetDescription>
+            )}
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {children}
+          </div>
+          {footer && (
+            <SheetFooter className="flex-row justify-end border-t border-border/70 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {footer}
+            </SheetFooter>
+          )}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Dialog
       open={open}
-      onOpenChange={(nextOpen, details) => {
-        if (nextOpen) return;
-        if (!dismissible && details.reason !== "close-press") return;
-        onClose();
-      }}
+      onOpenChange={handleOpenChange}
       disablePointerDismissal={!dismissible}
     >
       <DialogContent
+        ref={contentRef}
         showCloseButton={dismissible}
+        initialFocus={isMobile ? contentRef : undefined}
         className={cn(
           "max-h-[calc(100svh-2rem)] overflow-y-auto",
           SIZE_CLASSES[size],

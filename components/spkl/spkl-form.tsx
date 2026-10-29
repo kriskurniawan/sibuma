@@ -13,6 +13,7 @@ import {
   Clock3,
   Info,
   MapPin,
+  RefreshCw,
   Save,
   Send,
   ShieldCheck,
@@ -21,10 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/date-picker";
-import {
-  LocationPicker,
-  type LocationValue,
-} from "@/components/maps/location-picker";
+import { MapView } from "@/components/maps/map-view";
 import {
   Alert,
   AlertDescription,
@@ -43,12 +41,19 @@ import {
   Avatar,
   AvatarStack,
   Badge as StateBadge,
+  EmptyState,
   FieldError,
   PageHeader,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -68,7 +73,7 @@ import {
   formatDateHuman,
   zonedToIso,
 } from "@/lib/time";
-import type { Division, Employee, GeoPoint } from "@/lib/types";
+import type { Division, Employee, WorkLocation } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export interface SpklFormInitial {
@@ -78,7 +83,7 @@ export interface SpklFormInitial {
   date: string;
   startTime: string;
   endTime: string;
-  location: GeoPoint;
+  workLocationId: string | null;
   radiusMeters: number;
   divisionId: string;
   requiresDocumentation: boolean;
@@ -89,8 +94,8 @@ interface SpklFormProps {
   mode: "create" | "edit";
   team: Employee[];
   divisions: Division[];
+  locations: WorkLocation[];
   policy: {
-    defaultLocation: GeoPoint;
     defaultRadiusMeters: number;
     dailyLimitMinutes: number;
     weeklyLimitMinutes: number;
@@ -117,6 +122,7 @@ export function SpklForm({
   mode,
   team,
   divisions,
+  locations,
   policy,
   initial,
   defaultDate,
@@ -135,19 +141,45 @@ export function SpklForm({
   const [divisionId, setDivisionId] = useState(
     initial?.divisionId || activeDivisions[0]?.id || "",
   );
-  const [location, setLocation] = useState<LocationValue>({
-    latitude: initial?.location.latitude ?? policy.defaultLocation.latitude,
-    longitude: initial?.location.longitude ?? policy.defaultLocation.longitude,
-    address: initial?.location.address ?? policy.defaultLocation.address ?? "",
-    radiusMeters:
-      initial?.radiusMeters ?? policy.defaultRadiusMeters ?? 120,
-  });
-  const [workerIds, setWorkerIds] = useState<string[]>(() => {
-    const initialDivision = initial?.divisionId || activeDivisions[0]?.id || "";
-    return (initial?.workerIds ?? []).filter(
-      (id) => team.find((employee) => employee.id === id)?.divisionId === initialDivision,
-    );
-  });
+  const selectableLocations = useMemo(
+    () =>
+      locations.filter(
+        (location) => location.active || location.id === initial?.workLocationId,
+      ),
+    [locations, initial?.workLocationId],
+  );
+  const initialWorkLocationId =
+    initial?.workLocationId ||
+    locations.find((location) => location.active)?.id ||
+    "";
+  const initialWorkLocation = locations.find(
+    (location) => location.id === initialWorkLocationId,
+  );
+  const [workLocationId, setWorkLocationId] = useState(initialWorkLocationId);
+  const [radiusMeters, setRadiusMeters] = useState(
+    initial?.radiusMeters ??
+      initialWorkLocation?.radiusMeters ??
+      policy.defaultRadiusMeters ??
+      120,
+  );
+  const selectedLocation = selectableLocations.find(
+    (location) => location.id === workLocationId,
+  );
+  const locationItems = useMemo(
+    () =>
+      Object.fromEntries(
+        selectableLocations.map((location) => [
+          location.id,
+          location.active ? location.name : `${location.name} (nonaktif)`,
+        ]),
+      ),
+    [selectableLocations],
+  );
+  const [workerIds, setWorkerIds] = useState<string[]>(() =>
+    (initial?.workerIds ?? []).filter((id) =>
+      team.some((employee) => employee.id === id),
+    ),
+  );
   const [requiresDocumentation, setRequiresDocumentation] = useState(
     initial?.requiresDocumentation ?? policy.requireDocumentation,
   );
@@ -155,10 +187,25 @@ export function SpklForm({
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<ScheduleWarning[]>([]);
-  const divisionWorkers = useMemo(
-    () => team.filter((employee) => employee.divisionId === divisionId),
-    [team, divisionId],
+  const assignableWorkers = useMemo(
+    () => team.filter((employee) => employee.divisionId),
+    [team],
   );
+  const divisionGroups = useMemo(() => {
+    const byDivision = new Map<string, Employee[]>();
+    for (const employee of assignableWorkers) {
+      if (!employee.divisionId) continue;
+      const workers = byDivision.get(employee.divisionId) ?? [];
+      workers.push(employee);
+      byDivision.set(employee.divisionId, workers);
+    }
+    return activeDivisions
+      .map((division) => ({
+        division,
+        workers: byDivision.get(division.id) ?? [],
+      }))
+      .filter((group) => group.workers.length > 0);
+  }, [activeDivisions, assignableWorkers]);
   const divisionItems = useMemo(
     () =>
       Object.fromEntries(
@@ -169,10 +216,9 @@ export function SpklForm({
       ),
     [divisions],
   );
-  const [selectAll, setSelectAll] = useState(
-    divisionWorkers.length > 0 &&
-      (initial?.workerIds.length ?? 0) === divisionWorkers.length,
-  );
+  const allSelected =
+    assignableWorkers.length > 0 &&
+    workerIds.length === assignableWorkers.length;
 
   const localWarnings = useMemo(() => {
     if (!date || !startTime || !endTime || workerIds.length === 0) return [];
@@ -214,38 +260,31 @@ export function SpklForm({
   }, [localWarnings, warnings]);
 
   const duration = durationMinutes(startTime, endTime);
-  const selectedWorkers = divisionWorkers.filter((employee) =>
+  const selectedWorkers = assignableWorkers.filter((employee) =>
     workerIds.includes(employee.id),
+  );
+  const selectedDivisions = divisions.filter((division) =>
+    selectedWorkers.some((employee) => employee.divisionId === division.id),
   );
 
   function changeDivision(nextDivisionId: string) {
     if (nextDivisionId === divisionId) return;
     setDivisionId(nextDivisionId);
-    setWorkerIds([]);
-    setSelectAll(false);
-    setErrors((current) => ({ ...current, divisionId: undefined, workers: undefined }));
+    setErrors((current) => ({ ...current, divisionId: undefined }));
   }
 
   function toggleWorker(employeeId: string) {
-    setWorkerIds((current) => {
-      const next = current.includes(employeeId)
+    setWorkerIds((current) =>
+      current.includes(employeeId)
         ? current.filter((id) => id !== employeeId)
-        : [...current, employeeId];
-      setSelectAll(
-        divisionWorkers.length > 0 && next.length === divisionWorkers.length,
-      );
-      return next;
-    });
+        : [...current, employeeId],
+    );
   }
 
   function toggleAll() {
-    if (selectAll) {
-      setWorkerIds([]);
-      setSelectAll(false);
-      return;
-    }
-    setWorkerIds(divisionWorkers.map((employee) => employee.id));
-    setSelectAll(true);
+    setWorkerIds(
+      allSelected ? [] : assignableWorkers.map((employee) => employee.id),
+    );
   }
 
   function validate() {
@@ -274,25 +313,22 @@ export function SpklForm({
       next.endTime =
         "Jam selesai SPKL sudah lewat. Pilih jam selesai setelah sekarang.";
     }
-    if (duration > 12 * 60) {
-      next.endTime = "Durasi satu SPKL maksimal 12 jam.";
+    if (duration > policy.dailyLimitMinutes) {
+      next.endTime = `Durasi SPKL ${durationLabel(duration)} melewati batas harian ${durationLabel(policy.dailyLimitMinutes)}.`;
     }
-    if (!location.address.trim()) {
-      next.address = "Isi alamat atau patokan lokasi absen.";
+    if (!selectedLocation) {
+      next.locationId = "Pilih titik absensi.";
     }
-    if (
-      !Number.isFinite(location.latitude) ||
-      !Number.isFinite(location.longitude)
-    ) {
-      next.address = "Tentukan titik absen pada peta.";
-    }
-    if (location.radiusMeters < 25) {
+    if (radiusMeters < 25) {
       next.radiusMeters = "Radius absen minimal 25 meter.";
     }
+    if (radiusMeters > 1_000) {
+      next.radiusMeters = "Radius absen maksimal 1.000 meter.";
+    }
     if (!divisionId) {
-      next.divisionId = "Pilih divisi penugasan.";
-    } else if (divisionWorkers.length === 0) {
-      next.workers = "Divisi ini belum memiliki pekerja aktif.";
+      next.divisionId = "Pilih divisi utama.";
+    } else if (assignableWorkers.length === 0) {
+      next.workers = "Belum ada pekerja aktif di tim.";
     }
     if (workerIds.length === 0) {
       next.workers = "Pilih minimal satu pekerja.";
@@ -319,10 +355,8 @@ export function SpklForm({
         date,
         startTime,
         endTime,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        address: location.address.trim(),
-        radiusMeters: location.radiusMeters,
+        locationId: workLocationId,
+        radiusMeters,
         requiresDocumentation,
         workerIds,
       };
@@ -383,8 +417,9 @@ export function SpklForm({
                   Belum ada divisi aktif
                 </p>
                 <p className="max-w-md text-sm text-muted-foreground">
-                  SPKL dibuat untuk satu divisi. Tambahkan divisi dan tempatkan
-                  pekerja di dalamnya sebelum membuat SPKL.
+                  SPKL membutuhkan pekerja yang tergabung dalam divisi aktif.
+                  Tambahkan divisi dan tempatkan pekerja di dalamnya sebelum
+                  membuat SPKL.
                 </p>
               </div>
               <Button nativeButton={false} render={<Link href="/tim" />}>
@@ -633,22 +668,151 @@ export function SpklForm({
               <div className="flex min-w-0 flex-col">
                 <FrameTitle>Lokasi & radius absen</FrameTitle>
                 <FrameDescription className="text-xs">
-                  Tentukan titik pusat dan toleransi jarak absensi.
+                  Pilih titik yang sudah disetujui admin, lalu atur toleransi
+                  jarak absensi.
                 </FrameDescription>
               </div>
             </FrameHeader>
-            <FramePanel className="flex flex-col gap-2">
-              <LocationPicker
-                value={location}
-                onChange={(value) => setLocation(value)}
-                error={errors.address ?? errors.radiusMeters}
-              />
-              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                <Info className="mt-0.5 size-3 shrink-0" />
-                Pilih radius yang realistis. Semakin kecil radius, semakin ketat
-                verifikasi lokasi pekerja.
-              </p>
-            </FramePanel>
+            {selectableLocations.length === 0 ? (
+              <FramePanel>
+                <EmptyState
+                  icon={MapPin}
+                  title="Belum ada titik absensi"
+                  description="Super admin harus menambahkan titik lokasi di Pengaturan sebelum SPKL dapat dibuat."
+                  action={
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.refresh()}
+                    >
+                      <RefreshCw aria-hidden="true" />
+                      Muat ulang
+                    </Button>
+                  }
+                />
+              </FramePanel>
+            ) : (
+              <FramePanel className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="spkl-location">
+                    Titik absensi <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    items={locationItems}
+                    value={workLocationId}
+                    onValueChange={(value) => {
+                      if (value === null) return;
+                      const nextLocation = selectableLocations.find(
+                        (location) => location.id === value,
+                      );
+                      setWorkLocationId(value);
+                      if (nextLocation) {
+                        setRadiusMeters(nextLocation.radiusMeters);
+                      }
+                      setErrors((current) => ({
+                        ...current,
+                        locationId: undefined,
+                        radiusMeters: undefined,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger
+                      id="spkl-location"
+                      className="w-full"
+                      aria-invalid={Boolean(errors.locationId)}
+                    >
+                      <SelectValue placeholder="Pilih titik absensi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectableLocations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {location.name}
+                          {!location.active ? " (nonaktif)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError>{errors.locationId}</FieldError>
+                  <p className="text-xs text-muted-foreground">
+                    Titik absensi dikelola super admin. Atasan tidak dapat
+                    menentukan koordinat sendiri.
+                  </p>
+                </div>
+
+                {selectedLocation && (
+                  <div className="flex flex-col gap-2">
+                    <div className="relative isolate h-[240px] overflow-hidden rounded-lg border border-border">
+                      <MapView
+                        center={{
+                          latitude: selectedLocation.latitude,
+                          longitude: selectedLocation.longitude,
+                        }}
+                        markers={[
+                          {
+                            id: selectedLocation.id,
+                            latitude: selectedLocation.latitude,
+                            longitude: selectedLocation.longitude,
+                            label: selectedLocation.name,
+                            type: "selected",
+                          },
+                        ]}
+                        radiusMeters={radiusMeters}
+                        zoom={16}
+                        interactive={false}
+                        className="size-full"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-sm font-medium text-foreground">
+                        {selectedLocation.name}
+                      </p>
+                      {selectedLocation.address && (
+                        <p className="text-xs text-muted-foreground">
+                          {selectedLocation.address}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {selectedLocation.latitude.toFixed(5)},{" "}
+                        {selectedLocation.longitude.toFixed(5)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1.5 sm:max-w-44">
+                  <Label htmlFor="spkl-radius">Radius absen</Label>
+                  <InputGroup>
+                    <InputGroupInput
+                      id="spkl-radius"
+                      type="number"
+                      min={25}
+                      max={1_000}
+                      step={5}
+                      value={radiusMeters}
+                      onChange={(event) =>
+                        setRadiusMeters(
+                          Math.max(25, Math.min(1_000, Number(event.target.value) || 25)),
+                        )
+                      }
+                      className="tabular-nums"
+                      aria-invalid={Boolean(errors.radiusMeters)}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupText className="text-xs">m</InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  <FieldError>{errors.radiusMeters}</FieldError>
+                </div>
+
+                <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <Info className="mt-0.5 size-3 shrink-0" />
+                  Radius awal mengikuti titik absensi yang dipilih. Kamu masih
+                  bisa menyesuaikannya untuk SPKL ini; nilainya tersimpan pada
+                  SPKL.
+                </p>
+              </FramePanel>
+            )}
           </Frame>
 
           <Frame>
@@ -665,8 +829,8 @@ export function SpklForm({
                 <div className="flex min-w-0 flex-col">
                   <FrameTitle>Pekerja yang ditugaskan</FrameTitle>
                   <FrameDescription className="text-xs">
-                    {workerIds.length} dari {divisionWorkers.length} pekerja
-                    divisi ini dipilih.
+                    {workerIds.length} dari {assignableWorkers.length} pekerja
+                    aktif dipilih.
                   </FrameDescription>
                 </div>
               </div>
@@ -675,15 +839,15 @@ export function SpklForm({
                 variant="ghost"
                 size="sm"
                 onClick={toggleAll}
-                disabled={divisionWorkers.length === 0}
+                disabled={assignableWorkers.length === 0}
               >
-                {selectAll ? "Kosongkan" : "Pilih semua"}
+                {allSelected ? "Kosongkan" : "Pilih semua"}
               </Button>
             </FrameHeader>
             <FramePanel className="flex flex-col gap-2">
               <div className="flex flex-col gap-1.5 pb-1">
                 <Label htmlFor="spkl-division">
-                  Divisi penugasan{" "}
+                  Divisi utama{" "}
                   <span className="text-destructive">*</span>
                 </Label>
                 <Select
@@ -716,18 +880,18 @@ export function SpklForm({
                 </Select>
                 <FieldError>{errors.divisionId}</FieldError>
                 <p className="text-xs text-muted-foreground">
-                  Satu SPKL hanya untuk pekerja dari satu divisi. Mengganti
-                  divisi mengosongkan pilihan pekerja.
+                  Divisi utama dipakai untuk pengelompokan SPKL. Pekerja dari
+                  divisi lain tetap dapat dipilih.
                 </p>
               </div>
 
-              {divisionWorkers.length === 0 ? (
+              {assignableWorkers.length === 0 ? (
                 <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-border p-4">
                   <p className="text-sm font-medium text-foreground">
-                    Belum ada pekerja aktif di divisi ini.
+                    Belum ada pekerja aktif di tim.
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Pindahkan pekerja ke divisi ini melalui halaman Tim.
+                    Tambahkan pekerja ke divisi aktif melalui halaman Tim.
                   </p>
                   <Button
                     nativeButton={false}
@@ -740,49 +904,67 @@ export function SpklForm({
                   </Button>
                 </div>
               ) : (
-                divisionWorkers.map((employee) => {
-                  const checked = workerIds.includes(employee.id);
-                  const employeeWarnings =
-                    warningByEmployee.get(employee.id) ?? [];
-                  return (
-                    <label
-                      key={employee.id}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors",
-                        checked
-                          ? "border-primary/40 bg-primary/5"
-                          : "border-border bg-card hover:bg-muted/50",
-                      )}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggleWorker(employee.id)}
-                      />
-                      <Avatar
-                        name={employee.name}
-                        seed={employee.id}
-                        size="sm"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium text-foreground">
-                          {employee.name}
-                        </span>
-                        <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                          {employee.nik} · {employee.phone}
-                        </span>
+                divisionGroups.map((group, index) => (
+                  <div
+                    key={group.division.id}
+                    className={cn(
+                      "flex flex-col gap-2",
+                      index > 0 && "border-t border-border pt-3",
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2 px-1">
+                      <p className="text-xs font-medium text-foreground">
+                        {group.division.name}
+                      </p>
+                      <span className="text-xs text-muted-foreground">
+                        {group.workers.length} pekerja
                       </span>
-                      {employeeWarnings.length > 0 && (
-                        <StateBadge
-                          variant="warning-light"
-                          className="shrink-0"
+                    </div>
+                    {group.workers.map((employee) => {
+                      const checked = workerIds.includes(employee.id);
+                      const employeeWarnings =
+                        warningByEmployee.get(employee.id) ?? [];
+                      return (
+                        <label
+                          key={employee.id}
+                          className={cn(
+                            "flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors",
+                            checked
+                              ? "border-primary/40 bg-primary/5"
+                              : "border-border bg-card hover:bg-muted/50",
+                          )}
                         >
-                          <AlertTriangle className="size-3" />
-                          {employeeWarnings.length} catatan
-                        </StateBadge>
-                      )}
-                    </label>
-                  );
-                })
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={() => toggleWorker(employee.id)}
+                          />
+                          <Avatar
+                            name={employee.name}
+                            seed={employee.id}
+                            size="sm"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium text-foreground">
+                              {employee.name}
+                            </span>
+                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                              {employee.nik} · {employee.phone}
+                            </span>
+                          </span>
+                          {employeeWarnings.length > 0 && (
+                            <StateBadge
+                              variant="warning-light"
+                              className="shrink-0"
+                            >
+                              <AlertTriangle className="size-3" />
+                              {employeeWarnings.length} catatan
+                            </StateBadge>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))
               )}
               <FieldError>{errors.workers}</FieldError>
 
@@ -881,8 +1063,12 @@ export function SpklForm({
               <FrameDescription className="flex flex-col gap-1.5 text-xs">
                 <span className="flex items-center gap-1.5">
                   <Building2 className="size-3 shrink-0" />
-                  {divisions.find((division) => division.id === divisionId)
-                    ?.name ?? "Divisi belum dipilih"}
+                  {selectedDivisions.length > 0
+                    ? selectedDivisions
+                        .map((division) => division.name)
+                        .join(", ")
+                    : divisions.find((division) => division.id === divisionId)
+                        ?.name ?? "Divisi belum dipilih"}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <CalendarDays className="size-3 shrink-0" />
@@ -897,7 +1083,7 @@ export function SpklForm({
                 <span className="flex items-center gap-1.5">
                   <MapPin className="size-3 shrink-0" />
                   <span className="truncate">
-                    {location.address || "Lokasi belum ditentukan"}
+                    {selectedLocation?.name || "Titik absensi belum dipilih"}
                   </span>
                 </span>
               </FrameDescription>
@@ -918,12 +1104,16 @@ export function SpklForm({
               <div className="flex flex-col gap-0.5">
                 <p className="text-xs text-muted-foreground">Radius</p>
                 <p className="text-sm font-semibold tabular-nums text-foreground">
-                  {location.radiusMeters} m
+                  {radiusMeters} m
                 </p>
               </div>
             </FramePanel>
             <FrameFooter className="hidden xl:flex">
-              <Button type="submit" disabled={submitting} className="w-full">
+              <Button
+                type="submit"
+                disabled={submitting || !selectedLocation}
+                className="w-full"
+              >
                 {submitting ? (
                   <>
                     <Spinner />
@@ -958,7 +1148,7 @@ export function SpklForm({
               <ul className="flex flex-col gap-2">
                 {[
                   "Jam selesai masih di masa depan (SPKL boleh mulai hari ini).",
-                  "Titik absen berada di lokasi pekerjaan sebenarnya.",
+                  "Titik absen dipilih dari daftar lokasi resmi admin.",
                   "Pekerja sudah dikonfirmasi ketersediaannya.",
                   "Target dokumentasi pekerjaan jelas.",
                 ].map((item) => (
@@ -984,7 +1174,8 @@ export function SpklForm({
                 Kebijakan saat ini: maks.{" "}
                 {durationLabel(policy.dailyLimitMinutes)} per hari dan{" "}
                 {durationLabel(policy.weeklyLimitMinutes)} per minggu per
-                pekerja. Peringatan muncul otomatis saat jadwal melewati batas.
+                pekerja. Durasi satu SPKL tidak boleh melebihi batas harian;
+                peringatan muncul saat total jadwal melewati batas.
               </p>
             </FramePanel>
           </Frame>

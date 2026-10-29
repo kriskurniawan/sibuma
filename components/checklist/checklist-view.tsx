@@ -57,6 +57,10 @@ export function ChecklistView({
   canManage: boolean;
   readOnly?: boolean;
 }) {
+  const filtered =
+    filters.status !== "aktif" ||
+    Boolean(filters.locationId || filters.search);
+
   return (
     <div className="flex flex-col gap-4 md:gap-6 lg:gap-8">
       <div className="hidden md:block">
@@ -203,16 +207,32 @@ export function ChecklistView({
           {items.length === 0 ? (
             <EmptyState
               icon={ClipboardList}
-              title="Belum ada checklist"
+              title={
+                filtered
+                  ? "Tidak ada checklist sesuai filter"
+                  : "Belum ada checklist"
+              }
               description={
-                canManage
-                  ? "Atur jadwal untuk mulai pemeriksaan rutin."
-                  : readOnly
-                    ? "Belum ada pemeriksaan terjadwal untuk tim ini."
-                    : "Belum ada penugasan. Hubungi atasan jika diperlukan."
+                filtered
+                  ? "Ubah atau reset filter untuk melihat checklist lain."
+                  : canManage
+                    ? "Atur jadwal untuk mulai pemeriksaan rutin."
+                    : readOnly
+                      ? "Belum ada pemeriksaan terjadwal untuk tim ini."
+                      : "Belum ada penugasan. Hubungi atasan jika diperlukan."
               }
               action={
-                canManage ? (
+                filtered ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href="/checklist" />}
+                  >
+                    <RefreshCw />
+                    Reset filter
+                  </Button>
+                ) : canManage ? (
                   <Button
                     size="sm"
                     nativeButton={false}

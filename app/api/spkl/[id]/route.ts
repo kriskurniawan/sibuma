@@ -5,9 +5,10 @@ import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { notifySpkl } from "@/lib/notifications";
 import { scheduleWarnings } from "@/lib/schedule";
 import { mutateDb, pushAudit } from "@/lib/store";
-import { spklStatus, zonedToIso } from "@/lib/time";
+import { durationLabel, minutesBetween, spklStatus, zonedToIso } from "@/lib/time";
 import type { Employee, SpklWorker } from "@/lib/types";
 import { spklInputSchema } from "@/lib/validation";
+import { workLocationAddress } from "@/lib/work-locations";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -45,7 +46,14 @@ export async function PATCH(
   }
 
   try {
-    const result = await mutateDb({ kind: "spkl", id, workerIds, divisionId: input.divisionId, startAt }, (db) => {
+    const result = await mutateDb({ kind: "spkl", id, workerIds, divisionId: input.divisionId, startAt, workLocationId: input.locationId }, (db) => {
+      const duration = minutesBetween(startAt, endAt);
+      if (duration > db.policy.dailyLimitMinutes) {
+        throw new Error(
+          `Durasi SPKL ${durationLabel(duration)} melewati batas harian ${durationLabel(db.policy.dailyLimitMinutes)}.`,
+        );
+      }
+
       const spkl = db.spkls.find((item) => item.id === id);
       if (!spkl) throw new Error("SPKL tidak ditemukan.");
       if (spkl.createdBy !== user.id) {
@@ -58,6 +66,16 @@ export async function PATCH(
         throw new Error(
           "SPKL sudah selesai. Gunakan koreksi absensi untuk memperbaiki jam.",
         );
+      }
+
+      const workLocation = db.workLocations.find(
+        (location) => location.id === input.locationId,
+      );
+      if (!workLocation) {
+        throw new Error("Titik absensi tidak ditemukan.");
+      }
+      if (!workLocation.active && spkl.workLocationId !== workLocation.id) {
+        throw new Error("Titik absensi sudah nonaktif. Pilih titik lain.");
       }
 
       const division = db.divisions.find(
@@ -76,12 +94,11 @@ export async function PATCH(
           employee.active &&
           employee.accessMode !== "read_only" &&
           employee.supervisorId === user.id &&
-          employee.divisionId === division.id &&
           workerIds.includes(employee.id),
       );
       if (team.length !== workerIds.length) {
         throw new Error(
-          `Satu atau lebih pekerja tidak ditemukan, tidak aktif, atau bukan anggota divisi ${division.name}.`,
+          "Satu atau lebih pekerja tidak ditemukan, tidak aktif, atau bukan bagian dari timmu.",
         );
       }
 
@@ -170,6 +187,7 @@ export async function PATCH(
         startAt: spkl.startAt,
         endAt: spkl.endAt,
         location: spkl.location,
+        workLocationId: spkl.workLocationId,
         radiusMeters: spkl.radiusMeters,
         divisionId: spkl.divisionId,
         workers: currentWorkerIds,
@@ -182,12 +200,11 @@ export async function PATCH(
       spkl.endAt = endAt;
       spkl.divisionId = division.id;
       spkl.location = {
-        latitude: input.latitude,
-        longitude: input.longitude,
-        address:
-          input.address ||
-          `${input.latitude.toFixed(5)}, ${input.longitude.toFixed(5)}`,
+        latitude: workLocation.latitude,
+        longitude: workLocation.longitude,
+        address: workLocationAddress(workLocation),
       };
+      spkl.workLocationId = workLocation.id;
       spkl.radiusMeters = input.radiusMeters;
       spkl.requiresDocumentation = input.requiresDocumentation;
       spkl.updatedAt = now.toISOString();
@@ -220,6 +237,7 @@ export async function PATCH(
           startAt: spkl.startAt,
           endAt: spkl.endAt,
           location: spkl.location,
+          workLocationId: spkl.workLocationId,
           radiusMeters: spkl.radiusMeters,
           divisionId: spkl.divisionId,
           divisionName: division.name,

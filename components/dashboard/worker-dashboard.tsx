@@ -15,6 +15,7 @@ import {
   ChecklistSummaryRow,
   FollowUpSummaryRow,
 } from "@/components/dashboard/checklist-summary";
+import { ManualWorkSummary } from "@/components/dashboard/manual-work-summary";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { MobileSummary } from "@/components/mobile-summary";
 import { IconTile } from "@/components/reui/icon-tile";
@@ -44,7 +45,12 @@ import type {
   ChecklistInspectionRow,
   ChecklistTotals,
 } from "@/lib/checklist-types";
+import type {
+  ManualWorkRow,
+  ManualWorkTotals,
+} from "@/lib/manual-work-types";
 import type { WorkerOverview } from "@/lib/queries";
+import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
 import { checklistHasStarted } from "@/lib/checklist-schedule";
 import {
@@ -61,6 +67,8 @@ export function WorkerDashboard({
   checklistTotals,
   followUps,
   myFollowUpTotal,
+  manualWorks,
+  manualWorkTotals,
 }: {
   user: SessionUser;
   overview: WorkerOverview;
@@ -68,8 +76,11 @@ export function WorkerDashboard({
   checklistTotals: ChecklistTotals;
   followUps: ChecklistFollowUpRow[];
   myFollowUpTotal: number;
+  manualWorks: ManualWorkRow[];
+  manualWorkTotals: ManualWorkTotals;
 }) {
   const firstName = user.name.split(" ")[0];
+  const readOnly = isReadOnly(user);
   const focus =
     checklists.find((row) => row.overdue) ??
     checklists.find((row) => row.inspection.status === "berlangsung") ??
@@ -418,6 +429,14 @@ export function WorkerDashboard({
           </FramePanel>
         </Frame>
       </div>
+
+      <ManualWorkSummary
+        items={manualWorks}
+        totals={manualWorkTotals}
+        canManage={!readOnly}
+        canAssign={false}
+        readOnly={readOnly}
+      />
 
       <section
         aria-label="Ringkasan checklist saya"

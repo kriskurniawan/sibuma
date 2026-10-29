@@ -14,13 +14,13 @@ export async function GET() {
     return apiError(`Konfigurasi sesi belum siap: ${checks.auth.message}`, 503, checks);
   }
   if (!checks.storage) {
-    return apiError("Neon Object Storage belum dikonfigurasi.", 503, checks);
+    return apiError("Object storage S3 belum dikonfigurasi.", 503, checks);
   }
   try {
     const [migration] = await query("SELECT id FROM schema_migrations WHERE id='001_relational'");
     if (!migration) return apiError("Migrasi database relasional belum selesai.", 503, checks);
     const [counts] = await query("SELECT (SELECT count(*)::integer FROM employees) employees,(SELECT count(*)::integer FROM spkls) spkls");
-    return apiOk({ status: "ok", time: new Date().toISOString(), database: "neon-postgres", schema: "relational-v1", storage: "neon-object-storage", ...counts, checks });
+    return apiOk({ status: "ok", time: new Date().toISOString(), database: "neon-postgres", schema: "relational-v1", storage: "s3-object-storage", ...counts, checks });
   } catch {
     return apiError("Database belum tersedia. Periksa konfigurasi dan migrasi.", 503, checks);
   }

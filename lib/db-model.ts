@@ -3,7 +3,7 @@ import type { Database } from "./types";
 export const models = {
   employees: { table: "employees", keys: ["id"], fields: "id nik name phone email avatarKey role accessMode supervisorId divisionId active createdAt updatedAt" },
   divisions: { table: "divisions", keys: ["id"], fields: "id name description supervisorId active createdAt updatedAt" },
-  spkls: { table: "spkls", keys: ["id"], fields: "id number title description date startAt endAt radiusMeters createdBy divisionId requiresDocumentation canceledAt cancelReason createdAt updatedAt", locations: { location: ["latitude", "longitude", "address"] } },
+  spkls: { table: "spkls", keys: ["id"], fields: "id number title description date startAt endAt workLocationId radiusMeters createdBy divisionId requiresDocumentation canceledAt cancelReason createdAt updatedAt", locations: { location: ["latitude", "longitude", "address"] } },
   spklWorkers: { table: "spkl_workers", keys: ["spklId", "employeeId"], fields: "spklId employeeId assignedAt" },
   attendances: { table: "attendances", keys: ["id"], fields: "id spklId employeeId checkInAt checkOutAt durationMinutes status correctionReason correctedBy correctedAt createdAt updatedAt", locations: { checkInLocation: ["latitude", "longitude", "address", "accuracy", "distanceFromSite", "capturedAt"], checkOutLocation: ["latitude", "longitude", "address", "accuracy", "distanceFromSite", "capturedAt"] } },
   documentations: { table: "documentations", keys: ["id"], fields: "id spklId attendanceId employeeId storageProvider storageKey fileName mimeType sizeBytes description takenAt createdAt", locations: { location: ["latitude", "longitude", "address"] } },

@@ -6,6 +6,11 @@ export interface WatermarkOptions {
   lines: string[];
   /** Nama file cadangan bila nama asli tidak punya bagian sebelum ekstensi. */
   fallbackName?: string;
+  /**
+   * Komentar JPEG yang tidak terlihat. Dipakai untuk menandai bahwa file sudah
+   * melewati proses cap waktu; server menolak file tanpa penanda ini.
+   */
+  comment?: string;
 }
 
 const WATERMARK_FONT =
@@ -50,6 +55,30 @@ function fitLine(
     truncated = truncated.slice(0, -1);
   }
   return { text: `${truncated.trimEnd()}…`, size };
+}
+
+function addJpegComment(
+  bytes: Uint8Array<ArrayBuffer>,
+  comment: string,
+): Uint8Array<ArrayBuffer> {
+  if (bytes.length < 2 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return bytes;
+  }
+  const payload = new TextEncoder().encode(comment);
+  if (payload.length > 0xffff - 2) return bytes;
+
+  const segment = new Uint8Array(4 + payload.length);
+  segment[0] = 0xff;
+  segment[1] = 0xfe;
+  segment[2] = ((payload.length + 2) >> 8) & 0xff;
+  segment[3] = (payload.length + 2) & 0xff;
+  segment.set(payload, 4);
+
+  const result = new Uint8Array(2 + segment.length + bytes.length - 2);
+  result.set(bytes.subarray(0, 2), 0);
+  result.set(segment, 2);
+  result.set(bytes.subarray(2), 2 + segment.length);
+  return result;
 }
 
 function drawWatermark(
@@ -157,14 +186,17 @@ export async function compressImage(
     }
 
     if (!blob) return file;
+    const output = watermark?.comment
+      ? addJpegComment(new Uint8Array(await blob.arrayBuffer()), watermark.comment)
+      : blob;
     const baseName =
       file.name.replace(/\.[^.]+$/, "") ||
       watermark?.fallbackName ||
       "checklist";
-    return new File([blob], `${baseName}.jpg`, {
+    return new File([output], `${baseName}.jpg`, {
       type: "image/jpeg",
       // Compression runs in an event handler, never during render.
-      lastModified: Date.now(),
+      lastModified: new Date().getTime(),
     });
   } catch {
     return file;

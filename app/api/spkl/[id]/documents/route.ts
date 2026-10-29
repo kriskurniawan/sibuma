@@ -2,6 +2,10 @@ import path from "node:path";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PER_SESSION } from "@/lib/constants";
+import {
+  parseDocumentationMarker,
+  readSibumaJpegComment,
+} from "@/lib/documentation-marker";
 import { apiError, apiOk } from "@/lib/http";
 import { deleteObject, putObject } from "@/lib/storage";
 import { mutateDb, pushAudit } from "@/lib/store";
@@ -19,6 +23,10 @@ const ACCEPTED_TYPES: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
+
+/** Batas toleransi jam perangkat terhadap waktu server. */
+const CAPTURE_FUTURE_TOLERANCE_MS = 10 * 60_000;
+const CAPTURE_BEFORE_START_TOLERANCE_MS = 24 * 60 * 60_000;
 
 function matchesMagicBytes(buffer: Buffer, mimeType: string) {
   if (mimeType === "image/jpeg") {
@@ -117,6 +125,15 @@ export async function POST(
     return apiError("Isi file tidak sesuai dengan format gambarnya.");
   }
 
+  // Waktu foto hanya diterima dari penanda yang dicetak aplikasi. Ini menutup
+  // jalur unggah file mentah tanpa cap waktu, meski bukan bukti anti-palsu.
+  const capture = parseDocumentationMarker(readSibumaJpegComment(buffer));
+  if (!capture) {
+    return apiError(
+      "Foto tidak memiliki cap waktu SIBUMA. Pilih ulang foto lewat formulir dokumentasi agar cap waktu tercetak.",
+    );
+  }
+
   const safeFileName = path.basename(file.name || `dokumentasi.${extension}`);
   const storageKey = `${id}/${crypto.randomUUID()}.${extension}`;
   let storedProvider: StorageProvider | null = null;
@@ -126,6 +143,26 @@ export async function POST(
       const spkl = db.spkls.find((item) => item.id === id);
       if (!spkl) throw new Error("SPKL tidak ditemukan.");
       if (spkl.canceledAt) throw new Error("SPKL ini sudah dibatalkan.");
+
+      if (capture.spklNumber !== spkl.number) {
+        throw new Error(
+          "Cap waktu foto berasal dari SPKL lain. Pilih ulang foto dari formulir SPKL ini.",
+        );
+      }
+      const capturedAt = new Date(capture.takenAt).getTime();
+      if (capturedAt > Date.now() + CAPTURE_FUTURE_TOLERANCE_MS) {
+        throw new Error(
+          "Waktu foto berada di masa depan. Periksa jam perangkat, lalu pilih ulang foto.",
+        );
+      }
+      if (
+        capturedAt <
+        new Date(spkl.startAt).getTime() - CAPTURE_BEFORE_START_TOLERANCE_MS
+      ) {
+        throw new Error(
+          "Waktu foto lebih dari 24 jam sebelum SPKL dimulai. Pilih foto yang diambil saat pekerjaan berlangsung.",
+        );
+      }
 
       const assigned = db.spklWorkers.some(
         (item) => item.spklId === spkl.id && item.employeeId === user.id,
@@ -175,7 +212,7 @@ export async function POST(
         mimeType: file.type,
         sizeBytes: buffer.length,
         description,
-        takenAt: now.toISOString(),
+        takenAt: capture.takenAt,
         location,
         createdAt: now.toISOString(),
       };
@@ -193,6 +230,8 @@ export async function POST(
           description: doc.description,
           sizeBytes: doc.sizeBytes,
           hasLocation: Boolean(location),
+          takenAt: doc.takenAt,
+          captureSource: capture.source,
         },
       });
 

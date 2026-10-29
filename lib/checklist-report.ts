@@ -82,6 +82,7 @@ const FOLLOW_UP_FIELDS = [
   "title",
   "description",
   "pic_id",
+  "safety_name",
   "priority",
   "due_date",
   "status",
@@ -329,7 +330,7 @@ async function followUpWhere(userId: string | null, filters: ChecklistReportFilt
   }
   if (filters.search?.trim()) {
     values.push(filters.search.trim());
-    where += ` AND position(lower($${values.length}) in lower(f.title||' '||f.description||' '||i.template_name||' '||i.location_name||' '||i.period_label))>0`;
+    where += ` AND position(lower($${values.length}) in lower(f.title||' '||f.description||' '||i.template_name||' '||i.location_name||' '||i.period_label||' '||f.safety_name))>0`;
   }
   return { where, values };
 }

@@ -39,6 +39,7 @@ import {
   ROLE_LABEL,
   SESSION_DAYS,
 } from "@/lib/constants";
+import { listWorkLocations } from "@/lib/work-locations";
 import { isNeonBackend } from "@/lib/db-state";
 import { getPolicy, getTeam } from "@/lib/queries";
 import { isS3Configured } from "@/lib/storage-config";
@@ -61,10 +62,12 @@ export default async function ProfilePage() {
 
   const isAdmin = user.role === "super_admin";
   const readOnly = isReadOnly(user);
-  const [team, policy] = await Promise.all([
+  const [team, policy, locations] = await Promise.all([
     user.role === "atasan" ? getTeam(user.id) : Promise.resolve([]),
     getPolicy(),
+    listWorkLocations(),
   ]);
+  const primaryLocation = locations[0];
   const chateryConfigured = Boolean(
     process.env.CHATERY_API_URL &&
       process.env.CHATERY_API_KEY &&
@@ -246,7 +249,7 @@ export default async function ProfilePage() {
               <DataRow label="Pembulatan" value={`${policy.roundingMinutes} menit`} />
               <DataRow label="Akurasi GPS maksimal" value={`${policy.maxGpsAccuracyMeters} m`} />
               <DataRow label="Toleransi dokumentasi" value={`${policy.docGraceMinutes} menit`} />
-              <DataRow label="Radius default" value={`${policy.defaultRadiusMeters} m`} />
+              <DataRow label="Radius default titik" value={`${policy.defaultRadiusMeters} m`} />
               <DataRow
                 label="Dokumentasi"
                 value={
@@ -276,18 +279,27 @@ export default async function ProfilePage() {
                 <DataRow label="Atasan" value={user.supervisorName ?? "Tidak ada"} />
               )}
               <DataRow
-                label="Lokasi kantor"
+                label="Titik absensi"
                 value={
                   <span className="inline-flex items-start gap-2">
                     <MapPin className="size-4 shrink-0" aria-hidden="true" />
-                    <span>{policy.defaultLocation.address ?? "Menara Sentraya, Jakarta Selatan"}</span>
+                    <span>
+                      {primaryLocation
+                        ? `${primaryLocation.name}${
+                            locations.length > 1
+                              ? ` +${locations.length - 1} titik lain`
+                              : ""
+                          }`
+                        : "Belum diatur"}
+                    </span>
                   </span>
                 }
               />
               <DataRow label="Zona waktu" value={isAdmin ? `${APP_TIMEZONE} (WIB)` : "WIB"} />
             </div>
             <p className="text-xs text-muted-foreground">
-              Absensi memakai waktu server dan GPS. Titik dan radius mengikuti tiap SPKL.
+              Absensi memakai waktu server dan GPS. Radius mengikuti titik absensi
+              yang dipilih saat membuat SPKL.
             </p>
             {!readOnly && (
               <p className="text-xs text-muted-foreground">
@@ -328,7 +340,7 @@ export default async function ProfilePage() {
               />
               <IntegrationRow
                 icon={Cloud}
-                title="Neon Object Storage"
+                title="Object Storage S3"
                 description={neonStorage
                   ? "Bucket privat, diakses melalui proxy aplikasi."
                   : "Object storage belum dikonfigurasi. Unggahan tidak dapat disimpan."}

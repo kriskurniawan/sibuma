@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  BarChart3,
   CheckCircle2,
   ClipboardCheck,
   Download,
@@ -8,7 +7,6 @@ import {
   FileSpreadsheet,
   LayoutList,
   RotateCcw,
-  Search,
   TriangleAlert,
 } from "lucide-react";
 import {
@@ -26,21 +24,8 @@ import {
   StatCard,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ChecklistReportGrid } from "@/components/reports/checklist-report-grid";
-import { ReportDateFilters } from "@/components/reports/report-date-filters";
+import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
 import { isSuperAdmin } from "@/lib/access";
 import {
@@ -60,20 +45,20 @@ function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
-const STATUS_ITEMS: Record<string, string> = {
-  "": "Semua status",
-  aktif: "Belum selesai",
-  terlambat: "Terlambat",
-  belum_dimulai: "Belum dimulai",
-  berlangsung: "Berlangsung",
-  selesai: "Selesai",
-  dilewati: "Dilewati",
-};
+const STATUS_OPTIONS = [
+  { value: "", label: "Semua status" },
+  { value: "aktif", label: "Belum selesai" },
+  { value: "terlambat", label: "Terlambat" },
+  { value: "belum_dimulai", label: "Belum dimulai" },
+  { value: "berlangsung", label: "Berlangsung" },
+  { value: "selesai", label: "Selesai" },
+  { value: "dilewati", label: "Dilewati" },
+];
 
-const SCOPE_ITEMS: Record<string, string> = {
-  "1": "Termasuk sub-lokasi",
-  "0": "Hanya area ini",
-};
+const SCOPE_OPTIONS = [
+  { value: "1", label: "Termasuk sub-lokasi" },
+  { value: "0", label: "Hanya area ini" },
+];
 
 export async function ChecklistReportScreen({
   user,
@@ -118,24 +103,27 @@ export async function ChecklistReportScreen({
   if (filters.templateId) exportParams.set("templateId", filters.templateId);
   if (filters.status) exportParams.set("status", filters.status);
   if (filters.search) exportParams.set("search", filters.search);
+  const pdfHref = `/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), kind: "rekap", format: "pdf" }).toString()}`;
 
   const periodLabel = `${formatDateHuman(`${from}T12:00:00`, "d MMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMM yyyy")}`;
   const isFiltered = Boolean(
     filters.locationId || filters.templateId || filters.status || filters.search,
   );
 
-  const locationItems: Record<string, string> = {
-    "": "Semua area",
-    ...Object.fromEntries(
-      options.locations.map((location) => [location.id, location.path]),
-    ),
-  };
-  const templateItems: Record<string, string> = {
-    "": "Semua template",
-    ...Object.fromEntries(
-      options.templates.map((template) => [template.id, template.name]),
-    ),
-  };
+  const locationOptions = [
+    { value: "", label: "Semua area" },
+    ...options.locations.map((location) => ({
+      value: location.id,
+      label: location.path,
+    })),
+  ];
+  const templateOptions = [
+    { value: "", label: "Semua template" },
+    ...options.templates.map((template) => ({
+      value: template.id,
+      label: template.name,
+    })),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -143,7 +131,7 @@ export async function ChecklistReportScreen({
         <PageHeader
           eyebrow="Rekap checklist"
           title="Laporan checklist."
-          description="Tinjau pemeriksaan berdasarkan periode jatuh tempo, termasuk checklist yang belum selesai. Unduh Excel berisi rekap dan rincian item, CSV untuk integrasi, atau cetak PDF untuk arsip."
+          description="Tinjau pemeriksaan berdasarkan periode jatuh tempo, termasuk checklist yang belum selesai. Unduh Excel berisi rekap dan rincian item, CSV untuk integrasi, atau PDF untuk arsip."
           action={
             <div className="flex flex-wrap gap-2">
               <Button
@@ -185,7 +173,7 @@ export async function ChecklistReportScreen({
                 <LayoutList aria-hidden="true" />
                 CSV item
               </Button>
-              <ReportPrintButton />
+              <ReportPrintButton href={pdfHref} />
             </div>
           }
         />
@@ -227,119 +215,57 @@ export async function ChecklistReportScreen({
         </FrameHeader>
 
         <FramePanel>
-          <form
-            method="get"
-            aria-label="Filter laporan checklist"
-            className="flex flex-col gap-4"
-          >
-            <input type="hidden" name="tab" value="checklist" />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
-              <ReportDateFilters key={`${from}-${to}`} from={from} to={to} />
-              <div className="flex flex-col gap-2 xl:col-span-2">
-                <Label htmlFor="checklist-location">Area</Label>
-                <Select
-                  name="locationId"
-                  defaultValue={filters.locationId ?? ""}
-                  items={locationItems}
-                >
-                  <SelectTrigger id="checklist-location" className="w-full">
-                    <SelectValue placeholder="Semua area" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Semua area</SelectItem>
-                    {options.locations.map((location) => (
-                      <SelectItem key={location.id} value={location.id}>
-                        {location.path}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2 xl:col-span-2">
-                <Label htmlFor="checklist-scope">Cakupan area</Label>
-                <Select
-                  name="includeSub"
-                  defaultValue={
-                    filters.includeSubLocations === false ? "0" : "1"
-                  }
-                  items={SCOPE_ITEMS}
-                >
-                  <SelectTrigger id="checklist-scope" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Termasuk sub-lokasi</SelectItem>
-                    <SelectItem value="0">Hanya area ini</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2 xl:col-span-2">
-                <Label htmlFor="checklist-template">Template</Label>
-                <Select
-                  name="templateId"
-                  defaultValue={filters.templateId ?? ""}
-                  items={templateItems}
-                >
-                  <SelectTrigger id="checklist-template" className="w-full">
-                    <SelectValue placeholder="Semua template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Semua template</SelectItem>
-                    {options.templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2 xl:col-span-2">
-                <Label htmlFor="checklist-status">Status</Label>
-                <Select
-                  name="status"
-                  defaultValue={filters.status ?? ""}
-                  items={STATUS_ITEMS}
-                >
-                  <SelectTrigger id="checklist-status" className="w-full">
-                    <SelectValue placeholder="Semua status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Semua status</SelectItem>
-                    <SelectItem value="aktif">Belum selesai</SelectItem>
-                    <SelectItem value="terlambat">Terlambat</SelectItem>
-                    <SelectItem value="belum_dimulai">Belum dimulai</SelectItem>
-                    <SelectItem value="berlangsung">Berlangsung</SelectItem>
-                    <SelectItem value="selesai">Selesai</SelectItem>
-                    <SelectItem value="dilewati">Dilewati</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-2">
-                <Label htmlFor="checklist-search">Cari</Label>
-                <InputGroup>
-                  <InputGroupAddon>
-                    <Search aria-hidden="true" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="checklist-search"
-                    name="search"
-                    defaultValue={filters.search ?? ""}
-                    placeholder="Template, area, kategori…"
-                  />
-                </InputGroup>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit">
-                <BarChart3 aria-hidden="true" />
-                Terapkan filter
-              </Button>
+          <ReportFilterBar
+            ariaLabel="Filter laporan checklist"
+            from={from}
+            to={to}
+            search={filters.search ?? ""}
+            searchId="checklist-search"
+            searchPlaceholder="Template, area, kategori…"
+            searchClassName="sm:col-span-2 xl:col-span-4"
+            selectFilters={[
+              {
+                key: "locationId",
+                id: "checklist-location",
+                label: "Area",
+                value: filters.locationId ?? "",
+                placeholder: "Semua area",
+                options: locationOptions,
+                className: "xl:col-span-2",
+              },
+              {
+                key: "includeSub",
+                id: "checklist-scope",
+                label: "Cakupan area",
+                value: filters.includeSubLocations === false ? "0" : "1",
+                options: SCOPE_OPTIONS,
+                className: "xl:col-span-2",
+              },
+              {
+                key: "templateId",
+                id: "checklist-template",
+                label: "Template",
+                value: filters.templateId ?? "",
+                placeholder: "Semua template",
+                options: templateOptions,
+                className: "xl:col-span-2",
+              },
+              {
+                key: "status",
+                id: "checklist-status",
+                label: "Status",
+                value: filters.status ?? "",
+                placeholder: "Semua status",
+                options: STATUS_OPTIONS,
+                className: "xl:col-span-2",
+              },
+            ]}
+            summary={
               <p className="text-xs text-muted-foreground">
                 {data.total} pemeriksaan pada {periodLabel}.
               </p>
-            </div>
-          </form>
+            }
+          />
         </FramePanel>
       </Frame>
 
