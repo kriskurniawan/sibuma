@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { SpklForm } from "@/components/spkl/spkl-form";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getAssignmentSchedules,
@@ -17,6 +18,7 @@ export default async function CreateSpklPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role !== "atasan") redirect("/");
+  if (isReadOnly(user)) redirect("/lembur");
 
   const [team, policy, schedules, divisions] = await Promise.all([
     getTeam(user.id),

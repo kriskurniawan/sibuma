@@ -114,6 +114,7 @@ export const supervisorInputSchema = z.object({
     .max(40, "NIK maksimal 40 karakter."),
   phone: z.string().trim().min(8, "Nomor HP wajib diisi."),
   email: z.string().trim().toLowerCase().max(254).email("Format email tidak valid."),
+  accessMode: z.enum(["full", "read_only"]).default("full"),
 });
 
 export const supervisorUpdateSchema = z
@@ -122,6 +123,7 @@ export const supervisorUpdateSchema = z
     nik: z.string().trim().min(3).max(40).optional(),
     phone: z.string().trim().min(8).optional(),
     email: z.string().trim().toLowerCase().max(254).email("Format email tidak valid.").optional(),
+    accessMode: z.enum(["full", "read_only"]).optional(),
   })
   .refine((value) => Object.values(value).some((item) => item !== undefined), {
     message: "Tidak ada perubahan yang dikirim.",

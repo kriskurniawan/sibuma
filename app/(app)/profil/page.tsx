@@ -43,6 +43,7 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { avatarUrl } from "@/lib/avatar-url";
 import {
@@ -103,6 +104,7 @@ export default async function ProfilePage() {
   // teknis untuk super admin. Atasan dan pekerja hanya melihat hal yang
   // berkaitan dengan pekerjaan mereka.
   const isAdmin = user.role === "super_admin";
+  const readOnly = isReadOnly(user);
   const neonDatabase = isNeonBackend();
   const neonStorage = isS3Configured();
   const [team, policy] = await Promise.all([
@@ -250,7 +252,7 @@ export default async function ProfilePage() {
             </div>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            <ProfileEditor user={user} />
+            {!readOnly && <ProfileEditor user={user} />}
             <Button
               variant="outline"
               nativeButton={false}
@@ -268,7 +270,9 @@ export default async function ProfilePage() {
               className="w-full sm:w-auto"
             >
               {user.role === "atasan"
-                ? "Kelola tim"
+                ? readOnly
+                  ? "Lihat tim"
+                  : "Kelola tim"
                 : user.role === "super_admin"
                   ? "Kelola atasan"
                   : "Riwayat lembur"}
@@ -575,12 +579,15 @@ export default async function ProfilePage() {
                 Setiap SPKL dapat memakai titik dan radius yang berbeda.
               </p>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Nama dan foto dapat diubah dari tombol Ubah profil.{" "}
-                {isAdmin
-                  ? "NIK dan kontak akun atasan dikelola lewat menu Tim."
-                  : user.role === "pekerja"
-                    ? "NIK dan kontak dikelola atasan."
-                    : "NIK dan kontak tidak dapat diubah dari halaman ini."}
+                {readOnly
+                  ? "Akun ini hanya dapat melihat data. Nama, foto, NIK, dan kontak dikelola super admin."
+                  : `Nama dan foto dapat diubah dari tombol Ubah profil. ${
+                      isAdmin
+                        ? "NIK dan kontak akun atasan dikelola lewat menu Tim."
+                        : user.role === "pekerja"
+                          ? "NIK dan kontak dikelola atasan."
+                          : "NIK dan kontak tidak dapat diubah dari halaman ini."
+                    }`}
               </p>
             </FramePanel>
           </Frame>

@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import { updateChecklistQr } from "@/lib/checklist-qr";
 import { checklistQrUpdateSchema } from "@/lib/checklist-validation";
@@ -10,6 +11,8 @@ export async function PATCH(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") {
     return apiError("Hanya atasan yang dapat mengubah QR checklist.", 403);
   }

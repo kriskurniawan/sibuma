@@ -29,12 +29,14 @@ export function ChecklistFollowUpView({
   pagination,
   totals,
   filters,
+  canEdit,
 }: {
   items: ChecklistFollowUpRow[];
   total: number;
   pagination: PageRequest;
   totals: ChecklistFollowUpTotals;
   filters: { status: string; search: string; mine: boolean };
+  canEdit: boolean;
 }) {
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
@@ -111,7 +113,11 @@ export function ChecklistFollowUpView({
             <EmptyState
               icon={ListChecks}
               title="Tidak ada tindak lanjut"
-              description="Buat tindak lanjut dari item checklist yang berstatus perlu perhatian atau tidak baik. Temuan tidak dibuat otomatis."
+              description={
+                canEdit
+                  ? "Buat tindak lanjut dari item checklist yang berstatus perlu perhatian atau tidak baik. Temuan tidak dibuat otomatis."
+                  : "Belum ada temuan untuk tim ini. Tindak lanjut akan tampil di sini setelah dibuat oleh tim."
+              }
               action={
                 <Button
                   size="sm"
@@ -128,6 +134,7 @@ export function ChecklistFollowUpView({
               items={items}
               total={total}
               pagination={pagination}
+              canEdit={canEdit}
             />
           )}
         </FramePanel>

@@ -37,14 +37,24 @@ import {
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { ACCESS_MODE_LABEL } from "@/lib/constants";
 import type { SupervisorRow } from "@/lib/supervisor-queries";
+import type { AccessMode } from "@/lib/types";
 
 interface SupervisorForm {
   name: string;
   nik: string;
   phone: string;
   email: string;
+  accessMode: AccessMode;
 }
 
 const EMPTY_FORM: SupervisorForm = {
@@ -52,6 +62,7 @@ const EMPTY_FORM: SupervisorForm = {
   nik: "",
   phone: "",
   email: "",
+  accessMode: "full",
 };
 
 export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
@@ -102,6 +113,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
       nik: row.employee.nik,
       phone: row.employee.phone,
       email: row.employee.email ?? "",
+      accessMode: row.employee.accessMode,
     });
     setErrors({});
     setServerError(null);
@@ -141,6 +153,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
             nik: form.nik.trim(),
             phone: form.phone.trim(),
             email: form.email.trim().toLowerCase(),
+            accessMode: form.accessMode,
           }),
         },
       );
@@ -387,6 +400,39 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
               />
               <FieldError>{errors.email}</FieldError>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="supervisor-access-mode">Hak akses</Label>
+            <Select
+              value={form.accessMode}
+              onValueChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  accessMode: value as AccessMode,
+                }))
+              }
+            >
+              <SelectTrigger
+                id="supervisor-access-mode"
+                className="w-full"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full">
+                  {ACCESS_MODE_LABEL.full}
+                </SelectItem>
+                <SelectItem value="read_only">
+                  {ACCESS_MODE_LABEL.read_only}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {form.accessMode === "read_only"
+                ? "Atasan hanya dapat melihat data timnya sendiri. Tambah, ubah, hapus, absensi, checklist, dan unggah foto dinonaktifkan."
+                : "Atasan dapat mengelola SPKL, tim, absensi, dan checklist timnya sendiri."}
+            </p>
           </div>
         </form>
       </Modal>

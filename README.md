@@ -109,6 +109,8 @@ Buka `http://localhost:3000`.
 
 `npm run db:init` hanya untuk database kosong; membuat tabel relasional dan satu akun super admin awal dari environment. Semua tabel harus kosong dan `--force` ditolak. Super admin membuat akun atasan lewat menu **Akun atasan**; atasan kemudian menambahkan pekerja dan divisi lewat menu **Tim**. Untuk instalasi lama gunakan `npm run db:migrate:relational -- --apply`, bukan init/reset.
 
+Mode akses atasan memakai migrasi terpisah: `npm run db:migrate:access-mode` (DDL `db/migrations/011_employee_access_mode.sql`) menambahkan kolom `employees.access_mode` dengan nilai `full` atau `read_only`. Atasan `read_only` tetap dapat melihat dashboard, SPKL, absensi, checklist, temuan, foto, laporan, cetak, dan ekspor CSV timnya sendiri, tetapi seluruh perubahan operasional (SPKL, tim/divisi, checklist, tindak lanjut, foto, koreksi absensi, profil) ditolak server dengan HTTP 403. Super admin mengatur mode ini lewat **Akun atasan → Hak akses**; perubahan berlaku pada request berikutnya tanpa perlu login ulang. Database baru lewat `db:init` sudah memuat kolom ini.
+
 Modul checklist memakai migrasi terpisah: `npm run db:migrate:checklists` (DDL `db/migrations/004_checklists.sql`, `005_checklist_public.sql`, `006_checklist_item_groups.sql`, dan `008_checklist_conditions.sql`). Migrasi `007_remove_demo_status.sql` menghapus status `demo` dari OTP dan notifikasi; terapkan dengan `npm run db:migrate:remove-demo`. Database baru yang dibuat lewat `db:init` sudah memuat seluruh skema ini; database lama cukup menjalankan migrasi tersebut. Migrasi checklist menambah tabel/indeks checklist, kolom visibilitas publik, tabel QR, kolom grup item (`item_type`, `parent_item_id`, `group_path`), tabel status checklist (`checklist_conditions`), dan label audit baru, tanpa mengubah baris lama. Item/answer lama otomatis bernilai `item_type='item'` dan `group_path=''`; status lama (`baik`, `perlu_perhatian`, `tidak_baik`, `tidak_berlaku`) diisi sebagai status awal, sehingga inspection historis tetap valid. Status checklist dapat ditambah, diubah, diurutkan, dinonaktifkan, atau dihapus lewat **Pengaturan**; status yang sudah dipakai pada jawaban tidak dapat dihapus. Seluruh migrasi idempoten dan aman diulang.
 
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
@@ -304,6 +306,7 @@ scripts/
   init-storage.mjs         Siapkan bucket dan blokir akses publik
   migrate-checklists.mjs   Terapkan skema modul checklist (004 + 005 + 006)
   migrate-remove-demo.mjs  Terapkan migrasi 007 (hapus status demo)
+  migrate-employee-access-mode.mjs  Terapkan migrasi 011 (mode akses atasan)
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB

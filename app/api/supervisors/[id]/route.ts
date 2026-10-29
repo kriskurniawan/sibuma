@@ -1,6 +1,7 @@
 import { can } from "@/lib/access";
 import { insertAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { query, select, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { normalizePhone } from "@/lib/phone";
@@ -14,6 +15,8 @@ export async function PATCH(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (!can(user.role, "supervisors.manage")) {
     return apiError("Kamu tidak memiliki izin untuk mengubah akun atasan.", 403);
   }
@@ -57,16 +60,18 @@ export async function PATCH(
         nik: item.nik,
         phone: item.phone,
         email: item.email ?? null,
+        accessMode: item.accessMode,
       };
       if (parsed.data.name) item.name = parsed.data.name;
       if (parsed.data.nik) item.nik = parsed.data.nik;
       if (phone) item.phone = phone;
       if (parsed.data.email) item.email = parsed.data.email;
+      if (parsed.data.accessMode) item.accessMode = parsed.data.accessMode;
       item.updatedAt = new Date().toISOString();
 
       await query(
-        `UPDATE employees SET name=$2,nik=$3,phone=$4,email=$5,updated_at=$6 WHERE id=$1`,
-        [item.id, item.name, item.nik, item.phone, item.email, item.updatedAt],
+        `UPDATE employees SET name=$2,nik=$3,phone=$4,email=$5,access_mode=$6,updated_at=$7 WHERE id=$1`,
+        [item.id, item.name, item.nik, item.phone, item.email, item.accessMode, item.updatedAt],
         connection,
       );
       if (
@@ -93,6 +98,7 @@ export async function PATCH(
           nik: item.nik,
           phone: item.phone,
           email: item.email ?? null,
+          accessMode: item.accessMode,
         },
       });
       return item;

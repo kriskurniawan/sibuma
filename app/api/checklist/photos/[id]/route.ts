@@ -1,6 +1,7 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import { getChecklistPhoto } from "@/lib/checklist-queries";
@@ -21,6 +22,8 @@ export async function GET(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
 
   const { id } = await params;
   const result = await getChecklistPhoto(user.id, user.role === "atasan", id);
@@ -58,6 +61,8 @@ export async function DELETE(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
 
   const { id } = await params;
   try {

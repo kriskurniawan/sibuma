@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk } from "@/lib/http";
 import { notifySpkl } from "@/lib/notifications";
 import { mutateDb, pushAudit } from "@/lib/store";
@@ -19,6 +20,8 @@ export async function POST(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") {
     return apiError("Hanya atasan yang dapat membatalkan SPKL.", 403);
   }

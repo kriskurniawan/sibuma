@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { normalizePhone } from "@/lib/phone";
 import { mutateDb, pushAudit } from "@/lib/store";
@@ -10,6 +11,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") {
     return apiError("Hanya atasan yang dapat menambahkan pekerja.", 403);
   }
@@ -63,6 +66,7 @@ export async function POST(request: Request) {
         phone,
         email: parsed.data.email,
         role: "pekerja",
+        accessMode: "full",
         supervisorId: user.id,
         divisionId: division.id,
         active: true,

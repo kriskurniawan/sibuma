@@ -1,5 +1,6 @@
 import path from "node:path";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PER_SESSION } from "@/lib/constants";
 import { apiError, apiOk } from "@/lib/http";
 import { deleteObject, putObject } from "@/lib/storage";
@@ -69,6 +70,8 @@ export async function POST(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "pekerja") {
     return apiError("Hanya pekerja pada SPKL ini yang dapat mengunggah dokumentasi.", 403);
   }

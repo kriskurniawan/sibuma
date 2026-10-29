@@ -55,6 +55,7 @@ function dueIso(date: string) {
 
 const columns = (
   onEdit: (row: ChecklistFollowUpRow) => void,
+  canEdit: boolean,
 ): ColumnDef<DataGridFeatures, ChecklistFollowUpRow>[] => [
   {
     id: "title",
@@ -144,36 +145,45 @@ const columns = (
       <ChecklistFollowUpBadge status={row.original.followUp.status} />
     ),
   },
-  {
-    id: "action",
-    header: "",
-    meta: { headerClassName: "w-24", cellClassName: "text-right" },
-    cell: ({ row }) => (
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => onEdit(row.original)}
-        disabled={row.original.followUp.status === "dibatalkan"}
-      >
-        <Pencil aria-hidden="true" />
-        Perbarui
-      </Button>
-    ),
-  },
+  ...(canEdit
+    ? [
+        {
+          id: "action",
+          header: "",
+          meta: { headerClassName: "w-24", cellClassName: "text-right" },
+          cell: ({ row }) => (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onEdit(row.original)}
+              disabled={row.original.followUp.status === "dibatalkan"}
+            >
+              <Pencil aria-hidden="true" />
+              Perbarui
+            </Button>
+          ),
+        } satisfies ColumnDef<DataGridFeatures, ChecklistFollowUpRow>,
+      ]
+    : []),
 ];
 
 export function ChecklistFollowUpGrid({
   items,
   total,
   pagination,
+  canEdit,
 }: {
   items: ChecklistFollowUpRow[];
   total: number;
   pagination: PageRequest;
+  canEdit: boolean;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<ChecklistFollowUpRow | null>(null);
-  const tableColumns = useMemo(() => columns(setSelected), []);
+  const tableColumns = useMemo(
+    () => columns(setSelected, canEdit),
+    [canEdit],
+  );
   const { onPaginationChange, isPending } = useServerGridPagination(pagination);
   const table = useTable({
     features: dataGridFeatures,
@@ -278,15 +288,17 @@ export function ChecklistFollowUpGrid({
                         Dibuat {row.creatorName ?? "—"}
                       </span>
                     )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelected(row)}
-                      disabled={row.followUp.status === "dibatalkan"}
-                    >
-                      <Pencil aria-hidden="true" />
-                      Perbarui
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelected(row)}
+                        disabled={row.followUp.status === "dibatalkan"}
+                      >
+                        <Pencil aria-hidden="true" />
+                        Perbarui
+                      </Button>
+                    )}
                   </div>
                 </article>
               ))

@@ -16,6 +16,7 @@ import { teamGridI18n } from "@/components/team/team-grid-shared";
 import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { avatarUrl } from "@/lib/avatar-url";
+import { ACCESS_MODE_LABEL } from "@/lib/constants";
 import type { SupervisorRow } from "@/lib/supervisor-queries";
 
 const PAGE_SIZES = [10, 25, 50];
@@ -111,6 +112,26 @@ export function SupervisorsGrid({
           <span className="text-sm text-foreground">
             {row.original.divisionCount}
           </span>
+        ),
+      },
+      {
+        id: "accessMode",
+        accessorFn: (row) => row.employee.accessMode,
+        header: "Hak akses",
+        meta: {
+          headerClassName: "whitespace-nowrap",
+          cellClassName: "whitespace-nowrap",
+        },
+        cell: ({ row }) => (
+          <Badge
+            variant={
+              row.original.employee.accessMode === "read_only"
+                ? "warning-light"
+                : "success-light"
+            }
+          >
+            {ACCESS_MODE_LABEL[row.original.employee.accessMode]}
+          </Badge>
         ),
       },
       {

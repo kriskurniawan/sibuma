@@ -27,6 +27,7 @@ interface TeamDivisionsGridProps {
   rows: TeamDivisionRow[];
   activeDivisionTotal: number;
   busyId: string | null;
+  readOnly?: boolean;
   onAdd: (division: Division) => void;
   onEdit: (division: Division) => void;
   onToggle: (division: Division) => void;
@@ -108,6 +109,7 @@ export function TeamDivisionsGrid({
   rows,
   activeDivisionTotal,
   busyId,
+  readOnly = false,
   onAdd,
   onEdit,
   onToggle,
@@ -250,8 +252,8 @@ export function TeamDivisionsGrid({
         );
       },
     };
-    return [...dataColumns, actionColumn];
-  }, [activeDivisionTotal, busyId, dataColumns, onAdd, onEdit, onToggle]);
+    return readOnly ? dataColumns : [...dataColumns, actionColumn];
+  }, [activeDivisionTotal, busyId, dataColumns, onAdd, onEdit, onToggle, readOnly]);
 
   const table = useTable({
     features: dataGridFeatures,
@@ -337,39 +339,41 @@ export function TeamDivisionsGrid({
                           {row.activeWorkerCount} aktif
                         </span>
                       </p>
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {division.active && (
+                      {!readOnly && (
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {division.active && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onAdd(division)}
+                            >
+                              <UserPlus aria-hidden="true" />
+                              Tambah
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => onAdd(division)}
+                            onClick={() => onEdit(division)}
                           >
-                            <UserPlus aria-hidden="true" />
-                            Tambah
+                            <PencilLine aria-hidden="true" />
+                            Ubah
                           </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(division)}
-                        >
-                          <PencilLine aria-hidden="true" />
-                          Ubah
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onToggle(division)}
-                          disabled={busy || Boolean(blockedReason)}
-                          title={blockedReason}
-                        >
-                          {busy ? <Spinner /> : <Power aria-hidden="true" />}
-                          {division.active ? "Nonaktifkan" : "Aktifkan"}
-                        </Button>
-                      </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onToggle(division)}
+                            disabled={busy || Boolean(blockedReason)}
+                            title={blockedReason}
+                          >
+                            {busy ? <Spinner /> : <Power aria-hidden="true" />}
+                            {division.active ? "Nonaktifkan" : "Aktifkan"}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </article>
                 );

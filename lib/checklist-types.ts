@@ -311,6 +311,9 @@ export interface ChecklistInspectionDetail {
   schedule: ChecklistSchedule | null;
   team: ChecklistPerson[];
   ownerName: string | null;
+  /** Atasan pemilik checklist berstatus "Hanya lihat" sehingga tidak dapat menjadi PIC. */
+  ownerReadOnly: boolean;
+  readOnly: boolean;
   canManage: boolean;
   canFill: boolean;
   canComplete: boolean;

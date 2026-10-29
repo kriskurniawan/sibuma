@@ -208,11 +208,11 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between",
+        "flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         {eyebrow && (
           <p className="text-xs font-medium text-muted-foreground">{eyebrow}</p>
         )}

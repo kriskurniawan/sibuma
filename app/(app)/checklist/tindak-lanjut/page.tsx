@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChecklistFollowUpView } from "@/components/checklist/follow-up-view";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { getChecklistFollowUps } from "@/lib/checklist-queries";
 import { pageRequest } from "@/lib/pagination";
@@ -35,6 +36,7 @@ export default async function ChecklistFollowUpPage({
       pagination={data.pagination ?? request}
       totals={data.totals}
       filters={filters}
+      canEdit={!isReadOnly(user)}
     />
   );
 }

@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import {
   assertTeamMember,
   canAccessInspection,
@@ -14,6 +15,8 @@ import { rowToCamel } from "@/lib/db-model";
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
 
   let raw: unknown;
   try {
@@ -59,11 +62,20 @@ export async function POST(request: Request) {
       let picName: string | null = null;
       if (parsed.data.picId) {
         if (parsed.data.picId === inspection.ownerId) {
-          const [owner] = await query(`SELECT name FROM employees WHERE id=$1`, [inspection.ownerId], connection);
+          const [owner] = await query(
+            `SELECT name,access_mode FROM employees WHERE id=$1`,
+            [inspection.ownerId],
+            connection,
+          );
+          if (owner?.access_mode === "read_only") {
+            throw new Error("Akun hanya lihat tidak dapat ditugaskan sebagai PIC.");
+          }
           picName = (owner?.name as string) ?? null;
         } else {
           const member = await assertTeamMember(connection, inspection.ownerId, parsed.data.picId);
-          if (!member) throw new Error("PIC harus anggota tim yang aktif.");
+          if (!member) {
+            throw new Error("PIC harus anggota tim aktif dengan akses penuh.");
+          }
           picName = member.name;
         }
       }

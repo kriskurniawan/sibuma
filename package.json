@@ -14,6 +14,7 @@
     "db:migrate:remove-demo": "node scripts/migrate-remove-demo.mjs",
     "db:migrate:super-admin": "node scripts/migrate-super-admin.mjs",
     "db:migrate:avatar": "node scripts/migrate-employee-avatar.mjs",
+    "db:migrate:access-mode": "node scripts/migrate-employee-access-mode.mjs",
     "db:promote:super-admin": "tsx scripts/promote-super-admin.mjs",
     "auth:test": "node --conditions=react-server --import tsx scripts/test-email-otp.mjs",
     "db:verify": "tsx scripts/verify-relational.mjs",

@@ -25,6 +25,11 @@ export const ROLE_LABEL = {
   super_admin: "Super admin",
 } as const;
 
+export const ACCESS_MODE_LABEL = {
+  full: "Akses penuh",
+  read_only: "Hanya lihat",
+} as const;
+
 export const ATTENDANCE_STATUS_LABEL = {
   berjalan: "Sedang lembur",
   selesai: "Selesai",

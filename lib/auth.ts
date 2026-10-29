@@ -101,6 +101,7 @@ export function toSessionUser(
     email: employee.email ?? null,
     avatarKey: employee.avatarKey ?? null,
     role: employee.role,
+    accessMode: employee.accessMode === "read_only" ? "read_only" : "full",
     supervisorId: employee.supervisorId,
     supervisorName: supervisor?.name ?? null,
   };

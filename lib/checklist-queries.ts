@@ -311,7 +311,8 @@ export async function getChecklistInspectionDetail(
   await generateForUser(user);
   const [userId, manager] = roleParams(user);
   const [row] = await query(
-    `SELECT i.*,o.name owner_name,cb.name completed_by_name,rb.name reopened_by_name
+    `SELECT i.*,o.name owner_name,o.access_mode owner_access_mode,
+       cb.name completed_by_name,rb.name reopened_by_name
      FROM checklist_inspections i
      JOIN employees o ON o.id=i.owner_id
      LEFT JOIN employees cb ON cb.id=i.completed_by
@@ -335,7 +336,8 @@ export async function getChecklistInspectionDetail(
       : Promise.resolve([]),
     followUpRows(`WHERE f.inspection_id=$1`, [id]),
     query(
-      `SELECT id,name,nik FROM employees WHERE supervisor_id=$1 AND active ORDER BY name,id`,
+      `SELECT id,name,nik FROM employees
+       WHERE supervisor_id=$1 AND active AND access_mode='full' ORDER BY name,id`,
       [inspection.ownerId],
     ),
   ]);
@@ -346,6 +348,7 @@ export async function getChecklistInspectionDetail(
   );
   const assigned = assignees.some((item) => item.id === user.id);
   const owner = inspection.ownerId === user.id;
+  const readOnly = user.accessMode === "read_only";
   const open = !["selesai", "dilewati"].includes(inspection.status);
 
   return {
@@ -365,10 +368,12 @@ export async function getChecklistInspectionDetail(
       : null,
     team: team as ChecklistPerson[],
     ownerName: (row.owner_name as string | null) ?? null,
-    canManage: owner,
-    canFill: open && (owner || assigned),
-    canComplete: open && (owner || assigned),
-    canReopen: owner && inspection.status === "selesai",
+    ownerReadOnly: row.owner_access_mode === "read_only",
+    readOnly,
+    canManage: !readOnly && owner,
+    canFill: !readOnly && open && (owner || assigned),
+    canComplete: !readOnly && open && (owner || assigned),
+    canReopen: !readOnly && owner && inspection.status === "selesai",
     completedByName: (row.completed_by_name as string | null) ?? null,
     reopenedByName: (row.reopened_by_name as string | null) ?? null,
   };
@@ -473,7 +478,7 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
     query(
       `SELECT e.id,e.name,e.nik,e.active,e.division_id,d.name division_name
        FROM employees e LEFT JOIN divisions d ON d.id=e.division_id
-       WHERE e.supervisor_id=$1 AND e.active
+       WHERE e.supervisor_id=$1 AND e.active AND e.access_mode='full'
        ORDER BY d.name NULLS LAST,e.name,e.id`,
       [userId],
     ),

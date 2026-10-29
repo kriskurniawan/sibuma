@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChecklistView } from "@/components/checklist/checklist-view";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getChecklistDashboard,
@@ -43,7 +44,8 @@ export default async function ChecklistPage({
       totals={data.totals}
       filters={filters}
       locations={locations}
-      canManage={user.role === "atasan"}
+      canManage={user.role === "atasan" && !isReadOnly(user)}
+      readOnly={isReadOnly(user)}
     />
   );
 }

@@ -38,9 +38,9 @@ Object.assign(process.env, { CHATERY_API_URL: "https://chatery.example.test", CH
 try {
   const now = new Date().toISOString();
   await transaction(async connection => {
-    await insert("employees", { id: owner, nik: owner, name: "OTP Test Owner", phone: owner, role: "atasan", supervisorId: null, divisionId: null, active: true, createdAt: now, updatedAt: now }, connection);
+    await insert("employees", { id: owner, nik: owner, name: "OTP Test Owner", phone: owner, role: "atasan", accessMode: "full", supervisorId: null, divisionId: null, active: true, createdAt: now, updatedAt: now }, connection);
     await insert("divisions", { id: division, supervisorId: owner, name: "OTP test", description: "temporary", active: true, createdAt: now, updatedAt: now }, connection);
-    for (const id of [worker, other]) await insert("employees", { id, nik: id, name: "OTP Test Worker", phone: id === worker ? phone : other, email: id === worker ? email : null, role: "pekerja", supervisorId: owner, divisionId: division, active: true, createdAt: now, updatedAt: now }, connection);
+    for (const id of [worker, other]) await insert("employees", { id, nik: id, name: "OTP Test Worker", phone: id === worker ? phone : other, email: id === worker ? email : null, role: "pekerja", accessMode: "full", supervisorId: owner, divisionId: division, active: true, createdAt: now, updatedAt: now }, connection);
   });
   assert.equal(normalizeLoginIdentifier(` ${email.toUpperCase()} `).identifier, email);
   assert.equal(normalizeLoginIdentifier(`0${phone.slice(2)}`).identifier, phone);

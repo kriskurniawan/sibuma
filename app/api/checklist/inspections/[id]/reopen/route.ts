@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import { checklistReopenSchema } from "@/lib/checklist-validation";
@@ -12,6 +13,8 @@ export async function POST(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") {
     return apiError("Hanya atasan pemilik checklist yang dapat membuka kembali.", 403);
   }

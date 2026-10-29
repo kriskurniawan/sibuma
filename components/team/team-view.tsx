@@ -85,6 +85,7 @@ interface TeamViewProps {
   filters: { search: string; division: string; status: StatusFilter };
   printRows?: TeamWorkerRow[];
   divisions: Division[];
+  readOnly?: boolean;
 }
 
 interface EmployeeForm {
@@ -121,7 +122,7 @@ const STATUS_FILTER_ITEMS: Record<string, string> = {
   nonaktif: "Nonaktif",
 };
 
-export function TeamView({ team, total, pagination, totals, filters, printRows, divisions }: TeamViewProps) {
+export function TeamView({ team, total, pagination, totals, filters, printRows, divisions, readOnly = false }: TeamViewProps) {
   const router = useRouter();
   const [tab, setTab] = useState<TeamTab>("pekerja");
   const [workerSearch, setWorkerSearch] = useState(filters.search);
@@ -518,13 +519,17 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
     <div className="flex flex-col gap-6">
       <PageHeader
         className="no-print"
-        eyebrow="Kelola tim"
+        eyebrow={readOnly ? "Lihat tim" : "Kelola tim"}
         title="Tim."
-        description="Kelola pekerja dan divisi, atur penempatan, serta pantau beban kerja anggota tim."
+        description={
+          readOnly
+            ? "Lihat pekerja, divisi, penempatan, dan beban kerja anggota tim."
+            : "Kelola pekerja dan divisi, atur penempatan, serta pantau beban kerja anggota tim."
+        }
         action={
           <div className="flex w-full flex-col gap-2 print:hidden sm:w-auto">
             <ReportPrintButton />
-            {divisions.length === 0 ? (
+            {!readOnly && (divisions.length === 0 ? (
               <Button
                 type="button"
                 onClick={openCreateDivision}
@@ -562,7 +567,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   Tambah pekerja
                 </Button>
               </div>
-            )}
+            ))}
           </div>
         }
       />
@@ -739,16 +744,22 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   <EmptyState
                     icon={Building2}
                     title="Belum ada divisi"
-                    description="Buat divisi pertama sebelum menempatkan pekerja dan menyusun SPKL."
+                    description={
+                      readOnly
+                        ? "Belum ada divisi di tim ini."
+                        : "Buat divisi pertama sebelum menempatkan pekerja dan menyusun SPKL."
+                    }
                     action={
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={openCreateDivision}
-                      >
-                        <FolderPlus />
-                        Buat divisi
-                      </Button>
+                      readOnly ? undefined : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={openCreateDivision}
+                        >
+                          <FolderPlus />
+                          Buat divisi
+                        </Button>
+                      )
                     }
                   />
                 </div>
@@ -757,16 +768,22 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   <EmptyState
                     icon={Building2}
                     title="Belum ada divisi aktif"
-                    description="Aktifkan divisi yang sudah ada atau buat divisi baru sebelum menambah pekerja."
+                    description={
+                      readOnly
+                        ? "Belum ada divisi aktif di tim ini."
+                        : "Aktifkan divisi yang sudah ada atau buat divisi baru sebelum menambah pekerja."
+                    }
                     action={
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={openCreateDivision}
-                      >
-                        <FolderPlus />
-                        Tambah divisi
-                      </Button>
+                      readOnly ? undefined : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={openCreateDivision}
+                        >
+                          <FolderPlus />
+                          Tambah divisi
+                        </Button>
+                      )
                     }
                   />
                 </div>
@@ -775,16 +792,22 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   <EmptyState
                     icon={UsersRound}
                     title="Belum ada pekerja"
-                    description="Tambahkan pekerja pertama ke salah satu divisi agar mereka dapat menerima SPKL dan melakukan absensi."
+                    description={
+                      readOnly
+                        ? "Belum ada pekerja di tim ini."
+                        : "Tambahkan pekerja pertama ke salah satu divisi agar mereka dapat menerima SPKL dan melakukan absensi."
+                    }
                     action={
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={() => openAdd()}
-                      >
-                        <UserPlus />
-                        Tambah pekerja
-                      </Button>
+                      readOnly ? undefined : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => openAdd()}
+                        >
+                          <UserPlus />
+                          Tambah pekerja
+                        </Button>
+                      )
                     }
                   />
                 </div>
@@ -814,6 +837,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   printRows={printRows}
                   divisionById={divisionById}
                   busyId={busyId}
+                  readOnly={readOnly}
                   onEdit={openEdit}
                   onToggle={requestToggleActive}
                 />
@@ -895,16 +919,22 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   <EmptyState
                     icon={Building2}
                     title="Belum ada divisi"
-                    description="Buat divisi pertama untuk mengelompokkan pekerja dan menyusun SPKL."
+                    description={
+                      readOnly
+                        ? "Belum ada divisi di tim ini."
+                        : "Buat divisi pertama untuk mengelompokkan pekerja dan menyusun SPKL."
+                    }
                     action={
-                      <Button
-                        type="button"
-                        size="sm"
-                        onClick={openCreateDivision}
-                      >
-                        <FolderPlus />
-                        Buat divisi
-                      </Button>
+                      readOnly ? undefined : (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={openCreateDivision}
+                        >
+                          <FolderPlus />
+                          Buat divisi
+                        </Button>
+                      )
                     }
                   />
                 </div>
@@ -931,6 +961,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   rows={divisionRows}
                   activeDivisionTotal={activeDivisions.length}
                   busyId={divisionBusyId}
+                  readOnly={readOnly}
                   onAdd={(division) => openAdd(division.id)}
                   onEdit={openEditDivision}
                   onToggle={(division) => {

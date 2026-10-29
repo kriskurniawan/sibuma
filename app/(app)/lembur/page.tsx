@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { LemburView } from "@/components/lembur/lembur-view";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupervisorOverview } from "@/lib/queries";
 
@@ -13,5 +14,5 @@ export default async function LemburPage() {
   if (user.role !== "atasan") redirect("/");
 
   const overview = await getSupervisorOverview(user);
-  return <LemburView items={overview.items} />;
+  return <LemburView items={overview.items} readOnly={isReadOnly(user)} />;
 }

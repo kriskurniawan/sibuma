@@ -35,6 +35,7 @@ interface TeamWorkersGridProps {
   printRows?: TeamWorkerRow[];
   divisionById: Map<string, Division>;
   busyId: string | null;
+  readOnly?: boolean;
   onEdit: (employee: Employee) => void;
   onToggle: (employee: Employee) => void;
 }
@@ -108,6 +109,7 @@ export function TeamWorkersGrid({
   printRows,
   divisionById,
   busyId,
+  readOnly = false,
   onEdit,
   onToggle,
 }: TeamWorkersGridProps) {
@@ -300,8 +302,8 @@ export function TeamWorkersGrid({
         );
       },
     };
-    return [...dataColumns, actionColumn];
-  }, [busyId, dataColumns, onEdit, onToggle]);
+    return readOnly ? dataColumns : [...dataColumns, actionColumn];
+  }, [busyId, dataColumns, onEdit, onToggle, readOnly]);
 
   const { onPaginationChange, isPending } = useServerGridPagination(pagination);
   const table = useTable({
@@ -424,27 +426,29 @@ export function TeamWorkersGrid({
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap justify-end gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(employee)}
-                      >
-                        <PencilLine aria-hidden="true" />
-                        Ubah
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onToggle(employee)}
-                        disabled={busy}
-                      >
-                        {busy ? <Spinner /> : <Power aria-hidden="true" />}
-                        {employee.active ? "Nonaktifkan" : "Aktifkan"}
-                      </Button>
-                    </div>
+                    {!readOnly && (
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(employee)}
+                        >
+                          <PencilLine aria-hidden="true" />
+                          Ubah
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onToggle(employee)}
+                          disabled={busy}
+                        >
+                          {busy ? <Spinner /> : <Power aria-hidden="true" />}
+                          {employee.active ? "Nonaktifkan" : "Aktifkan"}
+                        </Button>
+                      </div>
+                    )}
                   </article>
                 );
               })}

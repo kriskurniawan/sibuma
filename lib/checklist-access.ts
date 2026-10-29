@@ -96,7 +96,8 @@ export async function assertTeamMember(
 ) {
   if (!employeeId) return null;
   const [row] = await query(
-    `SELECT id,name FROM employees WHERE id=$1 AND supervisor_id=$2 AND active`,
+    `SELECT id,name FROM employees
+     WHERE id=$1 AND supervisor_id=$2 AND active AND access_mode='full'`,
     [employeeId, ownerId],
     connection,
   );

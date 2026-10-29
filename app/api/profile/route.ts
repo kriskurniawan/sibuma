@@ -1,5 +1,6 @@
 import { insertAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { profileUpdateSchema } from "@/lib/validation";
@@ -9,6 +10,8 @@ export const runtime = "nodejs";
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
 
   let raw: unknown;
   try {

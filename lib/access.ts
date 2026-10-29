@@ -47,3 +47,8 @@ export function isSuperAdmin(user: Pick<SessionUser, "role">) {
 export function isAtasan(user: Pick<SessionUser, "role">) {
   return user.role === "atasan";
 }
+
+/** Client-safe: true bila akun hanya boleh membaca data timnya sendiri. */
+export function isReadOnly(user: Pick<SessionUser, "accessMode">) {
+  return user.accessMode === "read_only";
+}

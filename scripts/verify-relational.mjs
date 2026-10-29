@@ -61,7 +61,7 @@ try {
  }
  passed.push(original.documentations.length?'Foto hasil migrasi: hash proxy cocok, anonim API 401/S3 403':'Tidak ada dokumentasi historis; pemeriksaan foto lama dilewati');
  const now=new Date().toISOString();
- await insert('employees',{id:supervisorId,nik:`${prefix}_nik`,name:'Atasan verifikasi sementara',phone:`628990${Date.now().toString().slice(-8)}`,role:'atasan',supervisorId:null,divisionId:null,active:true,createdAt:now,updatedAt:now});
+ await insert('employees',{id:supervisorId,nik:`${prefix}_nik`,name:'Atasan verifikasi sementara',phone:`628990${Date.now().toString().slice(-8)}`,role:'atasan',accessMode:'full',supervisorId:null,divisionId:null,active:true,createdAt:now,updatedAt:now});
  const createDivision=await request('/api/divisions',supervisorId,{name:`Uji ${prefix.slice(-8)}`,description:'Fixture sementara'});
  assert.notEqual(createDivision.status,401,'Server belum mengenali akun relasional baru. Hentikan dan jalankan ulang npm run dev, lalu ulangi db:verify.');
  assert.equal(createDivision.status,200,JSON.stringify(createDivision));

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { ChecklistTemplateView } from "@/components/checklist/template-view";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { getChecklistSetup } from "@/lib/checklist-queries";
 
@@ -11,6 +12,7 @@ export default async function ChecklistTemplatePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role !== "atasan") redirect("/checklist");
+  if (isReadOnly(user)) redirect("/checklist");
 
   const setup = await getChecklistSetup(user.id);
 

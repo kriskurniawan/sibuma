@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import {
   canManageFollowUp,
   loadFollowUp,
@@ -17,6 +18,8 @@ export async function PATCH(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
 
   const { id } = await params;
   let raw: unknown;

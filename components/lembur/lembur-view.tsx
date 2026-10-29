@@ -41,7 +41,13 @@ const FILTERS: Array<{ value: "semua" | SpklStatus; label: string }> = [
   { value: "dibatalkan", label: SPKL_STATUS_LABEL.dibatalkan },
 ];
 
-export function LemburView({ items }: { items: SpklListItem[] }) {
+export function LemburView({
+  items,
+  readOnly = false,
+}: {
+  items: SpklListItem[];
+  readOnly?: boolean;
+}) {
   const [filter, setFilter] = useState<"semua" | SpklStatus>("semua");
   const [search, setSearch] = useState("");
 
@@ -75,7 +81,11 @@ export function LemburView({ items }: { items: SpklListItem[] }) {
       <PageHeader
         eyebrow="Operasional"
         title="Lembur."
-        description="Buat SPKL, tinjau kehadiran, dan buka dokumentasi pekerjaan tim. Seluruh riwayat lembur tersimpan di sini."
+        description={
+          readOnly
+            ? "Tinjau kehadiran dan buka dokumentasi pekerjaan tim. Seluruh riwayat lembur tersimpan di sini."
+            : "Buat SPKL, tinjau kehadiran, dan buka dokumentasi pekerjaan tim. Seluruh riwayat lembur tersimpan di sini."
+        }
         action={
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button
@@ -86,10 +96,12 @@ export function LemburView({ items }: { items: SpklListItem[] }) {
               <BarChart3 aria-hidden="true" />
               Laporan & rekap
             </Button>
-            <Button nativeButton={false} render={<Link href="/spkl/baru" />}>
-              <Plus aria-hidden="true" />
-              Buat SPKL
-            </Button>
+            {!readOnly && (
+              <Button nativeButton={false} render={<Link href="/spkl/baru" />}>
+                <Plus aria-hidden="true" />
+                Buat SPKL
+              </Button>
+            )}
           </div>
         }
       />
@@ -168,18 +180,22 @@ export function LemburView({ items }: { items: SpklListItem[] }) {
               }
               description={
                 items.length === 0
-                  ? "Buat SPKL pertama untuk menugaskan pekerja, menetapkan lokasi, dan membuka absensi lembur."
+                  ? readOnly
+                    ? "Belum ada SPKL untuk tim ini. Riwayat akan tampil di sini setelah atasan membuat SPKL."
+                    : "Buat SPKL pertama untuk menugaskan pekerja, menetapkan lokasi, dan membuka absensi lembur."
                   : "Coba kata kunci lain atau tampilkan semua status."
               }
               action={
                 items.length === 0 ? (
-                  <Button
-                    nativeButton={false}
-                    render={<Link href="/spkl/baru" />}
-                  >
-                    <Plus aria-hidden="true" />
-                    Buat SPKL
-                  </Button>
+                  readOnly ? undefined : (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href="/spkl/baru" />}
+                    >
+                      <Plus aria-hidden="true" />
+                      Buat SPKL
+                    </Button>
+                  )
                 ) : (
                   <Button type="button" variant="outline" onClick={resetFilters}>
                     <TimerReset aria-hidden="true" />

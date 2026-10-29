@@ -1,5 +1,11 @@
 export type EmployeeRole = "pekerja" | "atasan" | "super_admin";
 
+/**
+ * Atasan "read_only" hanya dapat melihat data timnya sendiri. Nilai ini tidak
+ * mengubah cakupan data, hanya menghapus seluruh kemampuan menulis.
+ */
+export type AccessMode = "full" | "read_only";
+
 export interface Division {
   id: string;
   name: string;
@@ -18,6 +24,7 @@ export interface Employee {
   email: string | null;
   avatarKey?: string | null;
   role: EmployeeRole;
+  accessMode: AccessMode;
   supervisorId: string | null;
   divisionId: string | null;
   active: boolean;
@@ -211,6 +218,7 @@ export interface SessionUser {
   email: string | null;
   avatarKey?: string | null;
   role: EmployeeRole;
+  accessMode: AccessMode;
   supervisorId: string | null;
   supervisorName: string | null;
 }

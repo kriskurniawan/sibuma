@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { canAccessInspection } from "@/lib/checklist-access";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
@@ -13,6 +14,8 @@ export async function POST(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
 
   const { id } = await params;
   try {

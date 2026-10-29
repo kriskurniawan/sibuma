@@ -4,14 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import {
+  ArrowLeft,
   BarChart3,
   CalendarClock,
   CalendarDays,
   ChevronsUpDown,
   ClipboardCheck,
   Clock3,
+  Eye,
   History,
   Home,
+  LayoutGrid,
   Loader2,
   LogOut,
   QrCode,
@@ -25,7 +28,7 @@ import {
 import { toast } from "sonner";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { LogoMark } from "@/components/logo";
-import { Avatar } from "@/components/ui";
+import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -55,6 +58,7 @@ import {
 } from "@/components/ui/sidebar";
 import { avatarUrl } from "@/lib/avatar-url";
 import { ROLE_LABEL } from "@/lib/constants";
+import { isReadOnly } from "@/lib/access";
 import { formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -64,9 +68,14 @@ interface NavItem {
   label: string;
   icon: typeof Home;
   exact?: boolean;
+  /** Halaman turunan yang tetap dianggap bagian dari item ini. */
+  match?: string[];
 }
 
-function navigationFor(role: SessionUser["role"]): {
+function navigationFor(
+  role: SessionUser["role"],
+  readOnly = false,
+): {
   main: NavItem[];
   manage: NavItem[];
   mobile: NavItem[];
@@ -87,7 +96,12 @@ function navigationFor(role: SessionUser["role"]): {
         { href: "/tim", label: "Atasan", icon: UsersRound },
         { href: "/laporan", label: "Laporan", icon: BarChart3 },
         { href: "/audit", label: "Audit", icon: ScrollText },
-        { href: "/profil", label: "Profil", icon: UserRound },
+        {
+          href: "/menu",
+          label: "Menu",
+          icon: LayoutGrid,
+          match: ["/pengaturan"],
+        },
       ],
     };
   }
@@ -100,18 +114,40 @@ function navigationFor(role: SessionUser["role"]): {
         { href: "/lembur", label: "Lembur", icon: Clock3 },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
       ],
-      manage: [
-        { href: "/tim", label: "Tim", icon: UsersRound },
-        { href: "/checklist/template", label: "Template checklist", icon: Settings2 },
-        { href: "/checklist/jadwal", label: "Jadwal checklist", icon: CalendarClock },
-        { href: "/checklist/qr", label: "QR area", icon: QrCode },
-        { href: "/audit", label: "Log audit", icon: ScrollText },
-      ],
+      manage: readOnly
+        ? [{ href: "/tim", label: "Tim", icon: UsersRound }]
+        : [
+            { href: "/tim", label: "Tim", icon: UsersRound },
+            { href: "/checklist/template", label: "Template checklist", icon: Settings2 },
+            { href: "/checklist/jadwal", label: "Jadwal checklist", icon: CalendarClock },
+            { href: "/checklist/qr", label: "QR area", icon: QrCode },
+            { href: "/audit", label: "Log audit", icon: ScrollText },
+          ],
       mobile: [
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
-        { href: "/lembur", label: "Lembur", icon: Clock3 },
-        { href: "/laporan", label: "Laporan", icon: BarChart3 },
+        {
+          href: "/lembur",
+          label: "Lembur",
+          icon: Clock3,
+          match: ["/spkl"],
+        },
+        {
+          href: "/menu",
+          label: "Menu",
+          icon: LayoutGrid,
+          match: readOnly
+            ? ["/tim", "/checklist/tindak-lanjut", "/laporan"]
+            : [
+                "/tim",
+                "/checklist/template",
+                "/checklist/jadwal",
+                "/checklist/qr",
+                "/checklist/tindak-lanjut",
+                "/audit",
+                "/laporan",
+              ],
+        },
       ],
     };
   }
@@ -138,10 +174,47 @@ function isCurrent(pathname: string, item: NavItem) {
     : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
 
+/** Kedalaman kecocokan; item menu yang paling spesifik yang menang. */
+function navMatchDepth(pathname: string, item: NavItem) {
+  if (isCurrent(pathname, item)) return item.href.length;
+  const extra = item.match?.find(
+    (href) => pathname === href || pathname.startsWith(`${href}/`),
+  );
+  return extra ? extra.length : -1;
+}
+
+const CHECKLIST_ROOT_PATHS = new Set([
+  "/checklist/template",
+  "/checklist/jadwal",
+  "/checklist/qr",
+  "/checklist/tindak-lanjut",
+]);
+
+/** Halaman detail atau form memakai tombol kembali di header mobile. */
+function mobileBackLink(pathname: string) {
+  if (pathname === "/spkl/baru") return { href: "/lembur", label: "Lembur" };
+  const edit = /^\/spkl\/([^/]+)\/edit$/.exec(pathname);
+  if (edit) return { href: `/spkl/${edit[1]}`, label: "Detail SPKL" };
+  if (pathname.startsWith("/spkl/")) {
+    return { href: "/lembur", label: "Lembur" };
+  }
+  if (/^\/checklist\/template\/[^/]+$/.test(pathname)) {
+    return { href: "/checklist/template", label: "Template checklist" };
+  }
+  if (
+    pathname.startsWith("/checklist/") &&
+    !CHECKLIST_ROOT_PATHS.has(pathname)
+  ) {
+    return { href: "/checklist", label: "Checklist" };
+  }
+  return null;
+}
+
 function currentSectionLabel(
   pathname: string,
   nav: ReturnType<typeof navigationFor>,
 ) {
+  if (pathname === "/menu") return "Menu";
   if (pathname === "/profil") return "Profil saya";
   if (pathname.startsWith("/spkl/baru")) return "Buat SPKL";
   if (pathname.startsWith("/spkl/")) return "Detail SPKL";
@@ -220,7 +293,8 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const nav = navigationFor(user.role);
+  const readOnly = isReadOnly(user);
+  const nav = navigationFor(user.role, readOnly);
   const mobileNav: Array<NavItem | "scan"> = [...nav.mobile];
   if (user.role !== "super_admin") {
     mobileNav.splice(Math.floor(mobileNav.length / 2), 0, "scan");
@@ -243,6 +317,18 @@ export function AppShell({
   const todayLabel = formatDateHuman(new Date().toISOString(), "EEEE, d MMMM");
   const sectionLabel = currentSectionLabel(pathname, nav);
   const firstName = user.name.split(" ")[0];
+  const backLink = mobileBackLink(pathname);
+
+  let activeMobileHref: string | null = null;
+  let activeMobileDepth = -1;
+  for (const item of mobileNav) {
+    if (item === "scan") continue;
+    const depth = navMatchDepth(pathname, item);
+    if (depth > activeMobileDepth) {
+      activeMobileDepth = depth;
+      activeMobileHref = item.href;
+    }
+  }
 
   return (
     <SidebarProvider className="print:block">
@@ -358,8 +444,22 @@ export function AppShell({
 
       <SidebarInset className="print-full min-w-0">
         <header className="no-print sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-background px-3 sm:px-5">
-          <SidebarTrigger className="-ml-1" aria-label="Buka atau tutup menu" />
-          <Separator orientation="vertical" className="h-4!" />
+          <div className="hidden items-center gap-2 md:flex">
+            <SidebarTrigger className="-ml-1" aria-label="Buka atau tutup menu" />
+            <Separator orientation="vertical" className="h-4!" />
+          </div>
+          {backLink && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="-ml-1 md:hidden"
+              aria-label={`Kembali ke ${backLink.label}`}
+              nativeButton={false}
+              render={<Link href={backLink.href} />}
+            >
+              <ArrowLeft />
+            </Button>
+          )}
           <div className="flex min-w-0 items-center gap-2">
             <span className="truncate text-sm font-medium text-foreground">
               {sectionLabel}
@@ -371,6 +471,12 @@ export function AppShell({
               </span>
               <span className="text-muted-foreground/60">· WIB</span>
             </span>
+            {readOnly && (
+              <Badge variant="warning-light" className="shrink-0">
+                <Eye aria-hidden="true" />
+                Hanya lihat
+              </Badge>
+            )}
           </div>
 
           <div className="ml-auto flex items-center gap-1">
@@ -450,7 +556,7 @@ export function AppShell({
               );
             }
 
-            const active = isCurrent(pathname, item);
+            const active = item.href === activeMobileHref;
             return (
               <Link
                 key={item.href}

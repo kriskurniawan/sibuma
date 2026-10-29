@@ -380,7 +380,7 @@ export async function getSpklDetail(
     ...base,
     attendances,
     documentation: docs,
-    canManage: isCreator,
+    canManage: isCreator && user.accessMode !== "read_only",
     canCheckIn:
       user.role === "pekerja" &&
       assigned &&

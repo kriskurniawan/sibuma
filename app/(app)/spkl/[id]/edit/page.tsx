@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { SpklForm } from "@/components/spkl/spkl-form";
+import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getAssignmentSchedules,
@@ -22,6 +23,7 @@ export default async function EditSpklPage({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (user.role !== "atasan") redirect("/");
+  if (isReadOnly(user)) redirect(`/spkl/${(await params).id}`);
 
   const { id } = await params;
   const [detail, team, policy, schedules, divisions] = await Promise.all([

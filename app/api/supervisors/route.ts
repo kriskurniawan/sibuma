@@ -1,6 +1,7 @@
 import { can } from "@/lib/access";
 import { insertAudit } from "@/lib/audit";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { insert, query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { normalizePhone } from "@/lib/phone";
@@ -12,6 +13,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (!can(user.role, "supervisors.manage")) {
     return apiError("Kamu tidak memiliki izin untuk menambahkan akun atasan.", 403);
   }
@@ -52,6 +55,7 @@ export async function POST(request: Request) {
         phone,
         email: parsed.data.email,
         role: "atasan",
+        accessMode: parsed.data.accessMode,
         supervisorId: null,
         divisionId: null,
         active: true,
@@ -72,6 +76,7 @@ export async function POST(request: Request) {
           phone: created.phone,
           email: created.email,
           role: created.role,
+          accessMode: created.accessMode,
           active: created.active,
         },
       });

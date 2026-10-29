@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { mutateDb, pushAudit } from "@/lib/store";
 import { divisionUpdateSchema } from "@/lib/validation";
@@ -11,6 +12,8 @@ export async function PATCH(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") {
     return apiError("Hanya atasan yang dapat memperbarui divisi.", 403);
   }

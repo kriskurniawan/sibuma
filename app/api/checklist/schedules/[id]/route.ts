@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import { generateChecklistInspections } from "@/lib/checklist-generate";
@@ -12,6 +13,8 @@ export async function PATCH(
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") return apiError("Hanya atasan yang dapat mengubah jadwal.", 403);
 
   const { id } = await params;
@@ -50,12 +53,15 @@ export async function PATCH(
 
       if (assigneeIds) {
         const members = await query(
-          `SELECT id FROM employees WHERE supervisor_id=$1 AND active AND id=ANY($2::text[])`,
+          `SELECT id FROM employees
+           WHERE supervisor_id=$1 AND active AND access_mode='full' AND id=ANY($2::text[])`,
           [user.id, assigneeIds],
           connection,
         );
         if (members.length !== assigneeIds.length) {
-          throw new Error("Sebagian anggota tim tidak aktif atau bukan bagian dari tim Anda.");
+          throw new Error(
+            "Sebagian anggota tim tidak aktif, hanya lihat, atau bukan bagian dari tim Anda.",
+          );
         }
       }
 

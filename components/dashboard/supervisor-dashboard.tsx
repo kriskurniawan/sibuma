@@ -35,6 +35,7 @@ import type {
   ChecklistTotals,
 } from "@/lib/checklist-types";
 import type { SupervisorOverview } from "@/lib/queries";
+import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
 import { formatDateHuman, formatTime, greeting } from "@/lib/time";
 
@@ -54,6 +55,7 @@ export function SupervisorDashboard({
   openFollowUpTotal: number;
 }) {
   const firstName = user.name.split(" ")[0];
+  const readOnly = isReadOnly(user);
   const nextSession = overview.upcoming[0];
 
   return (
@@ -161,14 +163,25 @@ export function SupervisorDashboard({
                   title="Tidak ada checklist aktif"
                   description="Checklist baru muncul otomatis sesuai jadwal yang dibuat."
                   action={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      nativeButton={false}
-                      render={<Link href="/checklist/jadwal" />}
-                    >
-                      Atur jadwal
-                    </Button>
+                    readOnly ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href="/checklist" />}
+                      >
+                        Lihat checklist
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href="/checklist/jadwal" />}
+                      >
+                        Atur jadwal
+                      </Button>
+                    )
                   }
                 />
               )}
@@ -234,7 +247,7 @@ export function SupervisorDashboard({
                 href="/lembur"
                 className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
               >
-                Kelola
+                {readOnly ? "Lihat" : "Kelola"}
               </Link>
             </FrameHeader>
             <FramePanel className="flex flex-col gap-3">
@@ -304,15 +317,17 @@ export function SupervisorDashboard({
                   title="Tidak ada lembur"
                   description="Belum ada sesi aktif atau terjadwal."
                   action={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      nativeButton={false}
-                      render={<Link href="/spkl/baru" />}
-                    >
-                      <Plus />
-                      Buat SPKL
-                    </Button>
+                    readOnly ? undefined : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href="/spkl/baru" />}
+                      >
+                        <Plus />
+                        Buat SPKL
+                      </Button>
+                    )
                   }
                 />
               )}

@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock3,
+  Eye,
   FolderTree,
   ListChecks,
   MapPin,
@@ -121,10 +122,12 @@ export function ChecklistDetail({
   const overdue = detail.overdue;
   const closed = ["selesai", "dilewati"].includes(inspection.status);
   const canUpdateFollowUps =
-    detail.canManage ||
-    detail.assignees.some((person) => person.id === currentUserId);
+    !detail.readOnly &&
+    (detail.canManage ||
+      detail.assignees.some((person) => person.id === currentUserId));
   const canUpdateFollowUp = (row: ChecklistFollowUpRow) =>
-    canUpdateFollowUps || row.followUp.picId === currentUserId;
+    canUpdateFollowUps ||
+    (!detail.readOnly && row.followUp.picId === currentUserId);
   const canEditFollowUp = (row: ChecklistFollowUpRow) =>
     canUpdateFollowUp(row) &&
     !["selesai", "dibatalkan"].includes(row.followUp.status);
@@ -230,13 +233,14 @@ export function ChecklistDetail({
   }, []);
 
   const picOptions = [
-    ...(detail.ownerName
+    ...(detail.ownerName && !detail.ownerReadOnly
       ? [{ id: inspection.ownerId, name: detail.ownerName }]
       : []),
     ...detail.team,
   ];
 
   function openCreateFollowUp(answer: ChecklistAnswer) {
+    if (!canUpdateFollowUps) return;
     const existing = detail.followUps.find(
       (row) =>
         row.followUp.answerId === answer.id &&
@@ -405,6 +409,13 @@ export function ChecklistDetail({
           </div>
         }
       />
+
+      {detail.readOnly && (
+        <InfoBanner tone="info" icon={Eye}>
+          Akun ini hanya dapat melihat data. Pengisian, penyelesaian, dan
+          tindak lanjut checklist dilakukan oleh tim.
+        </InfoBanner>
+      )}
 
       {inspection.status === "selesai" && (
         <InfoBanner tone="success" icon={CheckCircle2}>
@@ -585,6 +596,7 @@ export function ChecklistDetail({
                           answer={entry.answer}
                           photos={entry.photos}
                           canFill={detail.canFill}
+                          canManageFollowUps={canUpdateFollowUps}
                           followUp={active ?? null}
                           conditions={conditions}
                           nested={Boolean(block.groupPath)}
@@ -805,17 +817,19 @@ export function ChecklistDetail({
                           )
                         }
                       />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setUpdateRow(row)}
-                        disabled={
-                          !canUpdateFollowUp(row) ||
-                          row.followUp.status === "dibatalkan"
-                        }
-                      >
-                        Perbarui
-                      </Button>
+                      {!detail.readOnly && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setUpdateRow(row)}
+                          disabled={
+                            !canUpdateFollowUp(row) ||
+                            row.followUp.status === "dibatalkan"
+                          }
+                        >
+                          Perbarui
+                        </Button>
+                      )}
                     </div>
                   </li>
                 );

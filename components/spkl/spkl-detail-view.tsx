@@ -213,14 +213,16 @@ export function SpklDetailView({
                   render={<a href="#kehadiran" />}
                 >
                   <UsersRound />
-                  Kelola kehadiran
+                  {detail.canManage ? "Kelola kehadiran" : "Lihat kehadiran"}
                 </Button>
-                <SpklManageActions
-                  spkl={spkl}
-                  status={status}
-                  editHref={`/spkl/${spkl.id}/edit`}
-                  compact
-                />
+                {detail.canManage && (
+                  <SpklManageActions
+                    spkl={spkl}
+                    status={status}
+                    editHref={`/spkl/${spkl.id}/edit`}
+                    compact
+                  />
+                )}
               </>
             ) : showCheckIn ? (
               <Button size="lg" onClick={() => setDialog("checkin")}>

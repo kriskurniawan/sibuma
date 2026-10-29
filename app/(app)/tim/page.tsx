@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isReadOnly } from "@/lib/access";
 import { SupervisorsView } from "@/components/supervisors/supervisors-view";
 import { TeamView } from "@/components/team/team-view";
 import { getCurrentUser } from "@/lib/auth";
@@ -26,5 +27,6 @@ export default async function TeamPage({ searchParams }: {
   const team = await getTeamOverview(user.id, filters, printing ? undefined : pageRequest(first(params.page), first(params.size)));
   const [divisions, totals] = await Promise.all([getDivisions(user.id), getTeamTotals(user.id)]);
   return <TeamView team={team.rows} total={team.total} pagination={team.pagination ?? { pageIndex: 0, pageSize: Math.max(10, team.total) }}
-    totals={totals} filters={filters} printRows={printing ? team.rows : undefined} divisions={divisions} />;
+    totals={totals} filters={filters} printRows={printing ? team.rows : undefined} divisions={divisions}
+    readOnly={isReadOnly(user)} />;
 }

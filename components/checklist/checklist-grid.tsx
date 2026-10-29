@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, MapPin, UsersRound } from "lucide-react";
+import { ChevronRight, Clock3, MapPin, UsersRound } from "lucide-react";
 import { useTable, type ColumnDef } from "@tanstack/react-table";
 import type { PageRequest } from "@/lib/pagination";
 import {
@@ -248,73 +248,89 @@ export function ChecklistGrid({
 
         <div className="divide-y divide-border/70 md:hidden">
           {isPending ? (
-            <div className="flex flex-col gap-3 p-4" role="status" aria-label="Memuat checklist">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-16 w-full" />
+            <div
+              className="flex flex-col gap-3 p-4"
+              role="status"
+              aria-label="Memuat checklist"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+              <Skeleton className="h-3 w-52" />
+              <Skeleton className="h-1.5 w-full" />
             </div>
           ) : (
             pageRows.map((row) => (
-              <article key={row.inspection.id} className="flex flex-col gap-3 p-4">
+              <Link
+                key={row.inspection.id}
+                href={`/checklist/${row.inspection.id}`}
+                className="group flex flex-col gap-2 p-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-col gap-0.5">
-                    <Link
-                      href={`/checklist/${row.inspection.id}`}
-                      className="block truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
-                    >
+                    <span className="line-clamp-2 text-sm font-medium text-foreground">
                       {row.inspection.templateName}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {row.inspection.category} · {row.inspection.periodLabel}
-                    </p>
+                    </span>
+                    <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin
+                        className="size-3.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">
+                        {row.locationPath ?? row.inspection.locationName}
+                      </span>
+                    </span>
                   </div>
-                  <ChecklistStatusBadge
-                    status={row.inspection.status}
-                    className="shrink-0"
-                  />
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <ChecklistStatusBadge status={row.inspection.status} />
+                    {row.overdue && <ChecklistOverdueBadge />}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/50 px-3 py-2.5">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Lokasi</p>
-                    <p className="mt-0.5 truncate text-sm font-medium text-foreground">
-                      {row.locationPath ?? row.inspection.locationName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tanggal</p>
-                    <p className="mt-0.5 text-sm font-medium text-foreground">
-                      {formatDateHuman(
-                        occurrenceIso(row.inspection.occurrenceDate),
-                        "d MMM yyyy",
-                      )}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Tenggat</p>
-                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock3 className="size-3.5" aria-hidden="true" />
+                    <span
+                      className={
+                        row.overdue
+                          ? "font-medium text-destructive-foreground"
+                          : undefined
+                      }
+                    >
                       {formatDateTime(row.inspection.dueAt, "d MMM, HH:mm")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Progres</p>
-                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
-                      {row.answeredCount}/{row.totalItems} item
-                    </p>
-                  </div>
+                    </span>
+                  </span>
+                  <span aria-hidden="true">·</span>
+                  <span className="tabular-nums">
+                    {row.answeredCount}/{row.totalItems} item
+                  </span>
+                  {row.openFollowUps > 0 && (
+                    <>
+                      <span aria-hidden="true">·</span>
+                      <span>{row.openFollowUps} temuan</span>
+                    </>
+                  )}
                 </div>
+
+                <ProgressBar
+                  value={row.answeredCount}
+                  max={row.totalItems}
+                  tone={
+                    row.answeredCount === row.totalItems
+                      ? "success"
+                      : "primary"
+                  }
+                />
 
                 <div className="flex items-center justify-between gap-3">
                   <AssigneeStack people={row.assignees} />
-                  <div className="flex items-center gap-2">
-                    {row.overdue && <ChecklistOverdueBadge />}
-                    {row.openFollowUps > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        {row.openFollowUps} temuan
-                      </span>
-                    )}
-                  </div>
+                  <ChevronRight
+                    className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
+                    aria-hidden="true"
+                  />
                 </div>
-              </article>
+              </Link>
             ))
           )}
         </div>

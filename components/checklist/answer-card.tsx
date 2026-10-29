@@ -107,6 +107,7 @@ export function AnswerCard({
   answer,
   photos,
   canFill,
+  canManageFollowUps,
   followUp,
   conditions,
   nested,
@@ -119,6 +120,7 @@ export function AnswerCard({
   answer: ChecklistAnswer;
   photos: ChecklistPhoto[];
   canFill: boolean;
+  canManageFollowUps: boolean;
   followUp: ChecklistFollowUpRow | null;
   conditions: ChecklistConditionOption[];
   nested?: boolean;
@@ -462,16 +464,18 @@ export function AnswerCard({
             {activeFollowUp && (
               <>
                 <ChecklistFollowUpBadge status={followUp.followUp.status} />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onCreateFollowUp(answer)}
-                  disabled={saving}
-                >
-                  <ListChecks aria-hidden="true" />
-                  Kelola
-                </Button>
+                {canManageFollowUps && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onCreateFollowUp(answer)}
+                    disabled={saving}
+                  >
+                    <ListChecks aria-hidden="true" />
+                    Kelola
+                  </Button>
+                )}
               </>
             )}
             {canFill && !activeFollowUp && isIssueCondition(condition, conditions) && (

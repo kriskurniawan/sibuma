@@ -19,9 +19,9 @@ const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta", year: 
 const passed = [];
 try {
   await transaction(async (connection) => {
-    await insert("employees", { id: supervisor, nik: supervisor, name: "Uji SQL", phone: `${prefix}_phone`, role: "atasan", supervisorId: null, divisionId: null, active: true, createdAt: now, updatedAt: now }, connection);
+    await insert("employees", { id: supervisor, nik: supervisor, name: "Uji SQL", phone: `${prefix}_phone`, role: "atasan", accessMode: "full", supervisorId: null, divisionId: null, active: true, createdAt: now, updatedAt: now }, connection);
     await insert("divisions", { id: division, name: "Divisi SQL", description: "Fixture", supervisorId: supervisor, active: true, createdAt: now, updatedAt: now }, connection);
-    for (const [index, id] of workerIds.entries()) await insert("employees", { id, nik: id, name: `Pekerja ${String(index).padStart(2, "0")}`, phone: `${id}_phone`, role: "pekerja", supervisorId: supervisor, divisionId: division, active: index !== 11, createdAt: now, updatedAt: now }, connection);
+    for (const [index, id] of workerIds.entries()) await insert("employees", { id, nik: id, name: `Pekerja ${String(index).padStart(2, "0")}`, phone: `${id}_phone`, role: "pekerja", accessMode: "full", supervisorId: supervisor, divisionId: division, active: index !== 11, createdAt: now, updatedAt: now }, connection);
     await insert("spkls", { id: spklId, number: prefix, title: "Uji SQL", description: "Fixture finalisasi", date,
       startAt: new Date(Date.now() - 3_600_000).toISOString(), endAt: new Date(Date.now() - 60_000).toISOString(),
       location: { latitude: -6.2, longitude: 106.8 }, radiusMeters: 120, createdBy: supervisor, divisionId: division,

@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { readOnlyWrite } from "@/lib/read-only";
 import { DEFAULT_MAP_CENTER } from "@/lib/constants";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { notifySpkl } from "@/lib/notifications";
@@ -15,6 +16,8 @@ export const maxDuration = 30;
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
   if (user.role !== "atasan") {
     return apiError("Hanya atasan yang dapat membuat SPKL.", 403);
   }
@@ -60,6 +63,7 @@ export async function POST(request: Request) {
         (employee) =>
           employee.role === "pekerja" &&
           employee.active &&
+          employee.accessMode !== "read_only" &&
           employee.supervisorId === user.id &&
           employee.divisionId === division.id &&
           workerIds.includes(employee.id),
