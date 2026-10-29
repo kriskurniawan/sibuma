@@ -37,6 +37,20 @@ interface LoginViewProps {
   next?: string;
 }
 
+async function readJson<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+function serverErrorMessage(status: number) {
+  return status >= 500
+    ? `Server gagal memproses permintaan (HTTP ${status}). Coba lagi beberapa saat lagi atau hubungi admin.`
+    : `Permintaan ditolak server (HTTP ${status}). Coba lagi atau hubungi admin.`;
+}
+
 export function LoginView({ next = "/" }: LoginViewProps) {
   const router = useRouter();
   const [step, setStep] = useState<"phone" | "otp">("phone");
@@ -89,19 +103,29 @@ export function LoginView({ next = "/" }: LoginViewProps) {
     }
     setLoading(true);
     try {
-      const response = await fetch("/api/auth/otp/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier }),
-      });
-      const data = (await response.json()) as {
+      let response: Response;
+      try {
+        response = await fetch("/api/auth/otp/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier }),
+        });
+      } catch {
+        setError("Tidak dapat menghubungi server. Periksa koneksi internetmu.");
+        return;
+      }
+      const data = await readJson<{
         ok: boolean;
         message?: string;
         resendAfter?: number;
         maskedDestination?: string;
         challengeId: string;
         channel: "whatsapp" | "email";
-      };
+      }>(response);
+      if (!data) {
+        setError(serverErrorMessage(response.status));
+        return;
+      }
       if (!response.ok || !data.ok) {
         setError(data.message ?? "Gagal mengirim OTP.");
         return;
@@ -142,15 +166,25 @@ export function LoginView({ next = "/" }: LoginViewProps) {
     setError(null);
     setLoading(true);
     try {
-      const response = await fetch("/api/auth/otp/verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, challengeId, code }),
-      });
-      const data = (await response.json()) as {
+      let response: Response;
+      try {
+        response = await fetch("/api/auth/otp/verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier, challengeId, code }),
+        });
+      } catch {
+        setError("Tidak dapat menghubungi server. Periksa koneksi internetmu.");
+        return;
+      }
+      const data = await readJson<{
         ok: boolean;
         message?: string;
-      };
+      }>(response);
+      if (!data) {
+        setError(serverErrorMessage(response.status));
+        return;
+      }
       if (!response.ok || !data.ok) {
         setError(data.message ?? "Kode OTP tidak valid.");
         return;
@@ -158,8 +192,6 @@ export function LoginView({ next = "/" }: LoginViewProps) {
       toast.success("Berhasil masuk. Selamat bekerja!");
       router.push(next);
       router.refresh();
-    } catch {
-      setError("Tidak dapat menghubungi server. Periksa koneksi internetmu.");
     } finally {
       setLoading(false);
     }

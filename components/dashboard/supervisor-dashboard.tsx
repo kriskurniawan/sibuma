@@ -12,6 +12,7 @@ import {
   ChecklistSummaryRow,
   FollowUpSummaryRow,
 } from "@/components/dashboard/checklist-summary";
+import { QrScanButton } from "@/components/checklist/qr-scanner";
 import {
   Frame,
   FrameDescription,
@@ -62,14 +63,17 @@ export function SupervisorDashboard({
         title={`${greeting()}, ${firstName}.`}
         description="Pantau checklist operasional, temuan, dan kesiapan tim hari ini."
         action={
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/checklist" />}
-          >
-            <ClipboardCheck />
-            Buka checklist
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/checklist" />}
+            >
+              <ClipboardCheck />
+              Buka checklist
+            </Button>
+            <QrScanButton />
+          </div>
         }
       />
 

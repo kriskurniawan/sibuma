@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { ChecklistFilterBar } from "@/components/checklist/checklist-filters";
 import { ChecklistGrid } from "@/components/checklist/checklist-grid";
+import { QrScanButton } from "@/components/checklist/qr-scanner";
 import {
   Frame,
   FrameDescription,
@@ -73,6 +74,7 @@ export function ChecklistView({
                 </span>
               )}
             </Button>
+            <QrScanButton />
             {canManage && (
               <>
                 <Button

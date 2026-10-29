@@ -14,6 +14,7 @@ import {
   ChecklistSummaryRow,
   FollowUpSummaryRow,
 } from "@/components/dashboard/checklist-summary";
+import { QrScanButton } from "@/components/checklist/qr-scanner";
 import {
   ChecklistOverdueBadge,
   ChecklistStatusBadge,
@@ -86,15 +87,18 @@ export function WorkerDashboard({
         title={`${greeting()}, ${firstName}.`}
         description="Checklist area kerjamu hari ini, lengkap dengan tenggat dan tindak lanjutnya."
         action={
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/checklist" />}
-          >
-            <ClipboardList />
-            Semua checklist
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/checklist" />}
+            >
+              <ClipboardList />
+              Semua checklist
+            </Button>
+            <QrScanButton />
+          </div>
         }
       />
 

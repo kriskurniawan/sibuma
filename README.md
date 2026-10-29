@@ -126,6 +126,14 @@ Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL
 5. Buka `https://<domain>/api/health`; `database` harus `neon-postgres`, `schema` harus `relational-v1`, dan `storage` harus `neon-object-storage`.
 6. Pastikan bucket sesuai `NEON_STORAGE_BUCKET` privat. Jangan menambahkan URL publik, presigned URL, atau kredensial storage ke klien.
 
+**Jika login OTP gagal di Vercel:** halaman login tetap terbuka tanpa database, jadi kegagalan konfigurasi biasanya baru terlihat saat OTP diminta. Periksa **Vercel → Deployments → Functions → Logs** untuk `/api/auth/otp/request` dan `/api/auth/otp/verify`. Penyebab paling umum:
+
+- `SESSION_SECRET` belum diisi, kurang dari 32 karakter, atau masih memakai nilai pengembangan. OTP di-hash dengan secret ini, sehingga permintaan OTP langsung gagal 500 sebelum email/WhatsApp dikirim. Buat nilai acak dengan `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
+- `DATABASE_URL` belum diisi atau salah; skema database produksi belum dimigrasikan.
+- `RESEND_API_KEY`/`RESEND_FROM_EMAIL` belum diisi atau domain pengirim belum diverifikasi di Resend. Kasus ini biasanya menghasilkan pesan “OTP tidak berhasil dikirim”, bukan error koneksi.
+
+Setelah mengubah environment variable, **redeploy** (perubahan env tidak berlaku pada deployment lama). Buka `/api/health`; `checks.auth.ready` dan `checks.storage` harus bernilai `true`.
+
 **Sebelum produksi:** rotasi kredensial database/storage/Chatery yang pernah dibagikan dan gunakan `SESSION_SECRET` produksi baru; jangan menyalin rahasia ke repositori. Repositori Git sudah diinisialisasi, tetapi deployment Vercel belum dijalankan. Pilih alur impor repo atau Vercel CLI terautentikasi; langkah tersebut memerlukan persetujuan dan akses pemilik.
 
 Jika port `3000` sedang dipakai proses lain, jalankan dengan port alternatif:
