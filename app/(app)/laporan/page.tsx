@@ -9,6 +9,7 @@ import {
   Clock3,
   Download,
   FileBarChart2,
+  FileSpreadsheet,
   RotateCcw,
   Search,
   UsersRound,
@@ -152,11 +153,24 @@ export default async function ReportPage({
           title="Laporan lembur."
           description={
             isSuperAdmin(user)
-              ? "Tinjau kehadiran, durasi, dokumentasi, dan koreksi seluruh tim. Unduh CSV untuk penggajian atau cetak PDF untuk arsip."
-              : "Tinjau kehadiran, durasi, dokumentasi, dan koreksi anggota tim. Unduh CSV untuk penggajian atau cetak PDF untuk arsip."
+              ? "Tinjau kehadiran, durasi, dokumentasi, dan koreksi seluruh tim. Unduh Excel untuk penggajian, CSV untuk integrasi, atau cetak PDF untuk arsip."
+              : "Tinjau kehadiran, durasi, dokumentasi, dan koreksi anggota tim. Unduh Excel untuk penggajian, CSV untuk integrasi, atau cetak PDF untuk arsip."
           }
           action={
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={
+                  <a
+                    href={`/api/reports/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), format: "xlsx" }).toString()}`}
+                  />
+                }
+              >
+                <FileSpreadsheet aria-hidden="true" />
+                Unduh Excel
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

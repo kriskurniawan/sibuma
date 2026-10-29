@@ -3,10 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowRight,
   BarChart3,
   ClipboardList,
-  Clock3,
   Plus,
   Search,
   TimerReset,
@@ -16,7 +14,6 @@ import { SpklCard } from "@/components/spkl/spkl-card";
 import {
   Frame,
   FrameDescription,
-  FrameFooter,
   FrameHeader,
   FramePanel,
   FrameTitle,
@@ -80,12 +77,13 @@ export function LemburView({
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow="Operasional"
-        title="Lembur."
+        title="Lembur"
         description={
           readOnly
-            ? "Tinjau kehadiran dan buka dokumentasi pekerjaan tim. Seluruh riwayat lembur tersimpan di sini."
-            : "Buat SPKL, tinjau kehadiran, dan buka dokumentasi pekerjaan tim. Seluruh riwayat lembur tersimpan di sini."
+            ? "Kehadiran dan dokumentasi lembur tim."
+            : "Kelola SPKL, kehadiran, dan dokumentasi tim."
         }
+        descriptionClassName="hidden sm:block"
         action={
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button
@@ -94,7 +92,7 @@ export function LemburView({
               variant="outline"
             >
               <BarChart3 aria-hidden="true" />
-              Laporan & rekap
+              Laporan
             </Button>
             {!readOnly && (
               <Button nativeButton={false} render={<Link href="/spkl/baru" />}>
@@ -181,8 +179,8 @@ export function LemburView({
               description={
                 items.length === 0
                   ? readOnly
-                    ? "Belum ada SPKL untuk tim ini. Riwayat akan tampil di sini setelah atasan membuat SPKL."
-                    : "Buat SPKL pertama untuk menugaskan pekerja, menetapkan lokasi, dan membuka absensi lembur."
+                    ? "Belum ada penugasan lembur untuk tim ini."
+                    : "Buat SPKL untuk menugaskan tim."
                   : "Coba kata kunci lain atau tampilkan semua status."
               }
               action={
@@ -207,20 +205,6 @@ export function LemburView({
           </FramePanel>
         )}
 
-        <FrameFooter className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex items-start gap-2">
-            <Clock3 className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-            Absensi mengikuti jadwal, titik lokasi, dan radius yang ditetapkan
-            pada setiap SPKL.
-          </p>
-          <Link
-            href="/laporan"
-            className="flex shrink-0 items-center gap-1 font-medium text-primary transition-colors hover:text-primary/70"
-          >
-            Buka laporan & rekap
-            <ArrowRight className="size-3.5" aria-hidden="true" />
-          </Link>
-        </FrameFooter>
       </Frame>
     </div>
   );

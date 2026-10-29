@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Download,
   FileBarChart2,
+  FileSpreadsheet,
   RotateCcw,
   Search,
   Timer,
@@ -130,9 +131,22 @@ export async function FollowUpReportScreen({
         <PageHeader
           eyebrow="Tindak lanjut"
           title="Laporan tindak lanjut."
-          description="Pantau temuan yang belum selesai, deadline, dan PIC berdasarkan periode pemeriksaan. Unduh CSV atau cetak untuk arsip."
+          description="Pantau temuan yang belum selesai, deadline, dan PIC berdasarkan periode pemeriksaan. Unduh Excel untuk analisis, CSV untuk integrasi, atau cetak PDF untuk arsip."
           action={
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={
+                  <a
+                    href={`/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), format: "xlsx" }).toString()}`}
+                  />
+                }
+              >
+                <FileSpreadsheet aria-hidden="true" />
+                Unduh Excel
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

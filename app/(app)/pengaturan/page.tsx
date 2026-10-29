@@ -29,9 +29,11 @@ export default async function SettingsPage() {
       <PageHeader
         eyebrow="Kelola"
         title="Pengaturan."
-        description="Atur kebijakan lembur dan status checklist yang dipakai tim saat mengisi pemeriksaan."
+        description="Kebijakan lembur dan pilihan status checklist."
+        descriptionClassName="hidden md:block"
         action={
           <Button
+            size="sm"
             variant="outline"
             nativeButton={false}
             render={<Link href="/audit" />}

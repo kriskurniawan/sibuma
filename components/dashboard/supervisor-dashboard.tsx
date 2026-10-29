@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   ClipboardCheck,
@@ -13,6 +14,8 @@ import {
   FollowUpSummaryRow,
 } from "@/components/dashboard/checklist-summary";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
+import { MobileSummary } from "@/components/mobile-summary";
+import { IconTile } from "@/components/reui/icon-tile";
 import {
   Frame,
   FrameDescription,
@@ -57,6 +60,7 @@ export function SupervisorDashboard({
   const firstName = user.name.split(" ")[0];
   const readOnly = isReadOnly(user);
   const nextSession = overview.upcoming[0];
+  const focus = checklists[0];
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
@@ -64,8 +68,9 @@ export function SupervisorDashboard({
         eyebrow={formatDateHuman(new Date().toISOString(), "EEEE, d MMMM yyyy")}
         title={`${greeting()}, ${firstName}.`}
         description="Pantau checklist operasional, temuan, dan kesiapan tim hari ini."
+        descriptionClassName="hidden sm:block"
         action={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="hidden flex-wrap items-center gap-2 sm:flex">
             <Button
               size="sm"
               nativeButton={false}
@@ -79,9 +84,85 @@ export function SupervisorDashboard({
         }
       />
 
+      <Frame spacing="sm" className="sm:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <div className="flex items-start gap-3">
+            <IconTile variant="soft" aria-hidden="true">
+              <ClipboardCheck />
+            </IconTile>
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <p className="text-xs font-medium text-muted-foreground">
+                Perlu perhatian
+              </p>
+              <p className="text-sm font-semibold text-foreground">
+                {checklistTotals.overdue > 0
+                  ? `${checklistTotals.overdue} checklist terlambat`
+                  : focus
+                    ? "Checklist berikutnya"
+                    : "Tidak ada checklist aktif"}
+              </p>
+              {focus && (
+                <p className="line-clamp-2 text-xs text-muted-foreground">
+                  {focus.inspection.templateName}
+                </p>
+              )}
+            </div>
+          </div>
+          <Button
+            nativeButton={false}
+            render={
+              <Link
+                href={
+                  checklistTotals.overdue > 0
+                    ? "/checklist?status=terlambat"
+                    : focus
+                      ? `/checklist/${focus.inspection.id}`
+                      : "/checklist"
+                }
+              />
+            }
+          >
+            {checklistTotals.overdue > 0 ? "Tinjau keterlambatan" : "Buka checklist"}
+            <ArrowRight />
+          </Button>
+        </FramePanel>
+      </Frame>
+
+      <MobileSummary
+        className="sm:hidden"
+        items={[
+          {
+            label: "Checklist aktif",
+            value: checklistTotals.todo,
+            icon: ClipboardList,
+            href: "/checklist?status=aktif",
+            ariaLabel: `Buka ${checklistTotals.todo} checklist aktif`,
+          },
+          {
+            label: "Terlambat",
+            value: checklistTotals.overdue,
+            icon: AlertTriangle,
+            href: "/checklist?status=terlambat",
+            ariaLabel: `Buka ${checklistTotals.overdue} checklist terlambat`,
+          },
+          {
+            label: "Tindak lanjut",
+            value: checklistTotals.openFollowUps,
+            icon: Wrench,
+            href: "/checklist/tindak-lanjut",
+            ariaLabel: `Buka tindak lanjut, ${checklistTotals.openFollowUps} belum selesai`,
+          },
+          {
+            label: "Selesai bulan ini",
+            value: checklistTotals.completedThisMonth,
+            icon: CheckCircle2,
+          },
+        ]}
+      />
+
       <section
         aria-label="Ringkasan checklist"
-        className="grid grid-cols-2 gap-3 xl:grid-cols-4"
+        className="hidden grid-cols-2 gap-3 sm:grid xl:grid-cols-4"
       >
         <StatCard
           label="Checklist aktif"
@@ -132,14 +213,120 @@ export function SupervisorDashboard({
         />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-        <section className="flex min-w-0 flex-col gap-3">
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:grid-rows-[auto_1fr]">
+        <Frame
+          spacing="sm"
+          className="order-1 min-w-0 sm:order-3 xl:col-start-2 xl:row-start-2"
+        >
+          <FrameHeader className="flex-row items-start justify-between gap-3">
+            <FrameTitle>Jadwal lembur</FrameTitle>
+            <Link
+              href="/lembur"
+              className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+            >
+              {readOnly ? "Lihat" : "Kelola"}
+            </Link>
+          </FrameHeader>
+          <FramePanel className="flex flex-col gap-3">
+            {overview.activeSpkls.length > 0 ? (
+              <>
+                {overview.activeSpkls.slice(0, 2).map((spotlight) => {
+                  const complete =
+                    spotlight.expected > 0 &&
+                    spotlight.checkedIn === spotlight.expected;
+                  return (
+                    <div
+                      key={spotlight.spkl.id}
+                      className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3"
+                    >
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <Link
+                          href={`/spkl/${spotlight.spkl.id}`}
+                          className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
+                        >
+                          {spotlight.spkl.title}
+                        </Link>
+                        <p className="text-xs text-muted-foreground">
+                          {formatTime(spotlight.spkl.startAt)}–
+                          {formatTime(spotlight.spkl.endAt)} WIB ·{" "}
+                          {spotlight.checkedIn}/{spotlight.expected} hadir
+                        </p>
+                      </div>
+                      <Badge
+                        variant={complete ? "success-light" : "warning-light"}
+                        className="shrink-0 self-start"
+                      >
+                        {complete ? "Lengkap" : "Belum lengkap"}
+                      </Badge>
+                    </div>
+                  );
+                })}
+                {overview.stats.needsAttention > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {overview.stats.needsAttention} pekerja belum melakukan
+                    absen masuk.
+                  </p>
+                )}
+              </>
+            ) : nextSession ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <Link
+                    href={`/spkl/${nextSession.spkl.id}`}
+                    className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
+                  >
+                    {nextSession.spkl.title}
+                  </Link>
+                  <p className="text-xs text-muted-foreground">
+                    {formatDateHuman(nextSession.spkl.startAt, "d MMM, HH:mm")}
+                    –{formatTime(nextSession.spkl.endAt)} ·{" "}
+                    {nextSession.workerCount} pekerja
+                  </p>
+                </div>
+                <SpklStatusBadge
+                  status="terjadwal"
+                  className="shrink-0 self-start"
+                />
+              </div>
+            ) : (
+              <EmptyState
+                icon={CalendarDays}
+                title="Tidak ada lembur"
+                description="Belum ada sesi aktif atau terjadwal."
+                action={
+                  readOnly ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link href="/lembur" />}
+                    >
+                      Lihat lembur
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      nativeButton={false}
+                      render={<Link href="/spkl/baru" />}
+                    >
+                      <Plus />
+                      Buat SPKL
+                    </Button>
+                  )
+                }
+              />
+            )}
+          </FramePanel>
+        </Frame>
+
+        <section className="order-2 flex min-w-0 flex-col gap-3 sm:order-1 xl:row-span-2">
           <Frame spacing="sm">
             <FrameHeader className="flex-row items-start justify-between gap-3">
               <div className="flex flex-col gap-1">
                 <FrameTitle>Checklist prioritas</FrameTitle>
-                <FrameDescription className="text-xs">
-                  Paling dekat deadline dan perlu diselesaikan tim.
+                <FrameDescription className="hidden text-xs sm:block">
+                  Diurutkan berdasarkan deadline.
                 </FrameDescription>
               </div>
               <Link
@@ -189,151 +376,53 @@ export function SupervisorDashboard({
           </Frame>
         </section>
 
-        <aside className="flex min-w-0 flex-col gap-4">
-          <Frame spacing="sm">
-            <FrameHeader className="flex-row items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <FrameTitle>Tindak lanjut</FrameTitle>
-                <FrameDescription className="text-xs">
-                  {openFollowUpTotal > 0
-                    ? `${openFollowUpTotal} temuan terbuka`
-                    : "Temuan dari checklist tim"}
-                </FrameDescription>
-              </div>
-              <Link
-                href="/checklist/tindak-lanjut"
-                className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
-              >
-                Semua
-              </Link>
-            </FrameHeader>
-            <FramePanel className="flex flex-col justify-center">
-              {followUps.length > 0 ? (
-                followUps.map((row, index) => (
-                  <div key={row.followUp.id}>
-                    {index > 0 && <Separator />}
-                    <FollowUpSummaryRow row={row} />
-                  </div>
-                ))
-              ) : (
-                <EmptyState
-                  icon={CheckCircle2}
-                  title="Tidak ada temuan terbuka"
-                  description="Temuan baru dari checklist akan muncul di sini."
-                  action={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      nativeButton={false}
-                      render={<Link href="/checklist" />}
-                    >
-                      Lihat checklist
-                    </Button>
-                  }
-                />
-              )}
-            </FramePanel>
-          </Frame>
-
-          <Frame spacing="sm">
-            <FrameHeader className="flex-row items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <FrameTitle>Lembur hari ini</FrameTitle>
-                <FrameDescription className="text-xs">
-                  Sesi aktif dan jadwal terdekat.
-                </FrameDescription>
-              </div>
-              <Link
-                href="/lembur"
-                className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
-              >
-                {readOnly ? "Lihat" : "Kelola"}
-              </Link>
-            </FrameHeader>
-            <FramePanel className="flex flex-col gap-3">
-              {overview.activeSpkls.length > 0 ? (
-                <>
-                  {overview.activeSpkls.slice(0, 2).map((spotlight) => {
-                    const complete =
-                      spotlight.expected > 0 &&
-                      spotlight.checkedIn === spotlight.expected;
-                    return (
-                      <div
-                        key={spotlight.spkl.id}
-                        className="flex items-start justify-between gap-3"
-                      >
-                        <div className="flex min-w-0 flex-col gap-0.5">
-                          <Link
-                            href={`/spkl/${spotlight.spkl.id}`}
-                            className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
-                          >
-                            {spotlight.spkl.title}
-                          </Link>
-                          <p className="text-xs text-muted-foreground">
-                            {formatTime(spotlight.spkl.startAt)}–
-                            {formatTime(spotlight.spkl.endAt)} WIB ·{" "}
-                            {spotlight.checkedIn}/{spotlight.expected} hadir
-                          </p>
-                        </div>
-                        <Badge
-                          variant={complete ? "success-light" : "warning-light"}
-                          className="shrink-0"
-                        >
-                          {complete ? "Lengkap" : "Belum lengkap"}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                  {overview.stats.needsAttention > 0 && (
-                    <p className="text-xs text-muted-foreground">
-                      {overview.stats.needsAttention} pekerja belum melakukan
-                      absen masuk.
-                    </p>
-                  )}
-                </>
-              ) : nextSession ? (
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <Link
-                      href={`/spkl/${nextSession.spkl.id}`}
-                      className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
-                    >
-                      {nextSession.spkl.title}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDateHuman(nextSession.spkl.startAt, "d MMM, HH:mm")}
-                      –{formatTime(nextSession.spkl.endAt)} ·{" "}
-                      {nextSession.workerCount} pekerja
-                    </p>
-                  </div>
-                  <SpklStatusBadge
-                    status="terjadwal"
-                    className="shrink-0"
-                  />
+        <Frame
+          spacing="sm"
+          className="order-3 min-w-0 sm:order-2 xl:col-start-2 xl:row-start-1"
+        >
+          <FrameHeader className="flex-row items-start justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <FrameTitle>Tindak lanjut</FrameTitle>
+              <FrameDescription className="text-xs">
+                {openFollowUpTotal > 0
+                  ? `${openFollowUpTotal} temuan terbuka`
+                  : "Temuan dari checklist tim"}
+              </FrameDescription>
+            </div>
+            <Link
+              href="/checklist/tindak-lanjut"
+              className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+            >
+              Semua
+            </Link>
+          </FrameHeader>
+          <FramePanel className="flex flex-col justify-center">
+            {followUps.length > 0 ? (
+              followUps.map((row, index) => (
+                <div key={row.followUp.id}>
+                  {index > 0 && <Separator />}
+                  <FollowUpSummaryRow row={row} />
                 </div>
-              ) : (
-                <EmptyState
-                  icon={CalendarDays}
-                  title="Tidak ada lembur"
-                  description="Belum ada sesi aktif atau terjadwal."
-                  action={
-                    readOnly ? undefined : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        nativeButton={false}
-                        render={<Link href="/spkl/baru" />}
-                      >
-                        <Plus />
-                        Buat SPKL
-                      </Button>
-                    )
-                  }
-                />
-              )}
-            </FramePanel>
-          </Frame>
-        </aside>
+              ))
+            ) : (
+              <EmptyState
+                icon={CheckCircle2}
+                title="Tidak ada temuan terbuka"
+                description="Temuan baru dari checklist akan muncul di sini."
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href="/checklist" />}
+                  >
+                    Lihat checklist
+                  </Button>
+                }
+              />
+            )}
+          </FramePanel>
+        </Frame>
       </div>
     </div>
   );

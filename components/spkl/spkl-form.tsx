@@ -454,8 +454,9 @@ export function SpklForm({
       </div>
 
       <PageHeader
-        title={mode === "create" ? "Buat SPKL baru." : "Ubah SPKL."}
-        description="Tentukan pekerjaan, jadwal, titik absen, dan pekerja. SPKL bisa dibuat untuk hari ini selama jam selesai belum lewat; pekerja langsung mendapat notifikasi."
+        title={mode === "create" ? "Buat SPKL" : "Ubah SPKL"}
+        description="Tentukan pekerjaan, jadwal, lokasi, dan pekerja."
+        descriptionClassName="hidden md:block"
       />
 
       <div className="grid gap-5 xl:grid-cols-[1.45fr_0.55fr]">
@@ -472,8 +473,8 @@ export function SpklForm({
               </IconTile>
               <div className="flex min-w-0 flex-col">
                 <FrameTitle>Detail pekerjaan</FrameTitle>
-                <FrameDescription className="text-xs">
-                  Informasi ini terlihat oleh pekerja yang ditugaskan.
+                <FrameDescription className="hidden text-xs md:block">
+                  Terlihat oleh pekerja yang ditugaskan.
                 </FrameDescription>
               </div>
             </FrameHeader>
@@ -874,7 +875,7 @@ export function SpklForm({
               <p className="text-xs font-medium text-muted-foreground">
                 Ringkasan SPKL
               </p>
-              <FrameTitle className="text-base leading-snug">
+              <FrameTitle>
                 {title.trim() || "Nama pekerjaan belum diisi"}
               </FrameTitle>
               <FrameDescription className="flex flex-col gap-1.5 text-xs">

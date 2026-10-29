@@ -127,8 +127,8 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <div>
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
+      <div className="hidden md:block">
         <Button
           size="sm"
           variant="ghost"
@@ -143,22 +143,22 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
       <PageHeader
         eyebrow="Pengaturan checklist"
         title="Jadwal"
-        description="Jadwal mengikuti kalender tetap: keterlambatan tidak menggeser tanggal berikutnya, dan tanggal 29–31 mengikuti hari terakhir bulan. Checklist dibuat otomatis untuk rentang berjalan."
+        description="Checklist otomatis sesuai kalender dan penugasan tim."
+        descriptionClassName="hidden md:block"
         action={
-          <Button size="sm" onClick={() => openSchedule(null)}>
+          <Button type="button" size="sm" onClick={() => openSchedule(null)}>
             <Plus aria-hidden="true" />
             Jadwal baru
           </Button>
         }
       />
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Jadwal checklist</FrameTitle>
-            <FrameDescription className="text-xs">
-              Satu jadwal menghubungkan template, lokasi, dan tim yang
-              ditugaskan.
+            <FrameDescription className="hidden text-xs md:block">
+              Template, lokasi, dan anggota yang ditugaskan.
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
@@ -174,7 +174,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
               description="Buat jadwal dari template dan lokasi yang tersedia. Checklist akan muncul otomatis sesuai kalender."
               action={
                 setup.templates.length > 0 && setup.locations.length > 0 ? (
-                  <Button size="sm" onClick={() => openSchedule(null)}>
+                  <Button type="button" size="sm" onClick={() => openSchedule(null)}>
                     <Plus aria-hidden="true" />
                     Buat jadwal
                   </Button>
@@ -198,8 +198,8 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                   key={schedule.id}
                   className="flex flex-col gap-2.5 px-4 py-4 sm:px-5"
                 >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="flex min-w-0 flex-col gap-0.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <p className="text-sm font-medium text-foreground">
                           {schedule.templateName}
@@ -211,21 +211,21 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                           )}
                         </Badge>
                         {!schedule.active && (
-                          <Badge variant="outline" className="text-xs">
+                          <Badge variant="warning-light">
                             Nonaktif
                           </Badge>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {schedule.locationPath} · mulai{" "}
-                        {formatDateHuman(
-                          dateIso(schedule.anchorDate),
-                          "d MMM yyyy",
-                        )}{" "}
-                        · deadline {schedule.dueDays} hari
+                        {schedule.locationPath}
+                        <span className="hidden md:inline">
+                          {" · mulai "}
+                          {formatDateHuman(dateIso(schedule.anchorDate), "d MMM yyyy")}
+                        </span>
                       </p>
                     </div>
                     <Button
+                      type="button"
                       size="sm"
                       variant="ghost"
                       onClick={() => openSchedule(schedule)}
@@ -267,12 +267,12 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                     </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Clock3 className="size-3.5" aria-hidden="true" />
-                      Deadline {schedule.dueDays} hari setelah tanggal jadwal
+                      Deadline +{schedule.dueDays} hari
                     </span>
                   </div>
 
                   {schedule.assignees.length > 0 && (
-                    <div className="flex items-center">
+                    <div className="hidden items-center md:flex">
                       {schedule.assignees.slice(0, 6).map((person, index) => (
                         <span
                           key={person.id}
@@ -546,7 +546,7 @@ function ScheduleDialog({
       onClose={onClose}
       dismissible={!saving}
       title={schedule ? "Ubah jadwal" : "Jadwal baru"}
-      description="Perubahan anggota tim berlaku untuk checklist yang belum selesai; riwayat yang sudah selesai tidak berubah."
+      description="Perubahan anggota berlaku untuk checklist terbuka, bukan riwayat selesai."
       size="xl"
       footer={
         <>
@@ -660,13 +660,9 @@ function ScheduleDialog({
           </div>
         </div>
 
-        <p className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Jadwal:{" "}
-          <span className="font-medium text-foreground">
-            {checklistIntervalLabel(intervalUnit, intervalCount)}
-          </span>
-          . Deadline {dueDays} hari setelah tanggal jadwal. Keterlambatan tidak
-          menggeser tanggal berikutnya.
+        <p className="text-xs text-muted-foreground">
+          {checklistIntervalLabel(intervalUnit, intervalCount)}; deadline +{dueDays} hari.
+          Jadwal berikutnya tetap meski terlambat. Tanggal 29–31 mengikuti akhir bulan.
         </p>
 
         <div className="flex flex-col gap-2">
@@ -792,7 +788,7 @@ function ScheduleDialog({
               {selectedByDivision.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
                   {selectedByDivision.map((group) => (
-                    <Badge key={group.id} variant="secondary">
+                    <Badge key={group.id} variant="outline">
                       {group.name} · {group.count}
                     </Badge>
                   ))}
@@ -928,9 +924,8 @@ function ScheduleDialog({
               </div>
 
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Pilihan dari divisi lain tetap tersimpan, jadi kamu bisa
-                menggabungkan anggota lintas divisi. Untuk tim lebih besar dari{" "}
-                {CHECKLIST_MAX_ASSIGNEES} anggota, bagi ke beberapa jadwal.
+                Pilihan lintas divisi tetap tersimpan. Maksimal{" "}
+                {CHECKLIST_MAX_ASSIGNEES} anggota per jadwal.
               </p>
             </div>
           )}

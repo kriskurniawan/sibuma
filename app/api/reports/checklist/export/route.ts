@@ -12,6 +12,12 @@ import {
   getChecklistItemExportRows,
   getChecklistReportData,
 } from "@/lib/checklist-report";
+import {
+  excelDate,
+  excelDateTime,
+  excelFileResponse,
+  type ExcelSheetInput,
+} from "@/lib/excel";
 import { apiError } from "@/lib/http";
 import { currentMonthRange, formatDateHuman, formatDateTime } from "@/lib/time";
 
@@ -26,6 +32,150 @@ function csvCell(value: string | number | null | undefined) {
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+type RekapData = Awaited<ReturnType<typeof getChecklistReportData>>;
+type ItemData = Awaited<ReturnType<typeof getChecklistItemExportRows>>;
+type FollowUpData = Awaited<ReturnType<typeof getChecklistFollowUpReportData>>;
+
+function rekapSheet(data: RekapData, subtitle: string): ExcelSheetInput {
+  return {
+    name: "Rekap Checklist",
+    title: "Rekap Checklist",
+    subtitle,
+    columns: [
+      { header: "Periode", width: 12, type: "date" },
+      { header: "Jatuh tempo", width: 17, type: "datetime" },
+      { header: "Template", width: 26 },
+      { header: "Kategori", width: 16 },
+      { header: "Lokasi", width: 28 },
+      { header: "Status", width: 14 },
+      { header: "Selesai", width: 17, type: "datetime" },
+      { header: "Ketepatan waktu", width: 14 },
+      { header: "Diperiksa", width: 10, type: "number", align: "right" },
+      { header: "Total item", width: 10, type: "number", align: "right" },
+      { header: "Temuan", width: 9, type: "number", align: "right" },
+      {
+        header: "Tindak lanjut",
+        width: 12,
+        type: "number",
+        align: "right",
+      },
+      { header: "Petugas", width: 28 },
+    ],
+    rows: data.rows.map((row) => [
+      excelDate(row.inspection.occurrenceDate),
+      excelDateTime(row.inspection.dueAt),
+      row.inspection.templateName,
+      row.inspection.category,
+      row.locationPath ?? row.inspection.locationName,
+      CHECKLIST_STATUS_LABEL[row.inspection.status],
+      row.inspection.completedAt
+        ? excelDateTime(row.inspection.completedAt)
+        : null,
+      row.late
+        ? "Terlambat"
+        : row.inspection.status === "selesai"
+          ? "Tepat waktu"
+          : "",
+      row.answeredCount,
+      row.totalItems,
+      row.issueCount,
+      row.openFollowUps,
+      row.assignees.map((person) => person.name).join(", "),
+    ]),
+    notes: [
+      "Periode berdasarkan tanggal jatuh tempo (occurrence). Temuan dan tindak lanjut mengikuti data terbaru.",
+    ],
+  };
+}
+
+function itemSheet(
+  rows: ItemData,
+  conditions: Array<{ id: string; label: string }>,
+  subtitle: string,
+): ExcelSheetInput {
+  const conditionLabel = new Map(
+    conditions.map((condition) => [condition.id, condition.label]),
+  );
+
+  return {
+    name: "Rincian Item",
+    title: "Rincian Item Checklist",
+    subtitle,
+    columns: [
+      { header: "Periode", width: 12, type: "date" },
+      { header: "Jatuh tempo", width: 17, type: "datetime" },
+      { header: "Template", width: 26 },
+      { header: "Kategori", width: 16 },
+      { header: "Lokasi", width: 28 },
+      { header: "Status pemeriksaan", width: 17 },
+      { header: "No", width: 6, type: "number", align: "right" },
+      { header: "Grup", width: 24 },
+      { header: "Item", width: 40 },
+      { header: "Kondisi", width: 22 },
+      { header: "Catatan", width: 36 },
+      { header: "Diperbarui", width: 17, type: "datetime" },
+    ],
+    rows: rows.map((row) => [
+      excelDate(row.occurrenceDate),
+      excelDateTime(row.dueAt),
+      row.templateName,
+      row.category,
+      row.locationPath ?? row.locationName,
+      CHECKLIST_STATUS_LABEL[row.status],
+      row.position + 1,
+      row.groupPath,
+      row.prompt,
+      row.condition
+        ? (conditionLabel.get(row.condition) ?? row.condition)
+        : "Belum diperiksa",
+      row.note,
+      row.updatedAt ? excelDateTime(row.updatedAt) : null,
+    ]),
+    notes: [
+      "Satu baris per item pemeriksaan. \u201cBelum diperiksa\u201d berarti item belum memiliki kondisi.",
+    ],
+  };
+}
+
+function followUpSheet(data: FollowUpData, subtitle: string): ExcelSheetInput {
+  return {
+    name: "Tindak Lanjut",
+    title: "Laporan Tindak Lanjut",
+    subtitle,
+    columns: [
+      { header: "Dibuat", width: 17, type: "datetime" },
+      { header: "Judul", width: 34 },
+      { header: "Item terkait", width: 30 },
+      { header: "Prioritas", width: 10 },
+      { header: "Status", width: 14 },
+      { header: "Deadline", width: 12, type: "date" },
+      { header: "PIC", width: 22 },
+      { header: "Lokasi", width: 28 },
+      { header: "Template", width: 26 },
+      { header: "Periode", width: 24 },
+      { header: "Progres", width: 40 },
+      { header: "Hasil", width: 40 },
+    ],
+    rows: data.items.map((row) => [
+      excelDateTime(row.followUp.createdAt),
+      row.followUp.title,
+      row.prompt ?? "",
+      CHECKLIST_PRIORITY_LABEL[row.followUp.priority],
+      CHECKLIST_FOLLOW_UP_LABEL[row.followUp.status],
+      excelDate(row.followUp.dueDate),
+      row.pic?.name ?? "",
+      row.inspection.locationPath ?? row.inspection.locationName,
+      row.inspection.templateName,
+      `${row.inspection.periodLabel} (${row.inspection.occurrenceDate})`,
+      row.followUp.progressNote,
+      row.followUp.resultNote,
+    ]),
+    notes: [
+      "Deadline, prioritas, dan status mengikuti data tindak lanjut terbaru.",
+    ],
+  };
+}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -43,6 +193,7 @@ export async function GET(request: Request) {
     ? url.searchParams.get("to")!
     : range.to;
   const kind = url.searchParams.get("kind") ?? "rekap";
+  const format = url.searchParams.get("format") === "xlsx" ? "xlsx" : "csv";
   const ownerId = isSuperAdmin(user) ? null : user.id;
   const filters: ChecklistReportFilters = {
     from,
@@ -53,6 +204,58 @@ export async function GET(request: Request) {
     status: url.searchParams.get("status") || undefined,
     search: url.searchParams.get("search")?.trim() || undefined,
   };
+
+  const period = `${formatDateHuman(`${from}T12:00:00`, "d MMMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMMM yyyy")}`;
+  const exportedAt = formatDateHuman(
+    new Date().toISOString(),
+    "d MMMM yyyy, HH:mm",
+  );
+  const subtitle = `${period} · Diekspor ${exportedAt} WIB`;
+
+  if (format === "xlsx") {
+    const conventionalKind =
+      kind === "butir" ? "item" : kind === "rincian" ? "item" : kind;
+
+    if (conventionalKind === "laporan") {
+      const [rekap, items, conditions] = await Promise.all([
+        getChecklistReportData(ownerId, filters),
+        getChecklistItemExportRows(ownerId, filters),
+        listChecklistConditions({ includeInactive: true }),
+      ]);
+      return excelFileResponse({
+        filename: `laporan-checklist-${from}-${to}.xlsx`,
+        sheets: [
+          rekapSheet(rekap, subtitle),
+          itemSheet(items, conditions, subtitle),
+        ],
+      });
+    }
+
+    if (conventionalKind === "item") {
+      const [items, conditions] = await Promise.all([
+        getChecklistItemExportRows(ownerId, filters),
+        listChecklistConditions({ includeInactive: true }),
+      ]);
+      return excelFileResponse({
+        filename: `rincian-item-checklist-${from}-${to}.xlsx`,
+        sheets: [itemSheet(items, conditions, subtitle)],
+      });
+    }
+
+    if (conventionalKind === "tindak-lanjut") {
+      const data = await getChecklistFollowUpReportData(ownerId, filters);
+      return excelFileResponse({
+        filename: `tindak-lanjut-${from}-${to}.xlsx`,
+        sheets: [followUpSheet(data, subtitle)],
+      });
+    }
+
+    const data = await getChecklistReportData(ownerId, filters);
+    return excelFileResponse({
+      filename: `rekap-checklist-${from}-${to}.xlsx`,
+      sheets: [rekapSheet(data, subtitle)],
+    });
+  }
 
   let header: string[];
   let lines: Array<Array<string | number | null | undefined>>;
@@ -167,8 +370,8 @@ export async function GET(request: Request) {
     header.map(csvCell).join(";"),
     ...lines.map((line) => line.map(csvCell).join(";")),
     "",
-    `Periode: ${formatDateHuman(`${from}T12:00:00`, "d MMMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMMM yyyy")}`,
-    `Diekspor: ${formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")} WIB`,
+    `Periode: ${period}`,
+    `Diekspor: ${exportedAt} WIB`,
   ].join("\r\n")}`;
 
   const slug =

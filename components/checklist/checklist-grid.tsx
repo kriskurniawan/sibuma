@@ -52,15 +52,23 @@ function occurrenceIso(date: string) {
   return `${date}T00:00:00+07:00`;
 }
 
-function AssigneeStack({ people }: { people: ChecklistPerson[] }) {
+function AssigneeStack({
+  people,
+  compact = false,
+}: {
+  people: ChecklistPerson[];
+  compact?: boolean;
+}) {
   if (people.length === 0) {
     return <span className="text-xs text-muted-foreground">Tanpa anggota</span>;
   }
-  const visible = people.slice(0, 3);
+  const visible = people.slice(0, compact ? 1 : 3);
   const remaining = people.length - visible.length;
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center" title={people.map((item) => item.name).join(", ")}>
+    <div
+      className={compact ? "flex min-w-0 max-w-36 items-center gap-2" : "flex items-center gap-2"}
+    >
+      <div className="flex shrink-0 items-center" title={people.map((item) => item.name).join(", ")}>
         {visible.map((person, index) => (
           <span key={person.id} className={index > 0 ? "-ml-2" : undefined}>
             <Avatar
@@ -71,13 +79,16 @@ function AssigneeStack({ people }: { people: ChecklistPerson[] }) {
             />
           </span>
         ))}
-        {remaining > 0 && (
+        {!compact && remaining > 0 && (
           <span className="-ml-2 inline-flex size-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground ring-2 ring-card">
             +{remaining}
           </span>
         )}
       </div>
-      <span className="max-w-24 truncate text-xs text-muted-foreground">
+      <span
+        className="max-w-24 truncate text-xs text-muted-foreground"
+        title={people.map((person) => person.name).join(", ")}
+      >
         {visible[0].name.split(" ")[0]}
         {people.length > 1 ? ` +${people.length - 1}` : ""}
       </span>
@@ -265,66 +276,62 @@ export function ChecklistGrid({
               <Link
                 key={row.inspection.id}
                 href={`/checklist/${row.inspection.id}`}
-                className="group flex flex-col gap-2 p-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                className="group flex min-w-0 flex-col gap-2 p-4 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="line-clamp-2 text-sm font-medium text-foreground">
                       {row.inspection.templateName}
                     </span>
-                    <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                      <MapPin
-                        className="size-3.5 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span className="truncate">
-                        {row.locationPath ?? row.inspection.locationName}
+                    <span
+                      className="flex min-w-0 items-start gap-1 text-xs text-muted-foreground"
+                      title={row.locationPath ?? row.inspection.locationName}
+                    >
+                      <MapPin className="size-4 shrink-0" aria-hidden="true" />
+                      <span className="line-clamp-2">
+                        {(row.locationPath ?? row.inspection.locationName)
+                          .split(" / ")
+                          .slice(-2)
+                          .join(" / ")}
                       </span>
                     </span>
                   </div>
-                  <span className="flex shrink-0 flex-col items-end gap-1">
-                    <ChecklistStatusBadge status={row.inspection.status} />
-                    {row.overdue && <ChecklistOverdueBadge />}
-                  </span>
+                  <ChecklistStatusBadge status={row.inspection.status} />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock3 className="size-3.5" aria-hidden="true" />
-                    <span
-                      className={
-                        row.overdue
-                          ? "font-medium text-destructive-foreground"
-                          : undefined
-                      }
-                    >
-                      {formatDateTime(row.inspection.dueAt, "d MMM, HH:mm")}
-                    </span>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    <Clock3 className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="sr-only">Deadline </span>
+                    {formatDateTime(row.inspection.dueAt, "d MMM, HH:mm")}
                   </span>
-                  <span aria-hidden="true">·</span>
-                  <span className="tabular-nums">
-                    {row.answeredCount}/{row.totalItems} item
-                  </span>
+                  {row.overdue && <ChecklistOverdueBadge />}
                   {row.openFollowUps > 0 && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span>{row.openFollowUps} temuan</span>
-                    </>
+                    <span className="font-medium text-foreground tabular-nums">
+                      {row.openFollowUps} temuan
+                    </span>
                   )}
                 </div>
 
-                <ProgressBar
-                  value={row.answeredCount}
-                  max={row.totalItems}
-                  tone={
-                    row.answeredCount === row.totalItems
-                      ? "success"
-                      : "primary"
-                  }
-                />
-
-                <div className="flex items-center justify-between gap-3">
-                  <AssigneeStack people={row.assignees} />
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                      {row.answeredCount}/{row.totalItems}
+                      <span className="sr-only"> item terisi</span>
+                    </span>
+                    {row.totalItems > 0 && (
+                      <ProgressBar
+                        value={row.answeredCount}
+                        max={row.totalItems}
+                        tone={
+                          row.answeredCount === row.totalItems
+                            ? "success"
+                            : "primary"
+                        }
+                      />
+                    )}
+                  </div>
+                  <AssigneeStack people={row.assignees} compact />
                   <ChevronRight
                     className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground"
                     aria-hidden="true"

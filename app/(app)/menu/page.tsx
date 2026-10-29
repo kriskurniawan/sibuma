@@ -8,7 +8,6 @@ import {
   QrCode,
   ScrollText,
   Settings2,
-  ShieldCheck,
   SlidersHorizontal,
   UsersRound,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { IconTile } from "@/components/reui/icon-tile";
 import { Avatar } from "@/components/ui";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
@@ -142,29 +140,28 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
 
 function MenuGroup({ group }: { group: MenuGroupData }) {
   return (
-    <Frame stacked spacing="sm">
+    <Frame stacked spacing="default" className="min-w-0">
       <FrameHeader>
         <FrameTitle>{group.title}</FrameTitle>
-        <FrameDescription className="text-xs">
+        <FrameDescription className="hidden text-xs md:block">
           {group.description}
         </FrameDescription>
       </FrameHeader>
-      <FramePanel className="p-0">
-        <div className="divide-y divide-border/70">
+      <FramePanel>
+        <nav aria-label={group.title} className="divide-y divide-border">
           {group.items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+              className="group flex min-w-0 items-center gap-3 py-3 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              <IconTile variant="soft" size="sm" aria-hidden="true">
-                <item.icon strokeWidth={2} />
-              </IconTile>
+              <item.icon
+                className="size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="text-sm font-medium text-foreground">
-                  {item.label}
-                </span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="text-sm font-medium">{item.label}</span>
+                <span className="hidden text-xs text-muted-foreground md:block">
                   {item.description}
                 </span>
               </span>
@@ -174,7 +171,7 @@ function MenuGroup({ group }: { group: MenuGroupData }) {
               />
             </Link>
           ))}
-        </div>
+        </nav>
       </FramePanel>
     </Frame>
   );
@@ -208,12 +205,14 @@ export default async function MenuPage() {
     .filter((group) => group.items.length > 0);
 
   return (
-    <div className="flex flex-col gap-5 md:gap-6">
-      <Frame spacing="sm">
-        <FramePanel className="p-0">
+    <div className="flex min-w-0 flex-col gap-6">
+      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Menu</h1>
+      <Frame spacing="default">
+        <FramePanel>
           <Link
             href="/profil"
-            className="group flex items-center gap-3 p-4 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+            aria-label={`Profil ${user.name}`}
+            className="group flex min-w-0 items-center gap-3 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <Avatar
               name={user.name}
@@ -225,8 +224,13 @@ export default async function MenuPage() {
               <span className="truncate text-sm font-semibold text-foreground">
                 {user.name}
               </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {ROLE_LABEL[user.role]} · NIK {user.nik}
+              <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>{ROLE_LABEL[user.role]}</span>
+                <span
+                  aria-hidden="true"
+                  className="size-1 shrink-0 rounded-full bg-muted-foreground/40"
+                />
+                <span>Lihat profil</span>
               </span>
             </span>
             <ChevronRight
@@ -237,26 +241,18 @@ export default async function MenuPage() {
         </FramePanel>
       </Frame>
 
-      {groups.map((group) => (
-        <MenuGroup key={group.title} group={group} />
-      ))}
+      <div className="grid min-w-0 items-start gap-6 lg:grid-cols-2">
+        {groups.map((group) => (
+          <MenuGroup key={group.title} group={group} />
+        ))}
+      </div>
 
-      <Frame stacked spacing="sm">
-        <FrameHeader>
-          <FrameTitle>Akun</FrameTitle>
-          <FrameDescription className="text-xs">
-            Keluar akan mengakhiri sesi pada perangkat ini. Kamu perlu kode OTP
-            baru untuk masuk kembali.
-          </FrameDescription>
-        </FrameHeader>
-        <FramePanel>
-          <div className="flex flex-col gap-3">
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <ShieldCheck className="size-3.5" aria-hidden="true" />
-              Sesi aman · jejak audit aktif
-            </p>
-            <ProfileActions />
-          </div>
+      <Frame spacing="default">
+        <FramePanel className="flex flex-col gap-3">
+          <ProfileActions />
+          <p className="text-xs text-muted-foreground">
+            Keluar mengakhiri sesi perangkat ini. Perlu OTP baru untuk masuk kembali.
+          </p>
         </FramePanel>
       </Frame>
     </div>

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
+import { MobileSummary } from "@/components/mobile-summary";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
@@ -179,20 +180,31 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
       <PageHeader
         eyebrow="Administrasi organisasi"
         title="Akun atasan."
-        description="Buat dan perbarui akun atasan. Setiap atasan mengelola tim, divisi, SPKL, dan checklist miliknya sendiri."
+        description="Kelola akun dan hak akses atasan."
+        descriptionClassName="hidden md:block"
         action={
-          <Button type="button" onClick={openAdd}>
+          <Button type="button" size="sm" onClick={openAdd}>
             <UserPlus aria-hidden="true" />
             Tambah atasan
           </Button>
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MobileSummary
+        columns={3}
+        className="md:hidden"
+        items={[
+          { label: "Atasan", value: totals.supervisors },
+          { label: "Tim berjalan", value: totals.teams },
+          { label: "Divisi", value: totals.divisions },
+        ]}
+      />
+
+      <div className="hidden gap-3 md:grid md:grid-cols-3">
         <StatCard
           label="Akun atasan"
           value={totals.supervisors}
@@ -216,7 +228,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
         />
       </div>
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Daftar atasan</FrameTitle>
@@ -268,7 +280,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
         description={
           editing
             ? `${editing.employee.name} · ${editing.employee.nik}`
-            : "Atasan dapat langsung masuk dengan WhatsApp atau email terdaftar setelah akun dibuat."
+            : "WhatsApp dan email terdaftar digunakan untuk login."
         }
         size="md"
         dismissible={!saving}
@@ -431,8 +443,8 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
             </Select>
             <p className="text-xs leading-relaxed text-muted-foreground">
               {form.accessMode === "read_only"
-                ? "Atasan hanya dapat melihat data timnya sendiri. Tambah, ubah, hapus, absensi, checklist, dan unggah foto dinonaktifkan."
-                : "Atasan dapat mengelola SPKL, tim, absensi, dan checklist timnya sendiri."}
+                ? "Hanya melihat data tim sendiri; semua perubahan dinonaktifkan."
+                : "Mengelola SPKL, tim, absensi, dan checklist tim sendiri."}
             </p>
           </div>
         </form>

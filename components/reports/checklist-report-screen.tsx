@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Download,
   FileBarChart2,
+  FileSpreadsheet,
   LayoutList,
   RotateCcw,
   Search,
@@ -142,9 +143,22 @@ export async function ChecklistReportScreen({
         <PageHeader
           eyebrow="Rekap checklist"
           title="Laporan checklist."
-          description="Tinjau pemeriksaan berdasarkan periode jatuh tempo, termasuk checklist yang belum selesai. Unduh rekap atau rincian item untuk arsip."
+          description="Tinjau pemeriksaan berdasarkan periode jatuh tempo, termasuk checklist yang belum selesai. Unduh Excel berisi rekap dan rincian item, CSV untuk integrasi, atau cetak PDF untuk arsip."
           action={
             <div className="flex flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={
+                  <a
+                    href={`/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), kind: "laporan", format: "xlsx" }).toString()}`}
+                  />
+                }
+              >
+                <FileSpreadsheet aria-hidden="true" />
+                Unduh Excel
+              </Button>
               <Button
                 variant="outline"
                 size="sm"

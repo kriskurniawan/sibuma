@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { ChevronRight, Clock3, MapPin, Pencil } from "lucide-react";
 import { useTable, type ColumnDef } from "@tanstack/react-table";
 import type { PageRequest } from "@/lib/pagination";
 import {
@@ -26,7 +26,10 @@ import {
 } from "@/components/checklist/checklist-badges";
 import { ChecklistFollowUpUpdateDialog } from "@/components/checklist/follow-up-update-dialog";
 import { formatDateHuman } from "@/lib/time";
-import type { ChecklistFollowUpRow } from "@/lib/checklist-types";
+import {
+  CHECKLIST_PRIORITY_LABEL,
+  type ChecklistFollowUpRow,
+} from "@/lib/checklist-types";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -153,6 +156,7 @@ const columns = (
           meta: { headerClassName: "w-24", cellClassName: "text-right" },
           cell: ({ row }) => (
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={() => onEdit(row.original)}
@@ -223,81 +227,83 @@ export function ChecklistFollowUpGrid({
                 role="status"
                 aria-label="Memuat tindak lanjut"
               >
-                <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-16 w-full" />
+                <div className="flex items-start justify-between gap-3">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-5 w-20" />
+                </div>
+                <Skeleton className="h-3 w-48" />
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="size-6 rounded-full" />
+                  <Skeleton className="h-4 w-16" />
+                </div>
               </div>
             ) : (
               pageRows.map((row) => (
-                <article key={row.followUp.id} className="flex flex-col gap-3 p-4">
+                <article
+                  key={row.followUp.id}
+                  className="group relative flex min-w-0 flex-col gap-2 p-4 transition-colors hover:bg-muted/40"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <Link
                         href={`/checklist/${row.inspection.id}`}
-                        className="block truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
+                        className="line-clamp-2 text-sm font-medium text-foreground after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
                       >
                         {row.followUp.title}
                       </Link>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {row.inspection.templateName} ·{" "}
-                        {row.inspection.locationName}
-                      </p>
-                    </div>
-                    <ChecklistFollowUpBadge
-                      status={row.followUp.status}
-                      className="shrink-0"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 rounded-md bg-muted/50 px-3 py-2.5">
-                    <div>
-                      <p className="text-xs text-muted-foreground">PIC</p>
-                      <p className="mt-0.5 truncate text-sm font-medium text-foreground">
-                        {row.pic?.name ?? "Tanpa PIC"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Prioritas</p>
-                      <div className="mt-0.5">
-                        <ChecklistPriorityBadge priority={row.followUp.priority} />
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Deadline</p>
-                      <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
-                        {row.followUp.dueDate
-                          ? formatDateHuman(
-                              dueIso(row.followUp.dueDate),
-                              "d MMM yyyy",
-                            )
-                          : "—"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Item asal</p>
-                      <p className="mt-0.5 truncate text-sm text-foreground">
-                        {row.prompt ?? "Umum"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    {row.overdue ? (
-                      <ChecklistOverdueBadge />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Dibuat {row.creatorName ?? "—"}
+                      <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                        <MapPin className="size-4 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{row.inspection.locationName}</span>
                       </span>
+                    </div>
+                    <ChecklistFollowUpBadge status={row.followUp.status} />
+                  </div>
+
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    {row.prompt || "Umum"} ({row.inspection.templateName})
+                  </p>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1 tabular-nums">
+                      <Clock3 className="size-4 shrink-0" aria-hidden="true" />
+                      <span className="sr-only">Deadline </span>
+                      {row.followUp.dueDate
+                        ? formatDateHuman(dueIso(row.followUp.dueDate), "d MMM yyyy")
+                        : "Tanpa deadline"}
+                    </span>
+                    {row.overdue && <ChecklistOverdueBadge />}
+                    <span>
+                      <span className="sr-only">Prioritas </span>
+                      {CHECKLIST_PRIORITY_LABEL[row.followUp.priority]}
+                    </span>
+                  </div>
+
+                  <div className="flex min-w-0 items-center justify-between gap-3">
+                    {row.pic ? (
+                      <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+                        <Avatar name={row.pic.name} seed={row.pic.id} size="xs" />
+                        <span className="truncate">{row.pic.name}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Tanpa PIC</span>
                     )}
-                    {canEdit && (
+                    {canEdit ? (
                       <Button
+                        type="button"
                         size="sm"
-                        variant="outline"
+                        variant="ghost"
+                        className="relative z-10"
                         onClick={() => setSelected(row)}
                         disabled={row.followUp.status === "dibatalkan"}
                       >
                         <Pencil aria-hidden="true" />
                         Perbarui
                       </Button>
+                    ) : (
+                      <ChevronRight
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
                     )}
                   </div>
                 </article>

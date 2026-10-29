@@ -6,6 +6,7 @@ import {
   ListChecks,
   LoaderCircle,
 } from "lucide-react";
+import { MobileSummary } from "@/components/mobile-summary";
 import {
   Frame,
   FrameDescription,
@@ -40,7 +41,7 @@ export function ChecklistFollowUpView({
 }) {
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="hidden items-center justify-between gap-2 md:flex">
         <Button
           size="sm"
           variant="ghost"
@@ -52,13 +53,31 @@ export function ChecklistFollowUpView({
         </Button>
       </div>
 
-      <PageHeader
-        eyebrow="Operasional"
-        title="Tindak lanjut"
-        description="Temuan dibuat manual oleh tim dan dipantau terpisah dari status checklist. PIC dapat memperbarui progres dan menutup tindak lanjut tanpa persetujuan atasan."
+      <div className="hidden md:block">
+        <PageHeader
+          eyebrow="Operasional"
+          title="Tindak lanjut"
+          description="Pantau temuan dan progres penanganan PIC."
+        />
+      </div>
+
+      <h1 className="sr-only md:hidden">Tindak lanjut</h1>
+
+      <MobileSummary
+        className="md:hidden"
+        items={[
+          { label: "Belum selesai", value: totals.open, icon: ListChecks },
+          { label: "Diproses", value: totals.inProgress, icon: LoaderCircle },
+          { label: "Terlambat", value: totals.overdue, icon: Clock3 },
+          {
+            label: "Selesai bulan ini",
+            value: totals.doneThisMonth,
+            icon: CheckCircle2,
+          },
+        ]}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="hidden grid-cols-2 gap-4 md:grid xl:grid-cols-4">
         <StatCard
           label="Belum selesai"
           value={totals.open}
@@ -98,8 +117,7 @@ export function ChecklistFollowUpView({
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Daftar tindak lanjut</FrameTitle>
             <FrameDescription className="text-xs">
-              {total} tindak lanjut sesuai filter. Satu item bermasalah hanya
-              memiliki satu tindak lanjut aktif.
+              {total} temuan sesuai filter.
             </FrameDescription>
           </div>
         </FrameHeader>
@@ -115,8 +133,8 @@ export function ChecklistFollowUpView({
               title="Tidak ada tindak lanjut"
               description={
                 canEdit
-                  ? "Buat tindak lanjut dari item checklist yang berstatus perlu perhatian atau tidak baik. Temuan tidak dibuat otomatis."
-                  : "Belum ada temuan untuk tim ini. Tindak lanjut akan tampil di sini setelah dibuat oleh tim."
+                  ? "Tambahkan temuan dari item checklist yang bermasalah."
+                  : "Belum ada temuan untuk tim ini."
               }
               action={
                 <Button

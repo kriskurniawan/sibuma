@@ -8,15 +8,15 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Download,
   History,
+  MapPin,
   Search,
   TimerReset,
   X,
 } from "lucide-react";
+import { MobileSummary } from "@/components/mobile-summary";
 import {
   Frame,
-  FrameDescription,
   FrameFooter,
   FrameHeader,
   FramePanel,
@@ -24,6 +24,7 @@ import {
 } from "@/components/reui/frame";
 import {
   AttendanceBadge,
+  Avatar,
   EmptyState,
   PageHeader,
   SpklStatusBadge,
@@ -52,54 +53,72 @@ const FILTERS: Array<{ value: "semua" | SpklStatus; label: string }> = [
 ];
 
 function HistoryRow({ item }: { item: SpklListItem }) {
-  const { spkl, status, myAttendance, documentationCount } = item;
+  const { spkl, status, myAttendance, documentationCount, creator } = item;
 
   return (
     <Link
       href={`/spkl/${spkl.id}`}
       className={cn(
-        "group -mx-4 flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none",
+        "group flex min-w-0 items-start gap-3 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none",
         status === "dibatalkan" && "opacity-70",
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="min-w-0 text-sm font-medium text-foreground">
-            {spkl.title}
-          </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="line-clamp-2 text-sm font-medium text-foreground">
+              {spkl.title}
+            </span>
+            <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+              <MapPin className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">
+                {spkl.location.address || "Titik lokasi kerja"}
+              </span>
+            </span>
+            <span className="hidden text-xs text-muted-foreground md:block">
+              {spkl.number}
+            </span>
+          </div>
           {myAttendance ? (
             <AttendanceBadge status={myAttendance.status} />
           ) : (
             <SpklStatusBadge status={status} />
           )}
         </div>
-        <span className="truncate text-xs font-medium text-muted-foreground">
-          {spkl.number}
-        </span>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <CalendarDays className="size-3.5 shrink-0" />
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
             {formatDateHuman(spkl.startAt, "d MMM yyyy")}
           </span>
-          <span className="flex items-center gap-1">
-            <Clock3 className="size-3.5 shrink-0" />
-            <span className="tabular-nums">
-              {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)} WIB
-            </span>
+          <span className="tabular-nums">
+            {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)} WIB
           </span>
-          <span className="flex items-center gap-1">
-            <TimerReset className="size-3.5 shrink-0" />
-            <span className="tabular-nums">
-              {durationLabel(myAttendance?.durationMinutes ?? null)}
-            </span>
+          <span className="inline-flex items-center gap-1 tabular-nums">
+            <TimerReset className="size-4 shrink-0" aria-hidden="true" />
+            <span className="sr-only">Durasi </span>
+            {durationLabel(myAttendance?.durationMinutes ?? null)}
           </span>
-          <span className="flex items-center gap-1">
-            <Camera className="size-3.5 shrink-0" />
+          <span className="text-xs tabular-nums md:hidden">{spkl.number}</span>
+        </div>
+        <div className="flex min-w-0 items-center justify-between gap-3">
+          {creator ? (
+            <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              <Avatar name={creator.name} seed={creator.id} size="xs" />
+              <span className="truncate">
+                <span className="sr-only">PIC </span>
+                {creator.name}
+              </span>
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Tanpa PIC</span>
+          )}
+          <span className="inline-flex shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">
+            <Camera className="size-4" aria-hidden="true" />
             {documentationCount} foto
+            <ChevronRight className="size-4" aria-hidden="true" />
           </span>
         </div>
       </div>
-      <ChevronRight className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
     </Link>
   );
 }
@@ -150,13 +169,51 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow="Arsip pribadi"
-        title="Riwayat lembur."
-        description="Semua SPKL yang pernah dan akan kamu jalani, lengkap dengan durasi, kehadiran, dan dokumentasi."
+      <div className="hidden md:block">
+        <PageHeader
+          eyebrow="Arsip pribadi"
+          title="Riwayat lembur."
+          description="Semua SPKL yang pernah dan akan kamu jalani, lengkap dengan durasi, kehadiran, dan dokumentasi."
+        />
+      </div>
+
+      <h1 className="sr-only md:hidden">Riwayat lembur</h1>
+
+      <MobileSummary
+        className="md:hidden"
+        columns={3}
+        items={[
+          {
+            label: "Bulan ini",
+            value: (
+              <span className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
+                <span className="sr-only">
+                  {Math.floor(overview.stats.monthlyMinutes / 60)} jam{" "}
+                  {overview.stats.monthlyMinutes % 60} menit
+                </span>
+                <span className="inline-flex items-baseline gap-1" aria-hidden="true">
+                  {Math.floor(overview.stats.monthlyMinutes / 60)}
+                  <span className="text-xs font-medium text-muted-foreground">j</span>
+                </span>
+                <span className="inline-flex items-baseline gap-1" aria-hidden="true">
+                  {overview.stats.monthlyMinutes % 60}
+                  <span className="text-xs font-medium text-muted-foreground">m</span>
+                </span>
+              </span>
+            ),
+          },
+          {
+            label: "Sesi selesai",
+            value: overview.stats.completedSessions,
+          },
+          {
+            label: "Dokumentasi",
+            value: overview.stats.documentationCount,
+          },
+        ]}
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="hidden grid-cols-1 gap-3 md:grid md:grid-cols-3">
         <StatCard
           label="Total bulan ini"
           value={Math.floor(overview.stats.monthlyMinutes / 60)}
@@ -183,14 +240,9 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
         />
       </div>
 
-      <Frame>
+      <Frame spacing="default">
         <FrameHeader className="gap-3">
-          <div className="flex flex-col gap-1">
-            <FrameTitle>Riwayat per bulan</FrameTitle>
-            <FrameDescription className="text-xs">
-              Dikelompokkan berdasarkan bulan mulai, terbaru di atas.
-            </FrameDescription>
-          </div>
+          <FrameTitle>Riwayat per bulan</FrameTitle>
 
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="no-scrollbar -mx-1 min-w-0 overflow-x-auto px-1">
@@ -229,6 +281,7 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
               {search && (
                 <InputGroupAddon align="inline-end">
                   <InputGroupButton
+                    type="button"
                     size="icon-xs"
                     onClick={() => setSearch("")}
                     aria-label="Hapus pencarian"
@@ -299,23 +352,15 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
           </FramePanel>
         )}
 
-        <FrameFooter className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex items-start gap-2">
-            <Download className="mt-0.5 size-3.5 shrink-0" />
-            Butuh rekap untuk keperluan pribadi? Hubungi atasanmu untuk ekspor
-            laporan tim.
-          </p>
-          <p className="flex items-center gap-2">
-            <Clock3 className="size-3 shrink-0" />
-            Semua waktu dalam WIB
-          </p>
+        <FrameFooter className="flex flex-wrap items-start gap-2 text-xs text-muted-foreground sm:flex-row sm:justify-between">
+          <p>Ekspor rekap melalui atasan.</p>
+          <p>Waktu dalam WIB</p>
         </FrameFooter>
       </Frame>
 
       {overview.items.some((item) => item.status === "berlangsung") && (
         <p className="text-center text-xs font-medium text-muted-foreground">
-          Kamu memiliki sesi aktif. Buka detail SPKL untuk absen pulang atau
-          menambah dokumentasi.
+          Sesi aktif: buka SPKL untuk absen pulang.
         </p>
       )}
     </div>

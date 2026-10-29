@@ -359,6 +359,7 @@ export function ChecklistDetail({
       <PageHeader
         eyebrow={`${inspection.category} · ${inspection.periodLabel}`}
         title={inspection.templateName}
+        descriptionClassName="hidden md:block"
         description={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="inline-flex items-center gap-1">
@@ -412,8 +413,7 @@ export function ChecklistDetail({
 
       {detail.readOnly && (
         <InfoBanner tone="info" icon={Eye}>
-          Akun ini hanya dapat melihat data. Pengisian, penyelesaian, dan
-          tindak lanjut checklist dilakukan oleh tim.
+          Hanya lihat. Perubahan dilakukan oleh tim.
         </InfoBanner>
       )}
 
@@ -423,7 +423,7 @@ export function ChecklistDetail({
           {inspection.completedAt
             ? ` pada ${formatDateTime(inspection.completedAt)}`
             : ""}
-          . Temuan yang belum ditindaklanjuti tetap tercatat di tindak lanjut.
+          . Temuan terbuka tetap tercatat.
         </InfoBanner>
       )}
 
@@ -457,7 +457,7 @@ export function ChecklistDetail({
             tone={answered === total && total > 0 ? "success" : "primary"}
           />
 
-          <dl className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-4">
             <div className="flex flex-col gap-0.5">
               <dt className="text-xs text-muted-foreground">Lokasi</dt>
               <dd className="text-sm font-medium text-foreground">
@@ -480,12 +480,12 @@ export function ChecklistDetail({
               </dd>
             </div>
             <div className="flex flex-col gap-0.5">
-              <dt className="text-xs text-muted-foreground">Dibuat oleh</dt>
+              <dt className="text-xs text-muted-foreground">Pembuat</dt>
               <dd className="text-sm font-medium text-foreground">
                 {detail.ownerName ?? "—"}
               </dd>
             </div>
-            <div className="flex flex-col gap-1 sm:col-span-2">
+            <div className="col-span-2 flex flex-col gap-1">
               <dt className="text-xs text-muted-foreground">
                 Tim yang ditugaskan
               </dt>
@@ -521,7 +521,7 @@ export function ChecklistDetail({
                 )}
               </dd>
             </div>
-            <div className="flex flex-col gap-0.5 sm:col-span-2">
+            <div className="col-span-2 flex flex-col gap-0.5">
               <dt className="text-xs text-muted-foreground">Jadwal</dt>
               <dd className="flex items-center gap-1.5 text-sm font-medium text-foreground">
                 <UsersRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
@@ -547,8 +547,8 @@ export function ChecklistDetail({
             <FrameTitle>Item checklist</FrameTitle>
             <FrameDescription className="text-xs">
               {closed
-                ? "Hasil pemeriksaan tersimpan sebagai riwayat."
-                : "Semua anggota tim yang ditugaskan boleh mengisi item. Setiap item disimpan sendiri agar tidak saling menimpa."}
+                ? "Hasil pemeriksaan tersimpan."
+                : "Isi dan simpan setiap item pemeriksaan."}
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
@@ -707,8 +707,7 @@ export function ChecklistDetail({
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Tindak lanjut</FrameTitle>
             <FrameDescription className="text-xs">
-              Tindak lanjut dibuat manual dari item bermasalah. Statusnya
-              terpisah dari status checklist.
+              Temuan dan progres perbaikan.
             </FrameDescription>
           </div>
           <Button
@@ -732,7 +731,7 @@ export function ChecklistDetail({
               title="Belum ada tindak lanjut"
               description={
                 detail.canFill
-                  ? "Bila ada temuan, buat tindak lanjut dari item yang bermasalah atau dari tombol di atas."
+                  ? "Tambahkan temuan dari item yang bermasalah."
                   : "Temuan yang perlu diperbaiki akan muncul di sini."
               }
             />
@@ -889,9 +888,8 @@ export function ChecklistDetail({
               : " Semua item wajib sudah terisi."}
           </p>
           <p>
-            Pastikan catatan temuan dan foto yang diwajibkan sudah lengkap.
-            Temuan yang belum diperbaiki tidak menghalangi penyelesaian dan
-            tetap tercatat sebagai tindak lanjut.
+            Temuan terbuka tidak menghalangi penyelesaian dan tetap tercatat
+            sebagai tindak lanjut.
           </p>
         </div>
       </Modal>

@@ -1,9 +1,7 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import {
   CalendarClock,
   CheckCircle2,
-  ChevronRight,
   ClipboardList,
   Clock3,
   ListChecks,
@@ -14,6 +12,7 @@ import { ChecklistFilterBar } from "@/components/checklist/checklist-filters";
 import { ChecklistGrid } from "@/components/checklist/checklist-grid";
 import { ChecklistMobileFilters } from "@/components/checklist/checklist-mobile-filters";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
+import { MobileSummary } from "@/components/mobile-summary";
 import {
   Frame,
   FrameDescription,
@@ -33,51 +32,6 @@ import type {
   ChecklistInspectionRow,
   ChecklistTotals,
 } from "@/lib/checklist-types";
-import { cn } from "@/lib/utils";
-
-function MobileStat({
-  label,
-  value,
-  href,
-  className,
-}: {
-  label: ReactNode;
-  value: number;
-  href?: string;
-  className?: string;
-}) {
-  const content = (
-    <>
-      <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-        {label}
-        {href && (
-          <ChevronRight className="size-3.5" aria-hidden="true" />
-        )}
-      </span>
-      <span className="text-xl font-semibold tracking-tight text-foreground tabular-nums">
-        {value}
-      </span>
-    </>
-  );
-
-  const classes = cn("flex min-w-0 flex-col gap-0.5 p-3", className);
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className={cn(
-          classes,
-          "transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none",
-        )}
-      >
-        {content}
-      </Link>
-    );
-  }
-
-  return <div className={classes}>{content}</div>;
-}
 
 export function ChecklistView({
   items,
@@ -109,7 +63,7 @@ export function ChecklistView({
         <PageHeader
           eyebrow="Operasional"
           title="Checklist"
-          description="Jadwal pemeriksaan rutin lintas operasional. Semua anggota tim yang ditugaskan dapat mengisi item yang sama tanpa saling menimpa."
+          description="Pemeriksaan rutin dan progres pekerjaan tim."
           action={
             <div className="flex flex-wrap items-center gap-2">
               <Button
@@ -153,32 +107,37 @@ export function ChecklistView({
         />
       </div>
 
-      <Frame className="md:hidden" spacing="sm">
-        <FramePanel className="p-0">
-          <div className="grid grid-cols-2">
-            <MobileStat
-              label="Perlu dikerjakan"
-              value={totals.todo}
-              className="border-r border-b border-border/70"
-            />
-            <MobileStat
-              label="Terlambat"
-              value={totals.overdue}
-              className="border-b border-border/70"
-            />
-            <MobileStat
-              label="Selesai bulan ini"
-              value={totals.completedThisMonth}
-              className="border-r border-border/70"
-            />
-            <MobileStat
-              label="Tindak lanjut"
-              value={totals.openFollowUps}
-              href="/checklist/tindak-lanjut"
-            />
-          </div>
-        </FramePanel>
-      </Frame>
+      <MobileSummary
+        className="md:hidden"
+        items={[
+          {
+            label: "Perlu dikerjakan",
+            value: totals.todo,
+            icon: ClipboardList,
+            href: "/checklist?status=aktif",
+            ariaLabel: `Buka ${totals.todo} checklist aktif`,
+          },
+          {
+            label: "Terlambat",
+            value: totals.overdue,
+            icon: Clock3,
+            href: "/checklist?status=terlambat",
+            ariaLabel: `Buka ${totals.overdue} checklist terlambat`,
+          },
+          {
+            label: "Selesai bulan ini",
+            value: totals.completedThisMonth,
+            icon: CheckCircle2,
+          },
+          {
+            label: "Tindak lanjut",
+            value: totals.openFollowUps,
+            icon: ListChecks,
+            href: "/checklist/tindak-lanjut",
+            ariaLabel: `Buka tindak lanjut, ${totals.openFollowUps} belum selesai`,
+          },
+        ]}
+      />
 
       <div className="hidden grid-cols-2 gap-4 md:grid xl:grid-cols-4">
         <StatCard
@@ -220,8 +179,7 @@ export function ChecklistView({
           <div className="flex min-w-0 flex-col gap-0.5">
             <FrameTitle>Daftar checklist</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
-              {total} checklist sesuai filter. Deadline dihitung otomatis dari
-              kalender, bukan dari status manual.
+              {total} checklist sesuai filter.
             </FrameDescription>
           </div>
           <span className="text-xs text-muted-foreground tabular-nums md:hidden">
@@ -244,10 +202,10 @@ export function ChecklistView({
               title="Belum ada checklist"
               description={
                 canManage
-                  ? "Buat template, tetapkan lokasi, lalu atur jadwal agar checklist muncul otomatis di sini."
+                  ? "Atur jadwal untuk mulai pemeriksaan rutin."
                   : readOnly
-                    ? "Belum ada checklist untuk tim ini. Checklist muncul otomatis setelah atasan membuat jadwal."
-                    : "Belum ada checklist yang ditugaskan kepadamu. Hubungi atasan bila seharusnya ada."
+                    ? "Belum ada pemeriksaan terjadwal untuk tim ini."
+                    : "Belum ada penugasan. Hubungi atasan jika diperlukan."
               }
               action={
                 canManage ? (

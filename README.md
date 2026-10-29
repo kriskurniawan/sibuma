@@ -33,12 +33,12 @@ Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan di
 - Mengoreksi jam masuk/pulang dengan **alasan wajib** (10–500 karakter); koreksi masuk jejak audit.
 - Laporan dan rekap dengan filter tanggal, pekerja, SPKL, status, dan pencarian.
 - Form jadwal SPKL, koreksi absensi, dan filter laporan memakai pemilih tanggal/jam ReUI (bukan input native).
-- Ekspor **CSV** dan cetak **PDF** melalui dialog cetak browser.
+- Ekspor **Excel (`.xlsx`)** dan **CSV**, serta cetak **PDF** melalui dialog cetak browser.
 - Mengelola tim (tambah, ubah, nonaktifkan pekerja) terpisah dari kebijakan lembur, yang diatur di halaman **Pengaturan**.
 - Mengelola **checklist operasional**: lokasi/area bertingkat (mis. **Lantai 2 → Ruang Hydrant**), template berversi dengan grup + sub-item (maksimal 2 tingkat, 100 item dan 30 grup per template; grup wajib punya minimal satu sub-item), panduan, wajib isi, kebijakan foto, dan catatan wajib, serta jadwal fleksibel—harian, mingguan, 2 mingguan, bulanan, 3 bulanan, atau kustom setiap N hari/minggu/bulan. Jadwal mengikuti kalender tetap: keterlambatan tidak menggeser tanggal berikutnya dan tanggal 29–31 memakai hari terakhir bulan. Pemilih anggota jadwal dikelompokkan per divisi dan tetap nyaman untuk tim besar: pencarian nama/NIK, filter divisi, preview 20 anggota per divisi dengan **Tampilkan 20 lagi**, pilih semua hasil filter, ringkasan jumlah per divisi, serta penggabungan anggota lintas divisi secara custom. Maksimal **500 anggota per jadwal** (disimpan dengan insert massal); tim yang lebih besar dibagi ke beberapa jadwal.
 - Memantau checklist yang dikerjakan tim bersama, membuka kembali checklist selesai dengan alasan, serta meninjau tindak lanjut temuan. Status temuan terpisah dari status checklist, dan **terlambat** dihitung otomatis dari deadline.
 - Menerbitkan **QR area publik**—satu QR umum untuk memilih area atau QR khusus satu area—yang dapat dipindai pengunjung tanpa login. Visibilitas diatur per area dan per item dengan default **nonpublik**; catatan, foto, dan identitas petugas tidak pernah ditampilkan.
-- Melaporkan **checklist dan tindak lanjut** selain lembur melalui tab terpisah, lengkap dengan filter, CSV rekap, CSV rincian item, CSV tindak lanjut, serta cetak/PDF.
+- Melaporkan **checklist dan tindak lanjut** selain lembur melalui tab terpisah, lengkap dengan filter, Excel (rekap + rincian item), CSV rekap, CSV rincian item, CSV tindak lanjut, serta cetak/PDF.
 - Melihat **log audit** dan **outbox WhatsApp** untuk notifikasi SPKL, dibatasi pada dirinya, timnya, dan catatan yang ia miliki. Kode OTP tidak dicatat di outbox.
 
 ### Sistem
@@ -109,7 +109,7 @@ Buka `http://localhost:3000`.
 
 `npm run db:init` hanya untuk database kosong; membuat tabel relasional dan satu akun super admin awal dari environment. Semua tabel harus kosong dan `--force` ditolak. Super admin membuat akun atasan lewat menu **Akun atasan**; atasan kemudian menambahkan pekerja dan divisi lewat menu **Tim**. Untuk instalasi lama gunakan `npm run db:migrate:relational -- --apply`, bukan init/reset.
 
-Mode akses atasan memakai migrasi terpisah: `npm run db:migrate:access-mode` (DDL `db/migrations/011_employee_access_mode.sql`) menambahkan kolom `employees.access_mode` dengan nilai `full` atau `read_only`. Atasan `read_only` tetap dapat melihat dashboard, SPKL, absensi, checklist, temuan, foto, laporan, cetak, dan ekspor CSV timnya sendiri, tetapi seluruh perubahan operasional (SPKL, tim/divisi, checklist, tindak lanjut, foto, koreksi absensi, profil) ditolak server dengan HTTP 403. Super admin mengatur mode ini lewat **Akun atasan → Hak akses**; perubahan berlaku pada request berikutnya tanpa perlu login ulang. Database baru lewat `db:init` sudah memuat kolom ini.
+Mode akses atasan memakai migrasi terpisah: `npm run db:migrate:access-mode` (DDL `db/migrations/011_employee_access_mode.sql`) menambahkan kolom `employees.access_mode` dengan nilai `full` atau `read_only`. Atasan `read_only` tetap dapat melihat dashboard, SPKL, absensi, checklist, temuan, foto, laporan, cetak, serta ekspor Excel/CSV timnya sendiri, tetapi seluruh perubahan operasional (SPKL, tim/divisi, checklist, tindak lanjut, foto, koreksi absensi, profil) ditolak server dengan HTTP 403. Super admin mengatur mode ini lewat **Akun atasan → Hak akses**; perubahan berlaku pada request berikutnya tanpa perlu login ulang. Database baru lewat `db:init` sudah memuat kolom ini.
 
 Modul checklist memakai migrasi terpisah: `npm run db:migrate:checklists` (DDL `db/migrations/004_checklists.sql`, `005_checklist_public.sql`, `006_checklist_item_groups.sql`, dan `008_checklist_conditions.sql`). Migrasi `007_remove_demo_status.sql` menghapus status `demo` dari OTP dan notifikasi; terapkan dengan `npm run db:migrate:remove-demo`. Database baru yang dibuat lewat `db:init` sudah memuat seluruh skema ini; database lama cukup menjalankan migrasi tersebut. Migrasi checklist menambah tabel/indeks checklist, kolom visibilitas publik, tabel QR, kolom grup item (`item_type`, `parent_item_id`, `group_path`), tabel status checklist (`checklist_conditions`), dan label audit baru, tanpa mengubah baris lama. Item/answer lama otomatis bernilai `item_type='item'` dan `group_path=''`; status lama (`baik`, `perlu_perhatian`, `tidak_baik`, `tidak_berlaku`) diisi sebagai status awal, sehingga inspection historis tetap valid. Status checklist dapat ditambah, diubah, diurutkan, dinonaktifkan, atau dihapus lewat **Pengaturan**; status yang sudah dipakai pada jawaban tidak dapat dihapus. Seluruh migrasi idempoten dan aman diulang.
 
@@ -235,7 +235,7 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Checklist: QR publik | Token acak permanen per QR; mode `pilih_area` menampilkan daftar area publik, mode `langsung` membuka satu area. QR dapat dinonaktifkan kapan saja tanpa mengganti token. |
 | Checklist: visibilitas | Default area dan item **nonpublik**. Pengunjung hanya melihat item yang ditandai publik pada inspection; catatan, foto, nama petugas, dan data internal tidak pernah dikirim ke halaman publik. |
 | Checklist: akses petugas | Scan QR bukan izin tulis. Petugas wajib login dan hanya mendapat tautan pengisian untuk inspection yang ditugaskan; atasan pemilik melihat semua tugas terbuka. |
-| Checklist: laporan | Periode memakai tanggal occurrence/jatuh tempo, bukan tanggal selesai, sehingga checklist yang belum selesai tetap dihitung. Tersedia rekap, rincian item, tindak lanjut, CSV, dan cetak. |
+| Checklist: laporan | Periode memakai tanggal occurrence/jatuh tempo, bukan tanggal selesai, sehingga checklist yang belum selesai tetap dihitung. Tersedia rekap, rincian item, tindak lanjut, Excel, CSV, dan cetak. |
 
 Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikoreksi`.
 
@@ -250,10 +250,10 @@ Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikor
 5. Buka SPKL, tekan **Absen masuk sekarang**, izinkan lokasi, lalu absen.
 6. Unggah dokumentasi jika diwajibkan.
 7. Tekan **Absen pulang** (masih di dalam radius).
-8. Masuk kembali sebagai atasan untuk melihat rekap di **Laporan**, mengunduh CSV, mencetak PDF, atau mengoreksi absensi.
+8. Masuk kembali sebagai atasan untuk melihat rekap di **Laporan**, mengunduh Excel/CSV, mencetak PDF, atau mengoreksi absensi.
 9. Buka **Checklist**, isi inspection yang ditugaskan. Sebagai atasan, buka **Checklist → QR area**, buat QR, lalu aktifkan area dan item yang boleh tampil ke pengunjung.
 10. Buka `/p/<token>` tanpa login untuk melihat tampilan pengunjung; masuk sebagai petugas yang ditugaskan untuk kembali ke area tersebut.
-11. Buka tab **Checklist** dan **Tindak lanjut** di **Laporan**, lalu unduh CSV rekap/rincian atau cetak PDF.
+11. Buka tab **Checklist** dan **Tindak lanjut** di **Laporan**, lalu unduh Excel/CSV rekap atau rincian, atau cetak PDF.
 12. Periksa **Log audit** dan **Outbox WhatsApp**.
 
 Untuk menguji check-in, browser harus diberi izin lokasi. Titik default kebijakan berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 WIB tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai.
@@ -270,7 +270,7 @@ app/
     spkl/                  Detail, buat, edit SPKL
     lembur/                Daftar SPKL & aksi operasional
     riwayat/               Riwayat pekerja
-    laporan/               Tab lembur, checklist, tindak lanjut + CSV + cetak
+    laporan/               Tab lembur, checklist, tindak lanjut + Excel/CSV + cetak
     checklist/             Checklist, detail, tindak lanjut, template, jadwal, QR
     tim/                   Pekerja & divisi
     pengaturan/            Kebijakan lembur
@@ -345,8 +345,8 @@ Ringkasan API utama:
 | `GET/POST /api/employees` | Daftar / tambah pekerja |
 | `PATCH /api/employees/:id` | Ubah / nonaktifkan pekerja |
 | `GET/PATCH /api/policy` | Baca / ubah kebijakan |
-| `GET /api/reports/export` | Unduh CSV rekap lembur |
-| `GET /api/reports/checklist/export` | CSV checklist: `kind=rekap`, `kind=item` (legacy `kind=butir`), atau `kind=tindak-lanjut` |
+| `GET /api/reports/export` | Unduh rekap lembur: CSV default, `format=xlsx` untuk workbook Excel (detail + ringkasan) |
+| `GET /api/reports/checklist/export` | Checklist: `kind=rekap`, `kind=item` (legacy `kind=butir`), `kind=tindak-lanjut`, atau `kind=laporan` (Excel rekap + rincian); `format=xlsx` untuk Excel |
 | `GET /api/health` | Health check |
 
 ---
@@ -374,21 +374,22 @@ Ringkasan API utama:
 ### Catatan skala
 
 - Tim/laporan memakai filter, limit/offset, dan agregasi SQL. Daftar dashboard dibatasi 200 SPKL dan beban tim 20 pekerja; KPI global dihitung di SQL.
-- Cetak/CSV adalah jalur eksplisit seluruh hasil filter dan masih dimuat dalam memori. Pemilih pekerja pada form SPKL, daftar divisi, dan opsi filter belum memakai pencarian remote. Audit/outbox dibatasi lalu dipaginasi di klien.
+- Cetak/Excel/CSV adalah jalur eksplisit seluruh hasil filter dan masih dimuat dalam memori. Pemilih pekerja pada form SPKL, daftar divisi, dan opsi filter belum memakai pencarian remote. Audit/outbox dibatasi lalu dipaginasi di klien.
 - Finalisasi lazy dibatasi 100 SPKL relevan per akses. Backlog besar membutuhkan scheduled worker dan monitoring.
 - Normalisasi bukan jaminan jutaan pekerja: perlu load test, sizing pool/compute, keyset pagination/streaming export, retensi log, dan observability.
 
 ---
 
-## 10. Laporan & PDF
+## 10. Laporan, Excel & PDF
 
 - Filter laporan diproses di server melalui query string (`from`, `to`, `employeeId`, `spklId`, `search`), sehingga tautan laporan dapat dibagikan/di-bookmark.
 - `/laporan` memiliki tiga tab lewat URL `?tab=lembur|checklist|tindak-lanjut`. Filter dan pagination tetap di query string; tab default adalah **lembur**.
 - Laporan checklist memakai tanggal **occurrence/jatuh tempo**, bukan tanggal selesai, sehingga checklist yang belum selesai tetap masuk periode. Rekap memuat status, ketepatan waktu, jumlah item diperiksa, temuan, tindak lanjut terbuka, dan petugas.
 - Laporan tindak lanjut memuat judul, item terkait, prioritas, status, deadline, PIC, lokasi/template, serta progres dan hasil. Hanya atasan yang dapat membuka laporan dan mengekspornya.
 - **Pagination tim/laporan** berjalan di SQL, dikontrol URL `page`/`size` dan DataGrid `manualPagination`. KPI memakai seluruh data/filter, bukan halaman saja. Ringkasan layar laporan dibatasi 20 pekerja dengan durasi tertinggi; jumlah pekerja total tetap penuh.
-- Tombol **Cetak / PDF** membuka tampilan `print=1` di tab baru dengan seluruh hasil filter; CSV juga mengekspor hasil penuh. Gunakan tombol ini, bukan Ctrl+P pada halaman yang dipaginasi.
-- **CSV lembur** diunduh dari `/api/reports/export`; **CSV checklist** dari `/api/reports/checklist/export?kind=rekap|item|tindak-lanjut` (`kind=butir` lama tetap diterima). CSV item memuat kolom **Grup** berisi snapshot `group_path`. Keduanya memakai pemisah `;`, header berbahasa Indonesia, dan BOM UTF-8 agar terbaca benar di Excel.
+- Tombol **Cetak / PDF** membuka tampilan `print=1` di tab baru dengan seluruh hasil filter; Excel dan CSV juga mengekspor hasil penuh. Gunakan tombol ini, bukan Ctrl+P pada halaman yang dipaginasi.
+- **Excel** diunduh lewat `format=xlsx`. Rekap lembur berisi sheet **Rekap Lembur** (tanggal asli, durasi dalam menit sebagai angka, dokumentasi, koreksi) dan **Ringkasan Pekerja** (sesi, hadir, tidak hadir, total menit, dokumentasi, baris total). Checklist memakai `kind=laporan` untuk workbook dua sheet: **Rekap Checklist** dan **Rincian Item**. Header dibekukan, lebar kolom diatur, dan angka siap dijumlahkan untuk penggajian atau analisis.
+- **CSV lembur** diunduh dari `/api/reports/export`; **CSV checklist** dari `/api/reports/checklist/export?kind=rekap|item|tindak-lanjut` (`kind=butir` lama tetap diterima). CSV item memuat kolom **Grup** berisi snapshot `group_path`. Keduanya memakai pemisah `;`, header berbahasa Indonesia, dan BOM UTF-8 agar terbaca benar di Excel. Tambahkan `format=xlsx` pada URL yang sama untuk mendapatkan workbook Excel.
 - **PDF** menggunakan fitur cetak browser (tombol *Cetak / PDF*). Tata letak cetak menyembunyikan navigasi, sidebar, filter, dan pagination, serta menampilkan header rekap. Di dialog cetak, pilih *Save as PDF*.
 
 ### QR area publik

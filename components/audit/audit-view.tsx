@@ -33,6 +33,7 @@ import {
 } from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
 import { ListPagination } from "@/components/list-pagination";
+import { MobileSummary } from "@/components/mobile-summary";
 import {
   Badge,
   EmptyState,
@@ -309,14 +310,25 @@ export function AuditView({
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
         eyebrow="Transparansi & jejak"
         title="Log audit."
-        description="Setiap perubahan SPKL, absensi, pekerja, dan kebijakan tercatat permanen. Outbox menampilkan pesan WhatsApp yang dikirim atau tertunda."
+        description="Riwayat perubahan dan pengiriman notifikasi WhatsApp."
+        descriptionClassName="hidden md:block"
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MobileSummary
+        className="md:hidden"
+        items={[
+          { label: "Peristiwa", value: logs.length },
+          { label: "Perubahan SPKL", value: spklLogs },
+          { label: "Koreksi absensi", value: correctionLogs },
+          { label: "Pesan gagal", value: failedNotifications },
+        ]}
+      />
+
+      <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total peristiwa"
           value={logs.length}
@@ -350,7 +362,7 @@ export function AuditView({
       <Tabs
         value={tab}
         onValueChange={(value) => setTab(value as AuditTab)}
-        className="gap-6"
+        className="min-w-0 gap-6"
       >
         <TabsList className="w-full">
           <TabsTrigger value="audit">
@@ -362,7 +374,7 @@ export function AuditView({
           </TabsTrigger>
           <TabsTrigger value="notifikasi">
             <Bell />
-            Outbox WhatsApp
+            Outbox
             <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
               {notifications.length}
             </span>
@@ -370,18 +382,17 @@ export function AuditView({
         </TabsList>
 
         <TabsContent value="audit">
-          <Frame>
+          <Frame spacing="default" className="min-w-0">
             <FrameHeader className="gap-3">
               <div className="flex flex-col gap-1">
                 <FrameTitle>Log audit</FrameTitle>
                 <FrameDescription className="text-xs">
-                  {filteredLogs.length} peristiwa · Klik untuk melihat data
-                  sebelum & sesudah.
+                  {filteredLogs.length} peristiwa
                 </FrameDescription>
               </div>
 
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto lg:flex-wrap">
                   {AUDIT_FILTERS.map((item) => {
                     const count = counts[item.value] ?? 0;
                     const active = typeFilter === item.value;
@@ -422,6 +433,7 @@ export function AuditView({
                   {search && (
                     <InputGroupAddon align="inline-end">
                       <InputGroupButton
+                        type="button"
                         size="icon-xs"
                         onClick={() => {
                           setSearch("");
@@ -504,13 +516,13 @@ export function AuditView({
                               <span>
                                 {formatDateTime(log.createdAt)} WIB
                               </span>
-                              <span aria-hidden="true">·</span>
-                              <span className="font-mono">{log.objectId}</span>
+                              <span aria-hidden="true" className="hidden md:inline">·</span>
+                              <span className="hidden font-mono md:inline">{log.objectId}</span>
                             </span>
                           </span>
                           <ChevronDown
                             className={cn(
-                              "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
+                              "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
                               open && "rotate-180",
                             )}
                             aria-hidden="true"
@@ -537,8 +549,8 @@ export function AuditView({
                                 </pre>
                               </div>
                             </div>
-                            <p className="mt-2 font-mono text-xs text-muted-foreground">
-                              ID log: {log.id}
+                            <p className="mt-2 break-all font-mono text-xs text-muted-foreground">
+                              Objek: {log.objectId} · ID log: {log.id}
                             </p>
                           </div>
                         )}
@@ -562,7 +574,7 @@ export function AuditView({
               </FramePanel>
             )}
 
-            <FrameFooter className="flex-row items-start gap-2 text-xs text-muted-foreground">
+            <FrameFooter className="hidden flex-row items-start gap-2 text-xs text-muted-foreground md:flex">
               <ShieldCheck className="mt-0.5 size-3.5 shrink-0" />
               Log audit tidak dapat diubah atau dihapus dari aplikasi.
             </FrameFooter>
@@ -570,18 +582,17 @@ export function AuditView({
         </TabsContent>
 
         <TabsContent value="notifikasi" className="flex flex-col gap-6">
-          <Frame>
+          <Frame spacing="default" className="min-w-0">
             <FrameHeader className="gap-3">
               <div className="flex flex-col gap-1">
                 <FrameTitle>Outbox WhatsApp</FrameTitle>
                 <FrameDescription className="text-xs">
-                  {filteredNotifications.length} pesan · Klik untuk melihat isi
-                  pesan.
+                  {filteredNotifications.length} pesan
                 </FrameDescription>
               </div>
 
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex min-w-0 max-w-full items-center gap-1.5 overflow-x-auto lg:flex-wrap">
                   {NOTIFICATION_FILTERS.map((item) => {
                     const active = notificationStatus === item.value;
                     return (
@@ -618,6 +629,7 @@ export function AuditView({
                   {notificationSearch && (
                     <InputGroupAddon align="inline-end">
                       <InputGroupButton
+                        type="button"
                         size="icon-xs"
                         onClick={() => {
                           setNotificationSearch("");
@@ -718,7 +730,7 @@ export function AuditView({
                             </span>
                             <ChevronDown
                               className={cn(
-                                "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
+                                "mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
                                 open && "rotate-180",
                               )}
                               aria-hidden="true"

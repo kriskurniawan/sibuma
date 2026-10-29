@@ -258,9 +258,6 @@ export function ChecklistConditionSettings({
                 <ListChecks />
               </IconTile>
               <div className="flex min-w-0 flex-col gap-0.5">
-                <p className="text-xs font-medium text-muted-foreground">
-                  Pemeriksaan
-                </p>
                 <FrameTitle>Status checklist</FrameTitle>
               </div>
             </div>
@@ -269,10 +266,8 @@ export function ChecklistConditionSettings({
               Tambah status
             </Button>
           </div>
-          <FrameDescription>
-            Pilihan kondisi saat mengisi item checklist. Status yang
-            dinonaktifkan tidak muncul untuk pengisian baru, tetapi riwayat
-            lama tetap memakainya.
+          <FrameDescription className="hidden md:block">
+            Status nonaktif hanya tersimpan di riwayat, bukan pengisian baru.
           </FrameDescription>
         </FrameHeader>
 
@@ -294,9 +289,9 @@ export function ChecklistConditionSettings({
               {items.map((condition, index) => (
                 <li
                   key={condition.id}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-5"
+                  className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5"
                 >
-                  <div className="flex min-w-0 items-center gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     <div className="flex shrink-0 flex-col">
                       <Button
                         type="button"
@@ -334,27 +329,28 @@ export function ChecklistConditionSettings({
                           <Badge variant="outline">Wajib catatan</Badge>
                         )}
                         {!condition.active && (
-                          <Badge variant="outline">Nonaktif</Badge>
+                          <Badge variant="warning-light">Nonaktif</Badge>
                         )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="hidden text-xs text-muted-foreground md:block">
                         {condition.isIssue
                           ? "Dihitung sebagai temuan dan dapat memicu tindak lanjut."
                           : condition.requiresNote
-                            ? "Petugas wajib menulis catatan saat memilih status ini."
+                            ? "Wajib catatan saat dipilih."
                             : "Tidak dihitung sebagai temuan."}
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex shrink-0 items-center gap-2">
                     <Label
                       htmlFor={`condition-active-${condition.id}`}
-                      className="text-xs font-normal text-muted-foreground"
+                      className="hidden text-xs font-normal text-muted-foreground sm:block"
                     >
                       Aktif
                     </Label>
                     <Switch
                       id={`condition-active-${condition.id}`}
+                      aria-label={`Status ${condition.label} aktif`}
                       checked={condition.active}
                       disabled={pendingId !== null}
                       onCheckedChange={() => toggleActive(condition)}
@@ -364,9 +360,10 @@ export function ChecklistConditionSettings({
                       size="sm"
                       variant="ghost"
                       onClick={() => openEdit(condition)}
+                      aria-label={`Ubah status ${condition.label}`}
                     >
                       <Pencil aria-hidden="true" />
-                      Ubah
+                      <span className="hidden sm:inline">Ubah</span>
                     </Button>
                   </div>
                 </li>

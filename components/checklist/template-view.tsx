@@ -65,8 +65,8 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <div>
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
+      <div className="hidden md:block">
         <Button
           size="sm"
           variant="ghost"
@@ -81,10 +81,11 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
       <PageHeader
         eyebrow="Pengaturan checklist"
         title="Template & lokasi"
-        description="Versi template bersifat tetap: hasil pemeriksaan lama tetap memakai item dari versi saat checklist dibuat. Terbitkan versi baru untuk mengubah item."
+        description="Kelola item pemeriksaan dan lokasi tim."
+        descriptionClassName="hidden md:block"
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" onClick={() => setTemplateOpen(true)}>
+          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
+            <Button type="button" size="sm" onClick={() => setTemplateOpen(true)}>
               <Plus aria-hidden="true" />
               Template baru
             </Button>
@@ -97,7 +98,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               <QrCode aria-hidden="true" />
               QR area
             </Button>
-            <Button size="sm" variant="outline" onClick={() => openLocation(null)}>
+            <Button type="button" size="sm" variant="outline" onClick={() => openLocation(null)}>
               <MapPin aria-hidden="true" />
               Lokasi baru
             </Button>
@@ -105,13 +106,12 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         }
       />
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Lokasi</FrameTitle>
-            <FrameDescription className="text-xs">
-              Area atau titik pemeriksaan. Lokasi nonaktif tidak dapat dipakai
-              untuk jadwal baru.
+            <FrameDescription className="hidden text-xs md:block">
+              Lokasi aktif tersedia untuk jadwal baru.
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
@@ -126,7 +126,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               title="Belum ada lokasi"
               description="Tambahkan lokasi seperti gudang, kantor, atau area produksi sebelum membuat jadwal."
               action={
-                <Button size="sm" onClick={() => openLocation(null)}>
+                <Button type="button" size="sm" onClick={() => openLocation(null)}>
                   <Plus aria-hidden="true" />
                   Tambah lokasi
                 </Button>
@@ -140,9 +140,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                   className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
                 >
                   <div className="flex min-w-0 items-start gap-2.5">
-                    <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                      <MapPin className="size-4" aria-hidden="true" />
-                    </span>
+                    <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <p className="text-sm font-medium text-foreground">
@@ -176,6 +174,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                     </div>
                   </div>
                   <Button
+                    type="button"
                     size="sm"
                     variant="ghost"
                     className="shrink-0"
@@ -191,12 +190,12 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         </FramePanel>
       </Frame>
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Template</FrameTitle>
-            <FrameDescription className="text-xs">
-              Item pemeriksaan, kebijakan foto, dan kewajiban catatan per template.
+            <FrameDescription className="hidden text-xs md:block">
+              Item pemeriksaan dan kebijakan pengisian.
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
@@ -211,7 +210,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               title="Belum ada template"
               description="Template menentukan item pemeriksaan. Buat template pertama lalu terbitkan versinya."
               action={
-                <Button size="sm" onClick={() => setTemplateOpen(true)}>
+                <Button type="button" size="sm" onClick={() => setTemplateOpen(true)}>
                   <Plus aria-hidden="true" />
                   Buat template
                 </Button>
@@ -227,9 +226,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                     className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
                   >
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                        <Settings2 className="size-4" aria-hidden="true" />
-                      </span>
+                      <Settings2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       <div className="flex min-w-0 flex-col gap-0.5">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <Link
@@ -253,10 +250,12 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                         <p className="text-xs text-muted-foreground">
                           {latest?.itemCount ?? 0} item ·{" "}
                           {template.usedBySchedules} jadwal
-                          {template.description
-                            ? ` · ${template.description}`
-                            : ""}
                         </p>
+                        {template.description && (
+                          <p className="hidden text-xs text-muted-foreground md:block">
+                            {template.description}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -431,7 +430,7 @@ function LocationDialog({
             placeholder="Alamat singkat atau patokan lokasi…"
           />
         </div>
-        <div className="flex flex-col gap-3 rounded-lg border border-border/70 px-3 py-3">
+        <div className="flex flex-col gap-3 border-y border-border/70 py-3">
           <Label className="flex items-center gap-2 text-sm font-normal text-foreground">
             <Checkbox
               checked={publicEnabled}
@@ -574,7 +573,7 @@ function TemplateCreateDialog({
       onClose={onClose}
       dismissible={!saving}
       title="Template baru"
-      description="Versi 1 langsung diterbitkan dengan item di bawah. Versi yang sudah terbit tidak dapat diubah."
+      description="Versi 1 langsung terbit. Ubah item berikutnya lewat versi baru."
       size="xl"
       footer={
         <div className="flex w-full gap-2.5">

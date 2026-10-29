@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Modal } from "@/components/modal";
+import { MobileSummary } from "@/components/mobile-summary";
 import {
   checklistQrPath,
   type ChecklistLocation,
@@ -88,8 +89,8 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <div>
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
+      <div className="hidden md:block">
         <Button
           size="sm"
           variant="ghost"
@@ -104,9 +105,10 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
       <PageHeader
         eyebrow="Akses pengunjung"
         title="QR area."
-        description="Satu QR dapat dipakai pengunjung tanpa login dan petugas setelah masuk. Scan QR bukan izin akses: petugas tetap harus punya penugasan untuk mengisi checklist."
+        description="Kelola tautan QR untuk pengunjung dan petugas."
+        descriptionClassName="hidden md:block"
         action={
-          <Button size="sm" onClick={() => openForm(null)}>
+          <Button type="button" size="sm" onClick={() => openForm(null)}>
             <Plus aria-hidden="true" />
             QR baru
           </Button>
@@ -116,13 +118,22 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
       <Alert>
         <ShieldCheck />
         <AlertDescription>
-          Pengunjung hanya melihat item yang ditandai publik dan area yang
-          diaktifkan untuk publik. Catatan, foto, nama petugas, dan tindak
-          lanjut internal tidak pernah ditampilkan.
+          Hanya area dan item publik tampil ke pengunjung. Data internal tetap
+          privat; petugas tetap perlu penugasan untuk mengisi.
         </AlertDescription>
       </Alert>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <MobileSummary
+        columns={3}
+        className="md:hidden"
+        items={[
+          { label: "QR aktif", value: activeCount },
+          { label: "QR langsung", value: directCount },
+          { label: "Area publik", value: publicLocations.length },
+        ]}
+      />
+
+      <div className="hidden gap-3 md:grid md:grid-cols-3">
         <StatCard
           label="Total QR"
           value={setup.codes.length}
@@ -146,13 +157,12 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
         />
       </div>
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Daftar QR</FrameTitle>
-            <FrameDescription className="text-xs">
-              QR bersifat permanen per lokasi. Nonaktifkan bila tidak dipakai,
-              tanpa perlu mengganti QR lain.
+            <FrameDescription className="hidden text-xs md:block">
+              Tautan tetap; nonaktifkan QR yang tidak dipakai.
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
@@ -167,7 +177,7 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
               title="Belum ada QR"
               description="Buat QR umum untuk memilih area, atau QR khusus yang langsung membuka satu area."
               action={
-                <Button size="sm" onClick={() => openForm(null)}>
+                <Button type="button" size="sm" onClick={() => openForm(null)}>
                   <Plus aria-hidden="true" />
                   Buat QR pertama
                 </Button>
@@ -182,9 +192,7 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-2.5">
-                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                        <QrCode className="size-4" aria-hidden="true" />
-                      </span>
+                      <QrCode className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       <div className="flex min-w-0 flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <p className="text-sm font-medium text-foreground">
@@ -206,19 +214,20 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
                               Aktif
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="warning-light">
                               Nonaktif
                             </Badge>
                           )}
                         </div>
-                        <p className="break-all text-xs text-muted-foreground">
+                        <p className="hidden break-all text-xs text-muted-foreground md:block">
                           {urlFor(code) || checklistQrPath(code)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-1">
+                    <div className="flex min-w-0 max-w-full items-center gap-1 overflow-x-auto">
                       <Button
+                        type="button"
                         size="sm"
                         variant="ghost"
                         onClick={() => copyLink(code)}
@@ -231,6 +240,7 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
                         {copiedId === code.id ? "Tersalin" : "Salin"}
                       </Button>
                       <Button
+                        type="button"
                         size="sm"
                         variant="ghost"
                         onClick={() => setPreview(code)}
@@ -260,7 +270,7 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
                           <a
                             href={urlFor(code) || checklistQrPath(code)}
                             target="_blank"
-                            rel="noreferrer"
+                            rel="noopener noreferrer"
                           />
                         }
                       >
@@ -268,6 +278,7 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
                         Buka
                       </Button>
                       <Button
+                        type="button"
                         size="sm"
                         variant="ghost"
                         onClick={() => openForm(code)}

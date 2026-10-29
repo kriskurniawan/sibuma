@@ -8,6 +8,7 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { MobileSummary } from "@/components/mobile-summary";
 import {
   Frame,
   FrameDescription,
@@ -57,7 +58,8 @@ export function OrganizationDashboard({
       <PageHeader
         eyebrow="Organisasi"
         title={`${greeting()}, ${firstName}.`}
-        description="Pantau seluruh tim, kelola akun atasan, dan tinjau kebijakan global. Operasional harian tetap dijalankan oleh masing-masing atasan."
+        description="Pantau tim, akun atasan, dan aktivitas operasional."
+        descriptionClassName="hidden sm:block"
         action={
           <Button nativeButton={false} render={<Link href="/tim" />}>
             <UsersRound aria-hidden="true" />
@@ -66,7 +68,45 @@ export function OrganizationDashboard({
         }
       />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MobileSummary
+        className="sm:hidden"
+        items={[
+          {
+            label: "Atasan aktif",
+            icon: ShieldCheck,
+            href: "/tim",
+            ariaLabel: `Kelola atasan, ${overview.activeSupervisors} aktif`,
+            value: (
+              <>
+                {overview.activeSupervisors}
+                <span className="text-sm font-medium text-muted-foreground">
+                  /{overview.supervisors}
+                </span>
+              </>
+            ),
+          },
+          {
+            label: "Pekerja aktif",
+            icon: UsersRound,
+            value: (
+              <>
+                {overview.activeWorkers}
+                <span className="text-sm font-medium text-muted-foreground">
+                  /{overview.workers}
+                </span>
+              </>
+            ),
+          },
+          { label: "SPKL hari ini", value: overview.todaySpkls, icon: CalendarClock },
+          {
+            label: "Checklist terlambat",
+            value: overview.overdueChecklists,
+            icon: AlertTriangle,
+          },
+        ]}
+      />
+
+      <div className="hidden grid-cols-1 gap-3 sm:grid sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Atasan"
           value={overview.activeSupervisors}
@@ -117,7 +157,7 @@ export function OrganizationDashboard({
               Lihat semua
             </Button>
           </FrameHeader>
-          <FramePanel className="p-0">
+          <FramePanel>
             {supervisors.length === 0 ? (
               <EmptyState
                 icon={ShieldCheck}
@@ -132,7 +172,7 @@ export function OrganizationDashboard({
             ) : (
               <ul className="divide-y divide-border/70">
                 {supervisors.slice(0, 6).map((row) => (
-                  <li key={row.employee.id} className="flex items-center gap-3 px-4 py-3">
+                  <li key={row.employee.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
                     <Avatar
                       name={row.employee.name}
                       seed={row.employee.id}
@@ -148,7 +188,7 @@ export function OrganizationDashboard({
                       </span>
                     </div>
                     <Badge
-                      variant={row.employee.active ? "success-light" : "outline"}
+                      variant={row.employee.active ? "success-light" : "warning-light"}
                       dot={row.employee.active}
                     >
                       {row.employee.active ? "Aktif" : "Nonaktif"}
@@ -164,7 +204,7 @@ export function OrganizationDashboard({
           <FrameHeader className="flex flex-row items-start justify-between gap-3">
             <div className="flex flex-col gap-0.5">
               <FrameTitle>Aktivitas terbaru</FrameTitle>
-              <FrameDescription className="text-xs">
+              <FrameDescription className="hidden text-xs sm:block">
                 Jejak audit lintas tim
               </FrameDescription>
             </div>
@@ -178,17 +218,27 @@ export function OrganizationDashboard({
               Log audit
             </Button>
           </FrameHeader>
-          <FramePanel className="p-0">
+          <FramePanel>
             {logs.length === 0 ? (
               <EmptyState
                 icon={ScrollText}
                 title="Belum ada aktivitas"
                 description="Perubahan data akan tercatat otomatis di sini."
+                action={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href="/audit" />}
+                  >
+                    Buka audit
+                  </Button>
+                }
               />
             ) : (
               <ul className="divide-y divide-border/70">
                 {logs.slice(0, 6).map((log) => (
-                  <li key={log.id} className="flex flex-col gap-1 px-4 py-3">
+                  <li key={log.id} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Badge variant="outline">{OBJECT_LABEL[log.objectType]}</Badge>
                       <span className="text-xs text-muted-foreground">
@@ -215,8 +265,8 @@ export function OrganizationDashboard({
               <p className="text-sm font-medium text-foreground">
                 Laporan lintas tim
               </p>
-              <p className="text-xs text-muted-foreground">
-                Rekap lembur dan checklist seluruh atasan tersedia dalam satu laporan.
+              <p className="hidden text-xs text-muted-foreground sm:block">
+                Rekap lembur dan checklist seluruh tim.
               </p>
             </div>
           </div>

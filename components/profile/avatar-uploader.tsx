@@ -169,7 +169,7 @@ export function AvatarUploader({
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <p className="text-sm font-medium text-foreground">Foto profil</p>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            JPEG, PNG, atau WebP. Foto dipotong persegi dan disimpan privat.
+            JPEG, PNG, atau WebP, maks. 5 MB. Dipotong persegi; disimpan privat.
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button

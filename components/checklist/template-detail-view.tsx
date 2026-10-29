@@ -90,7 +90,7 @@ export function ChecklistTemplateDetailView({
   }));
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
       <div className="hidden md:block">
         <Button
           size="sm"
@@ -107,13 +107,15 @@ export function ChecklistTemplateDetailView({
         eyebrow={template.category}
         title={template.name}
         description={template.description || undefined}
+        descriptionClassName="hidden md:block"
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="info-light" className="tabular-nums">
+          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
+            <Badge variant="info-light" className="hidden tabular-nums md:inline-flex">
               Versi {template.currentVersion}
             </Badge>
-            {!template.active && <Badge variant="outline">Nonaktif</Badge>}
+            {!template.active && <Badge variant="warning-light">Nonaktif</Badge>}
             <Button
+              type="button"
               size="sm"
               variant="outline"
               onClick={() => setEditOpen(true)}
@@ -122,6 +124,7 @@ export function ChecklistTemplateDetailView({
               Ubah
             </Button>
             <Button
+              type="button"
               size="sm"
               onClick={() => setVersionOpen(true)}
               disabled={!latest}
@@ -133,13 +136,12 @@ export function ChecklistTemplateDetailView({
         }
       />
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Item pada versi</FrameTitle>
-            <FrameDescription className="text-xs">
-              Setiap versi bersifat tetap. Checklist yang sudah dibuat tetap
-              memakai item dari versi saat itu.
+            <FrameTitle>Item checklist</FrameTitle>
+            <FrameDescription className="hidden text-xs md:block">
+              Versi terbit dan checklist lama tidak berubah.
             </FrameDescription>
           </div>
           {versions.length > 0 && (
@@ -148,7 +150,7 @@ export function ChecklistTemplateDetailView({
               onValueChange={(value) => setSelectedVersionId(value as string)}
               items={versionItems}
             >
-              <SelectTrigger size="sm" className="w-56">
+              <SelectTrigger size="sm" className="w-full sm:w-56" aria-label="Pilih versi template">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -192,7 +194,7 @@ export function ChecklistTemplateDetailView({
                         </span>
                       )}
                       {isGroup ? (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="outline">
                           Grup
                         </Badge>
                       ) : item.required ? (
@@ -215,12 +217,12 @@ export function ChecklistTemplateDetailView({
                       )}
                       {!isGroup && item.requireNoteOnIssue && (
                         <Badge variant="outline" className="text-xs">
-                          Catatan wajib saat bermasalah
+                          Catatan temuan wajib
                         </Badge>
                       )}
                       {!isGroup && item.publicVisible && (
                         <Badge variant="success-light" className="text-xs">
-                          Tampil ke pengunjung
+                          Publik
                         </Badge>
                       )}
                     </div>
@@ -253,13 +255,10 @@ export function ChecklistTemplateDetailView({
         )}
       </Frame>
 
-      <Frame>
+      <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Riwayat versi</FrameTitle>
-            <FrameDescription className="text-xs">
-              Versi lama tidak berubah walaupun template diubah.
-            </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
             {versions.length} versi
@@ -274,9 +273,7 @@ export function ChecklistTemplateDetailView({
                 className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-5"
               >
                 <div className="flex min-w-0 items-start gap-2.5">
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                    <History className="size-4" aria-hidden="true" />
-                  </span>
+                  <History className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                   <div className="flex flex-col gap-0.5">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <p className="text-sm font-medium text-foreground">
@@ -296,6 +293,7 @@ export function ChecklistTemplateDetailView({
                   </div>
                 </div>
                 <Button
+                  type="button"
                   size="sm"
                   variant="ghost"
                   onClick={() => setSelectedVersionId(version.id)}
@@ -517,7 +515,7 @@ function PublishVersionDialog({
       onClose={onClose}
       dismissible={!saving}
       title={`Terbitkan versi ${template.currentVersion + 1}`}
-      description="Versi baru hanya berlaku untuk checklist yang dibuat setelah diterbitkan. Checklist lama tetap memakai versi sebelumnya."
+      description="Berlaku untuk checklist baru. Checklist lama tetap memakai versi sebelumnya."
       size="xl"
       footer={
         <>

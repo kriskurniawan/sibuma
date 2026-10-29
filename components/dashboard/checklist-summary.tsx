@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { CalendarClock, MapPin, Wrench } from "lucide-react";
+import { CalendarClock, ChevronRight, MapPin } from "lucide-react";
 import {
   ChecklistFollowUpBadge,
   ChecklistOverdueBadge,
-  ChecklistPriorityBadge,
   ChecklistStatusBadge,
 } from "@/components/checklist/checklist-badges";
 import { Avatar, ProgressBar } from "@/components/ui";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
-import type {
-  ChecklistFollowUpRow,
-  ChecklistInspectionRow,
-  ChecklistPerson,
+import {
+  CHECKLIST_PRIORITY_LABEL,
+  type ChecklistFollowUpRow,
+  type ChecklistInspectionRow,
+  type ChecklistPerson,
 } from "@/lib/checklist-types";
 
 function dateIso(date: string) {
@@ -63,69 +63,68 @@ export function ChecklistAssigneeStack({
 
 export function ChecklistSummaryRow({ row }: { row: ChecklistInspectionRow }) {
   const item = row.inspection;
-  const progress =
-    row.totalItems === 0
-      ? 0
-      : Math.round((row.answeredCount / row.totalItems) * 100);
+  const assignee = row.assignees[0];
 
   return (
     <Link
       href={`/checklist/${item.id}`}
-      className="group flex flex-col gap-2.5 rounded-md px-1 py-2.5 transition-colors hover:bg-muted/60"
+      className="group flex min-w-0 flex-col gap-2 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+          <span className="line-clamp-2 text-sm font-medium text-foreground">
             {item.templateName}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {item.category} · {item.periodLabel}
+          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{item.locationName}</span>
           </span>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <ChecklistStatusBadge status={item.status} />
-          {row.overdue && <ChecklistOverdueBadge />}
-        </div>
+        <ChecklistStatusBadge status={item.status} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="flex min-w-0 items-center gap-1">
-          <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-          <span className="truncate">{item.locationName}</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <CalendarClock className="size-3.5" aria-hidden="true" />
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1 tabular-nums">
+          <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
+          <span className="sr-only">Deadline </span>
           {formatDateTime(item.dueAt, "d MMM, HH:mm")}
         </span>
+        {row.overdue && <ChecklistOverdueBadge />}
         {row.openFollowUps > 0 && (
-          <span className="flex items-center gap-1 font-medium text-foreground">
-            <Wrench className="size-3.5" aria-hidden="true" />
+          <span className="font-medium text-foreground tabular-nums">
             {row.openFollowUps} temuan
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="font-medium tabular-nums text-foreground">
-              {row.answeredCount}/{row.totalItems} item
-            </span>
-            <span className="tabular-nums text-muted-foreground">
-              {progress}%
-            </span>
-          </div>
-          <ProgressBar
-            value={row.answeredCount}
-            max={row.totalItems}
-            tone={
-              row.totalItems > 0 && row.answeredCount === row.totalItems
-                ? "success"
-                : "primary"
-            }
-          />
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+            {row.answeredCount}/{row.totalItems}
+            <span className="sr-only"> item terisi</span>
+          </span>
+          {row.totalItems > 0 && (
+            <ProgressBar
+              value={row.answeredCount}
+              max={row.totalItems}
+              tone={row.answeredCount === row.totalItems ? "success" : "primary"}
+            />
+          )}
         </div>
-        <ChecklistAssigneeStack people={row.assignees} max={3} />
+        <span className="inline-flex min-w-0 max-w-36 items-center gap-2 text-xs text-muted-foreground">
+          {assignee ? (
+            <>
+              <Avatar name={assignee.name} seed={assignee.id} size="xs" />
+              <span className="truncate">
+                {assignee.name.split(" ")[0]}
+                {row.assignees.length > 1 ? ` +${row.assignees.length - 1}` : ""}
+              </span>
+            </>
+          ) : (
+            "Tanpa anggota"
+          )}
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
     </Link>
   );
@@ -137,37 +136,46 @@ export function FollowUpSummaryRow({ row }: { row: ChecklistFollowUpRow }) {
   return (
     <Link
       href={`/checklist/${row.inspection.id}`}
-      className="group flex flex-col gap-2 rounded-md px-1 py-2.5 transition-colors hover:bg-muted/60"
+      className="group flex min-w-0 flex-col gap-2 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-sm font-medium text-foreground transition-colors group-hover:text-primary">
+          <span className="line-clamp-2 text-sm font-medium text-foreground">
             {followUp.title}
           </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {row.inspection.templateName} · {row.inspection.locationName}
+          <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <MapPin className="size-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{row.inspection.locationName}</span>
           </span>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <ChecklistPriorityBadge priority={followUp.priority} />
-          <ChecklistFollowUpBadge status={followUp.status} />
-        </div>
+        <ChecklistFollowUpBadge status={followUp.status} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1">
-          <CalendarClock className="size-3.5" aria-hidden="true" />
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1 tabular-nums">
+          <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
+          <span className="sr-only">Deadline </span>
           {followUp.dueDate
             ? formatDateHuman(dateIso(followUp.dueDate), "d MMM yyyy")
             : "Tanpa deadline"}
         </span>
         {row.overdue && <ChecklistOverdueBadge />}
-        {row.pic && (
-          <span className="flex min-w-0 items-center gap-1.5">
+        <span>
+          <span className="sr-only">Prioritas </span>
+          {CHECKLIST_PRIORITY_LABEL[followUp.priority]}
+        </span>
+      </div>
+
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        {row.pic ? (
+          <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             <Avatar name={row.pic.name} seed={row.pic.id} size="xs" />
             <span className="truncate">{row.pic.name}</span>
           </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Tanpa PIC</span>
         )}
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
       </div>
     </Link>
   );

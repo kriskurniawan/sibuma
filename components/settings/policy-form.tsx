@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Save, Settings2, ShieldCheck } from "lucide-react";
+import { MapPin, Save, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
@@ -13,7 +13,6 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
-import { InfoBanner } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -122,20 +121,17 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             <Settings2 />
           </IconTile>
           <div className="flex min-w-0 flex-col gap-0.5">
-            <p className="text-xs font-medium text-muted-foreground">
-              Kebijakan operasional
-            </p>
             <FrameTitle>Kebijakan lembur</FrameTitle>
           </div>
         </div>
-        <FrameDescription>
-          Berlaku untuk seluruh tim dan tercatat di audit log saat diubah.
+        <FrameDescription className="hidden md:block">
+          Berlaku untuk seluruh tim; perubahan tercatat di audit.
         </FrameDescription>
       </FrameHeader>
 
       <FramePanel>
         <form onSubmit={submit} className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="daily-limit">Batas harian</Label>
               <InputGroup>
@@ -235,7 +231,7 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="default-radius">Radius default</Label>
               <Input
@@ -294,21 +290,21 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             />
           </div>
 
-          <InfoBanner icon={MapPin}>
-            <p className="text-xs font-medium text-foreground">
-              Titik absen default
-            </p>
-            <p>{policy.defaultLocation.address || "Belum diatur"}</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {policy.defaultLocation.latitude.toFixed(5)},{" "}
-              {policy.defaultLocation.longitude.toFixed(5)}
-            </p>
-          </InfoBanner>
+          <div className="flex items-start gap-2 border-t border-border pt-4">
+            <MapPin className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <p className="text-xs font-medium text-foreground">Titik absen default</p>
+              <p className="text-sm">{policy.defaultLocation.address || "Belum diatur"}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {policy.defaultLocation.latitude.toFixed(5)},{" "}
+                {policy.defaultLocation.longitude.toFixed(5)}
+              </p>
+            </div>
+          </div>
 
-          <InfoBanner icon={ShieldCheck} tone="success">
-            Perubahan kebijakan langsung berlaku untuk absensi dan SPKL
-            berikutnya. Data laporan lama tidak dihitung ulang.
-          </InfoBanner>
+          <p className="text-xs text-muted-foreground">
+            Berlaku untuk absensi dan SPKL berikutnya. Laporan lama tidak dihitung ulang.
+          </p>
 
           {error && (
             <Alert variant="destructive">
@@ -316,7 +312,7 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             </Alert>
           )}
 
-          <Button type="submit" size="lg" disabled={saving} className="w-full">
+          <Button type="submit" disabled={saving} className="w-full sm:w-auto sm:self-end">
             {saving ? (
               <>
                 <Spinner />

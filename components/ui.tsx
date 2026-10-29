@@ -198,12 +198,14 @@ export function PageHeader({
   description,
   action,
   className,
+  descriptionClassName,
 }: {
   eyebrow?: string;
   title: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
   className?: string;
+  descriptionClassName?: string;
 }) {
   return (
     <div
@@ -220,7 +222,12 @@ export function PageHeader({
           {title}
         </h1>
         {description && (
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          <p
+            className={cn(
+              "max-w-2xl text-sm leading-relaxed text-muted-foreground",
+              descriptionClassName,
+            )}
+          >
             {description}
           </p>
         )}

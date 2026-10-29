@@ -1,28 +1,19 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { Modal } from "@/components/modal";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { DataRow, FieldError } from "@/components/ui";
+import { FieldError } from "@/components/ui";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import type { SessionUser } from "@/lib/types";
-
-function phoneLabel(phone: string) {
-  if (!phone) return "-";
-  if (phone.startsWith("62")) {
-    const local = `0${phone.slice(2)}`;
-    return `${local.slice(0, 4)}-${local.slice(4, 8)}-${local.slice(8)}`;
-  }
-  return phone;
-}
 
 export function ProfileEditor({ user }: { user: SessionUser }) {
   const router = useRouter();
@@ -32,15 +23,24 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
   const [nameError, setNameError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const wasOpen = useRef(false);
 
-  function openModal() {
+  useEffect(() => {
+    if (open) nameInputRef.current?.focus();
+    else if (wasOpen.current) editButtonRef.current?.focus();
+    wasOpen.current = open;
+  }, [open]);
+
+  function openEditor() {
     setName(user.name);
     setNameError(null);
     setServerError(null);
     setOpen(true);
   }
 
-  function closeModal() {
+  function closeEditor() {
     if (saving) return;
     setOpen(false);
     setNameError(null);
@@ -83,66 +83,31 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
   }
 
   return (
-    <>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={openModal}
-        className="w-full sm:w-auto"
-      >
-        <Pencil aria-hidden="true" />
-        Ubah profil
-      </Button>
-
-      <Modal
-        open={open}
-        onClose={closeModal}
-        title="Ubah profil"
-        description={
-          isAdmin
-            ? "Perbarui nama dan foto profilmu."
-            : user.role === "pekerja"
-              ? "Perbarui nama dan foto profilmu. NIK, nomor WhatsApp, dan email dikelola atasan."
-              : "Perbarui nama dan foto profilmu. NIK, nomor WhatsApp, dan email tidak dapat diubah dari sini."
-        }
-        size="md"
-        dismissible={!saving}
-        footer={
-          <div className="flex w-full gap-2.5">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-              disabled={saving}
-              className="flex-1"
-            >
-              Batal
-            </Button>
-            <Button
-              type="submit"
-              form="profile-form"
-              disabled={saving}
-              className="flex-1"
-            >
-              {saving ? (
-                <>
-                  <Spinner />
-                  Menyimpan.
-                </>
-              ) : (
-                "Simpan"
-              )}
-            </Button>
-          </div>
-        }
-      >
-        <div className="flex flex-col gap-4">
+    <Collapsible open={open}>
+      {!open && (
+        <Button
+          ref={editButtonRef}
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={openEditor}
+          aria-expanded={open}
+          aria-controls="profile-editor"
+          className="w-full sm:w-auto"
+        >
+          <Pencil aria-hidden="true" />
+          Ubah profil
+        </Button>
+      )}
+      <CollapsibleContent id="profile-editor">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Separator />
+          <h3 className="text-sm font-semibold tracking-tight">Ubah profil</h3>
           {serverError && (
             <Alert variant="destructive">
               <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           )}
-
           <AvatarUploader
             employeeId={user.id}
             name={name || user.name}
@@ -151,44 +116,57 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
             onChanged={() => router.refresh()}
             disabled={saving}
           />
-
-          <Separator />
-
           <form
-            id="profile-form"
             onSubmit={submit}
             className="flex flex-col gap-4"
+            aria-busy={saving}
           >
             <div className="flex flex-col gap-2">
               <Label htmlFor="profile-name">
                 Nama lengkap <span className="text-destructive">*</span>
               </Label>
               <Input
+                ref={nameInputRef}
                 id="profile-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 aria-invalid={Boolean(nameError)}
+                aria-describedby={nameError ? "profile-name-error" : undefined}
                 autoComplete="name"
               />
-              <FieldError>{nameError}</FieldError>
+              <FieldError id="profile-name-error">{nameError}</FieldError>
             </div>
-
-            <div className="flex flex-col">
-              <DataRow label="NIK" value={user.nik} />
-              <DataRow label="WhatsApp" value={phoneLabel(user.phone)} />
-              <DataRow label="Email" value={user.email ?? "Belum diisi"} />
+            <p className="text-xs text-muted-foreground">
+              {isAdmin
+                ? "Nomor WhatsApp adalah identitas login. NIK dan kontak tidak diubah di sini."
+                : user.role === "pekerja"
+                  ? "WhatsApp adalah identitas login. NIK dan kontak dikelola atasan lewat menu Tim."
+                  : "WhatsApp adalah identitas login. NIK dan kontak tidak dapat diubah di sini."}
+            </p>
+            <div className="flex items-center gap-2">
+              <Button type="submit" size="sm" disabled={saving}>
+                {saving ? (
+                  <>
+                    <Spinner />
+                    Menyimpan…
+                  </>
+                ) : (
+                  "Simpan"
+                )}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={closeEditor}
+                disabled={saving}
+              >
+                Batal
+              </Button>
             </div>
           </form>
-
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Nomor WhatsApp adalah identitas login.
-            {user.role === "pekerja" &&
-              " Perubahannya hanya dapat dilakukan atasan lewat menu Tim."}
-            {user.role === "atasan" &&
-              " Perubahannya tidak dapat dilakukan dari halaman ini."}
-          </p>
         </div>
-      </Modal>
-    </>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }

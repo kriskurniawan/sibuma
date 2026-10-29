@@ -187,9 +187,9 @@ export function SpklDetailView({
                 : ""}
             </span>
           </div>
-          <FrameTitle className="max-w-3xl text-xl font-semibold tracking-tight sm:text-2xl">
+          <h1 className="max-w-3xl text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {spkl.title}
-          </FrameTitle>
+          </h1>
           <FrameDescription className="max-w-2xl text-sm">
             {spkl.description}
           </FrameDescription>

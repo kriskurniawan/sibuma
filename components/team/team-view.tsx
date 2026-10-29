@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition, type FormEvent } from "rea
 import type { PageRequest } from "@/lib/pagination";
 import type { getTeamTotals } from "@/lib/team-queries";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
+import { MobileSummary } from "@/components/mobile-summary";
 import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
@@ -516,63 +517,88 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
     divisionBusyId === deactivateDivisionTarget.id;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
         className="no-print"
         eyebrow={readOnly ? "Lihat tim" : "Kelola tim"}
         title="Tim."
         description={
           readOnly
-            ? "Lihat pekerja, divisi, penempatan, dan beban kerja anggota tim."
-            : "Kelola pekerja dan divisi, atur penempatan, serta pantau beban kerja anggota tim."
+            ? "Pekerja, divisi, dan beban kerja tim."
+            : "Kelola pekerja, divisi, dan penempatan tim."
         }
+        descriptionClassName="hidden md:block"
         action={
-          <div className="flex w-full flex-col gap-2 print:hidden sm:w-auto">
-            <ReportPrintButton variant="outline" />
+          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto print:hidden">
             {!readOnly && (divisions.length === 0 ? (
               <Button
                 type="button"
                 onClick={openCreateDivision}
-                className="w-full sm:w-auto"
+                size="sm"
               >
                 <FolderPlus />
-                Buat divisi pertama
+                Buat divisi
               </Button>
             ) : tab === "divisi" || activeDivisions.length === 0 ? (
               <Button
                 type="button"
                 onClick={openCreateDivision}
-                className="w-full sm:w-auto"
+                size="sm"
               >
                 <FolderPlus />
                 Tambah divisi
               </Button>
             ) : (
-              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={openCreateDivision}
-                  className="w-full sm:w-auto"
-                >
-                  <FolderPlus />
-                  Tambah divisi
-                </Button>
+              <div className="flex shrink-0 items-center gap-2">
                 <Button
                   type="button"
                   onClick={openAddFromHeader}
-                  className="w-full sm:w-auto"
+                  size="sm"
                 >
                   <UserPlus />
                   Tambah pekerja
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={openCreateDivision}
+                  size="sm"
+                >
+                  <FolderPlus />
+                  Tambah divisi
+                </Button>
               </div>
             ))}
+            <ReportPrintButton variant="outline" />
           </div>
         }
       />
 
-      <div className="no-print grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <MobileSummary
+        className="no-print md:hidden"
+        items={[
+          { label: "Pekerja aktif", value: `${totals.active}/${totals.total}` },
+          {
+            label: "Durasi bulan ini",
+            value: (
+              <>
+                <span>
+                  {Math.floor(totalMinutes / 60)}
+                  <span className="text-sm font-medium text-muted-foreground"> jam</span>
+                </span>
+                <span>
+                  {totalMinutes % 60}
+                  <span className="text-sm font-medium text-muted-foreground"> mnt</span>
+                </span>
+              </>
+            ),
+          },
+          { label: "Sesi absensi", value: totalSessions },
+          { label: "Foto kerja", value: totalDocuments },
+        ]}
+      />
+
+      <div className="no-print hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Anggota aktif"
           value={totals.active}
@@ -617,8 +643,8 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                 <FrameTitle>{tab === "pekerja" ? "Pekerja" : "Divisi"}</FrameTitle>
                 <FrameDescription className="text-xs">
                   {tab === "pekerja"
-                    ? `${totals.total} pekerja · ${totals.active} aktif · ${total} cocok`
-                    : `${divisions.length} divisi · ${activeDivisions.length} aktif · ${filteredDivisions.length} tampil`}
+                    ? `${total} pekerja ditampilkan`
+                    : `${filteredDivisions.length} divisi ditampilkan`}
                 </FrameDescription>
               </div>
               <TabsList className="w-full sm:w-max">
@@ -668,7 +694,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   )}
                 </InputGroup>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:items-center lg:justify-end">
+                <div className="flex min-w-0 items-center gap-2 overflow-x-auto lg:justify-end">
                   <Select
                     items={workerDivisionItems}
                     value={workerDivisionFilter}
@@ -678,7 +704,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   >
                     <SelectTrigger
                       size="sm"
-                      className="w-full sm:w-44"
+                      className="min-w-0 flex-1 sm:w-44 sm:flex-none"
                       aria-label="Filter divisi"
                     >
                       <SelectValue />
@@ -708,7 +734,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   >
                     <SelectTrigger
                       size="sm"
-                      className="w-full sm:w-36"
+                      className="min-w-0 flex-1 sm:w-36 sm:flex-none"
                       aria-label="Filter status pekerja"
                     >
                       <SelectValue />
@@ -730,10 +756,10 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                       variant="ghost"
                       size="sm"
                       onClick={clearWorkerFilters}
-                      className="w-full sm:w-auto"
+                      aria-label="Hapus filter pekerja"
                     >
                       <X aria-hidden="true" />
-                      Hapus filter
+                      <span className="hidden sm:inline">Hapus filter</span>
                     </Button>
                   )}
                 </div>
@@ -871,7 +897,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   )}
                 </InputGroup>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap lg:items-center lg:justify-end">
+                <div className="flex min-w-0 items-center gap-2 overflow-x-auto lg:justify-end">
                   <Select
                     items={STATUS_FILTER_ITEMS}
                     value={divisionStatusFilter}
@@ -883,7 +909,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   >
                     <SelectTrigger
                       size="sm"
-                      className="w-full sm:w-36"
+                      className="min-w-0 flex-1 sm:w-36 sm:flex-none"
                       aria-label="Filter status divisi"
                     >
                       <SelectValue />
@@ -905,10 +931,10 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                       variant="ghost"
                       size="sm"
                       onClick={clearDivisionFilters}
-                      className="w-full sm:w-auto"
+                      aria-label="Hapus filter divisi"
                     >
                       <X aria-hidden="true" />
-                      Hapus filter
+                      <span className="hidden sm:inline">Hapus filter</span>
                     </Button>
                   )}
                 </div>
@@ -976,15 +1002,14 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
             </TabsContent>
           </FramePanel>
 
-          <FrameFooter className="flex-row items-start gap-2 print:hidden">
+          <FrameFooter className="hidden flex-row items-start gap-2 print:hidden md:flex">
             <LockKeyhole
               className="size-3.5 shrink-0"
               aria-hidden="true"
             />
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Menonaktifkan pekerja tidak menghapus riwayat absensi atau
-              dokumentasinya. Divisi hanya bisa dinonaktifkan setelah tidak
-              memiliki pekerja, dan minimal satu divisi aktif harus tersedia.
+              Riwayat pekerja nonaktif tetap tersimpan. Divisi harus kosong untuk
+              dinonaktifkan; minimal satu divisi tetap aktif.
             </p>
           </FrameFooter>
           </Frame>
@@ -998,7 +1023,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
         description={
           editing
             ? `${editing.name} · ${editing.nik}`
-            : "Daftarkan NIK, email, dan WhatsApp terlebih dahulu agar pekerja bisa masuk dengan OTP."
+            : "NIK, email, dan WhatsApp digunakan untuk login OTP."
         }
         size="md"
         dismissible={!saving}
@@ -1142,8 +1167,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
             />
             <FieldError>{errors.phone}</FieldError>
             <p className="text-xs text-muted-foreground">
-              Format 08xx atau 628xx. Nomor ini dipakai untuk menerima OTP dan
-              notifikasi SPKL.
+              Format 08xx atau 628xx untuk OTP dan notifikasi SPKL.
             </p>
           </div>
 
@@ -1163,7 +1187,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
             />
             <FieldError>{errors.email}</FieldError>
             <p id="employee-email-hint" className="text-xs text-muted-foreground">
-              Untuk login email dan OTP cadangan jika WhatsApp gagal. Akun lama tanpa email tetap tersimpan; lengkapi agar fallback tersedia.
+              Untuk login dan OTP cadangan saat WhatsApp gagal.
             </p>
           </div>
 
