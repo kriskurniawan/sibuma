@@ -114,6 +114,7 @@ export function ChecklistView({
             label: "Perlu dikerjakan",
             value: totals.todo,
             icon: ClipboardList,
+            tone: "primary",
             href: "/checklist?status=aktif",
             ariaLabel: `Buka ${totals.todo} checklist aktif`,
           },
@@ -121,6 +122,7 @@ export function ChecklistView({
             label: "Terlambat",
             value: totals.overdue,
             icon: Clock3,
+            tone: totals.overdue > 0 ? "destructive" : "neutral",
             href: "/checklist?status=terlambat",
             ariaLabel: `Buka ${totals.overdue} checklist terlambat`,
           },
@@ -128,11 +130,13 @@ export function ChecklistView({
             label: "Selesai bulan ini",
             value: totals.completedThisMonth,
             icon: CheckCircle2,
+            tone: "success",
           },
           {
             label: "Tindak lanjut",
             value: totals.openFollowUps,
             icon: ListChecks,
+            tone: totals.openFollowUps > 0 ? "warning" : "neutral",
             href: "/checklist/tindak-lanjut",
             ariaLabel: `Buka tindak lanjut, ${totals.openFollowUps} belum selesai`,
           },
@@ -153,7 +157,7 @@ export function ChecklistView({
           value={totals.overdue}
           suffix="checklist"
           icon={Clock3}
-          tone="warning"
+          tone={totals.overdue > 0 ? "destructive" : "neutral"}
           helper="Melewati deadline, tetap dijadwal yang sama"
         />
         <StatCard
@@ -169,7 +173,7 @@ export function ChecklistView({
           value={totals.openFollowUps}
           suffix="temuan"
           icon={ListChecks}
-          tone="info"
+          tone={totals.openFollowUps > 0 ? "warning" : "neutral"}
           helper="Terbuka, diproses, atau tertunda"
         />
       </div>

@@ -10,7 +10,11 @@ import {
   getChecklistLocationScopeIds,
   listChecklistLocationOptions,
 } from "./checklist-location-scope";
-import { scheduleOccurrences, shiftDate } from "./checklist-schedule";
+import {
+  checklistHasStarted,
+  scheduleOccurrences,
+  shiftDate,
+} from "./checklist-schedule";
 import { todayLocal } from "./time";
 import type { SessionUser } from "./types";
 import type {
@@ -350,6 +354,8 @@ export async function getChecklistInspectionDetail(
   const owner = inspection.ownerId === user.id;
   const readOnly = user.accessMode === "read_only";
   const open = !["selesai", "dilewati"].includes(inspection.status);
+  const hasStarted = checklistHasStarted(inspection.occurrenceDate);
+  const canFill = !readOnly && open && hasStarted && (owner || assigned);
 
   return {
     inspection,
@@ -371,8 +377,9 @@ export async function getChecklistInspectionDetail(
     ownerReadOnly: row.owner_access_mode === "read_only",
     readOnly,
     canManage: !readOnly && owner,
-    canFill: !readOnly && open && (owner || assigned),
-    canComplete: !readOnly && open && (owner || assigned),
+    hasStarted,
+    canFill,
+    canComplete: canFill,
     canReopen: !readOnly && owner && inspection.status === "selesai",
     completedByName: (row.completed_by_name as string | null) ?? null,
     reopenedByName: (row.reopened_by_name as string | null) ?? null,

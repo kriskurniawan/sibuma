@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge as ReuiBadge } from "@/components/reui/badge";
 import { IconTile } from "@/components/reui/icon-tile";
+import { SUMMARY_TONES, type SummaryTone } from "@/components/summary-tones";
 import {
   Avatar as ShadcnAvatar,
   AvatarFallback,
@@ -287,13 +288,6 @@ export function SectionHeader({
   );
 }
 
-const STAT_TONES = {
-  primary: "text-primary",
-  info: "text-info",
-  warning: "text-warning",
-  success: "text-success",
-} as const;
-
 export function StatCard({
   label,
   value,
@@ -310,11 +304,11 @@ export function StatCard({
   icon?: ComponentType<{ className?: string; strokeWidth?: number }>;
   visual?: ReactNode;
   helper?: ReactNode;
-  tone?: keyof typeof STAT_TONES;
+  tone?: SummaryTone;
   className?: string;
 }) {
   return (
-    <Card size="sm" className={className}>
+    <Card size="sm" className={cn(SUMMARY_TONES[tone].surface, className)}>
       <CardHeader>
         <CardDescription className="text-xs font-medium">
           {label}
@@ -324,7 +318,7 @@ export function StatCard({
             <IconTile
               variant="soft"
               size="sm"
-              className={STAT_TONES[tone]}
+              className={SUMMARY_TONES[tone].icon}
               aria-hidden="true"
             >
               <Icon strokeWidth={2} />
@@ -425,7 +419,7 @@ export function LinkArrow({
     <Link
       href={href}
       className={cn(
-        "group inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-primary transition-colors hover:text-primary/70",
+        "group inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-medium text-primary transition-colors hover:underline",
         className,
       )}
     >

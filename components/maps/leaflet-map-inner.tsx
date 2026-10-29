@@ -25,7 +25,7 @@ export interface LeafletMapInnerProps {
 }
 
 const ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>';
+  '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>';
 
 export default function LeafletMapInner({
   center,
@@ -106,10 +106,10 @@ export default function LeafletMapInner({
     if (radiusMeters && radiusMeters > 0) {
       L.circle([center.latitude, center.longitude], {
         radius: radiusMeters,
-        color: "#ed6a3b",
+        color: "var(--primary)",
         weight: 1.5,
         opacity: 0.65,
-        fillColor: "#ed6a3b",
+        fillColor: "var(--primary)",
         fillOpacity: 0.1,
         dashArray: "4 4",
       }).addTo(overlay);
@@ -124,9 +124,7 @@ export default function LeafletMapInner({
         html:
           marker.type === "worker"
             ? '<div class="worker-marker-dot"></div>'
-            : '<div class="site-marker-pin" style="background:' +
-              (marker.type === "selected" ? "#ed6a3b" : "#112c25") +
-              '"></div>',
+            : `<div class="site-marker-pin${marker.type === "selected" ? " site-marker-selected" : ""}"></div>`,
         iconSize: marker.type === "worker" ? [17, 17] : [22, 22],
         iconAnchor: marker.type === "worker" ? [8, 8] : [11, 22],
       });

@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Checklist operasional building management dengan temuan, tindak lanjut, dan pemantauan area.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f6f3eb",
-    theme_color: "#112c25",
+    background_color: "#f7f7fb",
+    theme_color: "#623bbd",
     lang: "id",
     orientation: "portrait",
     icons: [

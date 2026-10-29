@@ -3,6 +3,7 @@ import type { ComponentType, ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { Frame, FramePanel } from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
+import { SUMMARY_TONES, type SummaryTone } from "@/components/summary-tones";
 import { cn } from "@/lib/utils";
 
 export interface MobileSummaryItem {
@@ -11,6 +12,7 @@ export interface MobileSummaryItem {
   icon?: ComponentType;
   href?: string;
   ariaLabel?: string;
+  tone?: SummaryTone;
 }
 
 /** Ringkasan mobile sekaligus pintu masuk ke daftar terkait. */
@@ -33,13 +35,15 @@ export function MobileSummary({
       >
         {items.map((item, index) => {
           const Icon = item.icon;
+          const tone = SUMMARY_TONES[item.tone ?? "primary"];
 
           return (
             <FramePanel
               key={index}
               className={cn(
                 "flex min-w-0 flex-col gap-2",
-                item.href && "transition-colors hover:bg-muted/40",
+                tone.surface,
+                item.href && cn("transition-colors", tone.hover),
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -47,7 +51,12 @@ export function MobileSummary({
                   {item.label}
                 </span>
                 {Icon && (
-                  <IconTile size="sm" variant="soft" aria-hidden="true">
+                  <IconTile
+                    size="sm"
+                    variant="soft"
+                    className={tone.icon}
+                    aria-hidden="true"
+                  >
                     <Icon />
                   </IconTile>
                 )}

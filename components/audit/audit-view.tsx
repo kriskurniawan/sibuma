@@ -321,10 +321,14 @@ export function AuditView({
       <MobileSummary
         className="md:hidden"
         items={[
-          { label: "Peristiwa", value: logs.length },
-          { label: "Perubahan SPKL", value: spklLogs },
-          { label: "Koreksi absensi", value: correctionLogs },
-          { label: "Pesan gagal", value: failedNotifications },
+          { label: "Peristiwa", value: logs.length, tone: "primary" },
+          { label: "Perubahan SPKL", value: spklLogs, tone: "info" },
+          { label: "Koreksi absensi", value: correctionLogs, tone: "success" },
+          {
+            label: "Pesan gagal",
+            value: failedNotifications,
+            tone: failedNotifications > 0 ? "destructive" : "neutral",
+          },
         ]}
       />
 
@@ -355,7 +359,7 @@ export function AuditView({
           value={failedNotifications}
           icon={AlertTriangle}
           helper={`${notifications.length} pesan di outbox`}
-          tone="warning"
+          tone={failedNotifications > 0 ? "destructive" : "neutral"}
         />
       </div>
 

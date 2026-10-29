@@ -73,6 +73,7 @@ export function OrganizationDashboard({
         items={[
           {
             label: "Atasan aktif",
+            tone: "primary",
             icon: ShieldCheck,
             href: "/tim",
             ariaLabel: `Kelola atasan, ${overview.activeSupervisors} aktif`,
@@ -87,6 +88,7 @@ export function OrganizationDashboard({
           },
           {
             label: "Pekerja aktif",
+            tone: "primary",
             icon: UsersRound,
             value: (
               <>
@@ -97,11 +99,17 @@ export function OrganizationDashboard({
               </>
             ),
           },
-          { label: "SPKL hari ini", value: overview.todaySpkls, icon: CalendarClock },
+          {
+            label: "SPKL hari ini",
+            value: overview.todaySpkls,
+            icon: CalendarClock,
+            tone: "info",
+          },
           {
             label: "Checklist terlambat",
             value: overview.overdueChecklists,
             icon: AlertTriangle,
+            tone: overview.overdueChecklists > 0 ? "destructive" : "neutral",
           },
         ]}
       />
@@ -121,7 +129,7 @@ export function OrganizationDashboard({
           suffix={`dari ${overview.workers}`}
           icon={UsersRound}
           helper={`${overview.activeDivisions} divisi aktif`}
-          tone="success"
+          tone="primary"
         />
         <StatCard
           label="SPKL hari ini"
@@ -135,7 +143,7 @@ export function OrganizationDashboard({
           value={overview.overdueChecklists}
           icon={AlertTriangle}
           helper={`${overview.openChecklists} belum selesai`}
-          tone={overview.overdueChecklists > 0 ? "warning" : "primary"}
+          tone={overview.overdueChecklists > 0 ? "destructive" : "neutral"}
         />
       </div>
 

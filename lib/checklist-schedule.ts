@@ -1,5 +1,5 @@
 import { addDays, addMonths, addWeeks, differenceInCalendarDays, format, parseISO } from "date-fns";
-import { zonedToIso } from "./time";
+import { formatDateHuman, localDate, zonedToIso } from "./time";
 import type { ChecklistIntervalUnit, ChecklistSchedule } from "./checklist-types";
 
 export const CHECKLIST_GENERATION_DAYS_BACK = 45;
@@ -58,6 +58,19 @@ export function scheduledDates(input: {
 export function checklistDueAt(occurrenceDate: string, dueDays: number) {
   const dueDate = shiftDate(occurrenceDate, Math.max(0, Math.trunc(dueDays)));
   return zonedToIso(dueDate, "23:59");
+}
+
+/**
+ * Pemeriksaan dibuat beberapa hari lebih awal agar terlihat di daftar, tetapi
+ * baru boleh diisi sejak tanggal jadwalnya tiba (zona waktu aplikasi).
+ */
+export function checklistHasStarted(occurrenceDate: string, now = new Date()) {
+  return occurrenceDate.slice(0, 10) <= localDate(now);
+}
+
+export function checklistNotStartedMessage(occurrenceDate: string) {
+  const date = occurrenceDate.slice(0, 10);
+  return `Checklist ini baru dapat diisi mulai ${formatDateHuman(`${date}T12:00:00`, "d MMMM yyyy")}.`;
 }
 
 export function checklistIntervalLabel(unit: ChecklistIntervalUnit, count: number) {

@@ -135,6 +135,7 @@ export function SupervisorDashboard({
             label: "Checklist aktif",
             value: checklistTotals.todo,
             icon: ClipboardList,
+            tone: "primary",
             href: "/checklist?status=aktif",
             ariaLabel: `Buka ${checklistTotals.todo} checklist aktif`,
           },
@@ -142,6 +143,7 @@ export function SupervisorDashboard({
             label: "Terlambat",
             value: checklistTotals.overdue,
             icon: AlertTriangle,
+            tone: checklistTotals.overdue > 0 ? "destructive" : "neutral",
             href: "/checklist?status=terlambat",
             ariaLabel: `Buka ${checklistTotals.overdue} checklist terlambat`,
           },
@@ -149,6 +151,7 @@ export function SupervisorDashboard({
             label: "Tindak lanjut",
             value: checklistTotals.openFollowUps,
             icon: Wrench,
+            tone: checklistTotals.openFollowUps > 0 ? "warning" : "neutral",
             href: "/checklist/tindak-lanjut",
             ariaLabel: `Buka tindak lanjut, ${checklistTotals.openFollowUps} belum selesai`,
           },
@@ -156,6 +159,7 @@ export function SupervisorDashboard({
             label: "Selesai bulan ini",
             value: checklistTotals.completedThisMonth,
             icon: CheckCircle2,
+            tone: "success",
           },
         ]}
       />
@@ -184,7 +188,7 @@ export function SupervisorDashboard({
           value={checklistTotals.overdue}
           suffix="checklist"
           icon={AlertTriangle}
-          tone="warning"
+          tone={checklistTotals.overdue > 0 ? "destructive" : "neutral"}
           helper={
             checklistTotals.overdue > 0
               ? "Perlu diselesaikan segera"
@@ -196,7 +200,7 @@ export function SupervisorDashboard({
           value={checklistTotals.openFollowUps}
           suffix="temuan"
           icon={Wrench}
-          tone="info"
+          tone={checklistTotals.openFollowUps > 0 ? "warning" : "neutral"}
           helper={
             checklistTotals.openFollowUps > 0
               ? "Temuan dari checklist tim"
@@ -222,7 +226,7 @@ export function SupervisorDashboard({
             <FrameTitle>Jadwal lembur</FrameTitle>
             <Link
               href="/lembur"
-              className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+              className="text-xs font-medium text-primary transition-colors hover:underline"
             >
               {readOnly ? "Lihat" : "Kelola"}
             </Link>
@@ -331,7 +335,7 @@ export function SupervisorDashboard({
               </div>
               <Link
                 href="/checklist"
-                className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+                className="text-xs font-medium text-primary transition-colors hover:underline"
               >
                 Semua
               </Link>
@@ -391,7 +395,7 @@ export function SupervisorDashboard({
             </div>
             <Link
               href="/checklist/tindak-lanjut"
-              className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+              className="text-xs font-medium text-primary transition-colors hover:underline"
             >
               Semua
             </Link>

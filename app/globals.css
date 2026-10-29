@@ -16,100 +16,101 @@
   color-scheme: light;
   --radius: 0.75rem;
 
-  /* Brand surfaces */
-  --background: #ffffff;
-  --foreground: #17221d;
+  /* Cool neutral surfaces; white cards stay distinct from the page. */
+  --background: #f7f7fb;
+  --foreground: #242136;
   --card: #ffffff;
-  --card-foreground: #17221d;
+  --card-foreground: #242136;
   --popover: #ffffff;
-  --popover-foreground: #17221d;
+  --popover-foreground: #242136;
 
-  /* Brand actions */
-  --primary: #112c25;
+  /* Violet actions; keep white button text readable at the installed 80% hover. */
+  --primary: #623bbd;
   --primary-foreground: #ffffff;
-  --secondary: #ede9df;
-  --secondary-foreground: #26352e;
-  --muted: #f2efe7;
-  --muted-foreground: #6d766f;
-  --accent: #edf8d3;
-  --accent-foreground: #112c25;
+  --secondary: #eeedf5;
+  --secondary-foreground: #3b354c;
+  --muted: #eeeef4;
+  --muted-foreground: #656273;
+  --accent: #ede7fa;
+  --accent-foreground: #5630a4;
 
-  /* States */
-  --destructive: #bb452f;
-  --destructive-foreground: #8b2e1c;
-  --success: #2b6e4f;
-  --success-foreground: #225b41;
-  --info: #2f6074;
-  --info-foreground: #285263;
-  --warning: #c08a24;
-  --warning-foreground: #71520f;
-  --invert: #112c25;
-  --invert-foreground: #f6f3eb;
+  /* States keep their meaning instead of inheriting the brand hue. */
+  --destructive: #c43d4b;
+  --destructive-foreground: #9e293a;
+  --success: #28734f;
+  --success-foreground: #215c40;
+  --info: #3768b2;
+  --info-foreground: #2c548f;
+  --warning: #b77919;
+  --warning-foreground: #785010;
+  --invert: #242136;
+  --invert-foreground: #f7f7fb;
 
   /* Lines and focus */
-  --border: #e7e3d8;
-  --input: #d5d0c3;
-  --ring: #6f8c7f;
+  --border: #e3e1ec;
+  --input: #c9c5d5;
+  --ring: #623bbd;
 
   /* Data identity */
-  --chart-1: #112c25;
-  --chart-2: #ed6a3b;
-  --chart-3: #c08a24;
-  --chart-4: #2f6074;
-  --chart-5: #8b9d85;
+  --chart-1: #623bbd;
+  --chart-2: #3768b2;
+  --chart-3: #28734f;
+  --chart-4: #b77919;
+  --chart-5: #b64f86;
 
-  /* Sidebar */
-  --sidebar: #fbf9f3;
-  --sidebar-foreground: #24342d;
-  --sidebar-primary: #112c25;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #edf2e2;
-  --sidebar-accent-foreground: #112c25;
-  --sidebar-border: #e7e3d8;
-  --sidebar-ring: #6f8c7f;
+  /* Navigation follows the same violet accent as mobile. */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3b354c;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 .dark {
-  --background: #0e1713;
-  --foreground: #f3f0e8;
-  --card: #17241f;
-  --card-foreground: #f3f0e8;
-  --popover: #17241f;
-  --popover-foreground: #f3f0e8;
-  --primary: #dcf99c;
-  --primary-foreground: #112c25;
-  --secondary: #24332c;
-  --secondary-foreground: #f3f0e8;
-  --muted: #202b26;
-  --muted-foreground: #a4ada5;
-  --accent: #2b3b32;
-  --accent-foreground: #edf8d3;
-  --destructive: #e07a63;
-  --destructive-foreground: #f3a18f;
-  --success: #6fbc92;
-  --success-foreground: #8ed4ac;
-  --info: #79aec3;
-  --info-foreground: #9bc8d8;
-  --warning: #dfb45c;
-  --warning-foreground: #f0cf8c;
-  --invert: #f6f3eb;
-  --invert-foreground: #112c25;
-  --border: rgba(255, 255, 255, 0.12);
-  --input: rgba(255, 255, 255, 0.18);
-  --ring: #7f9c8d;
-  --chart-1: #dcf99c;
-  --chart-2: #ed8a64;
-  --chart-3: #dfb45c;
-  --chart-4: #79aec3;
-  --chart-5: #a4b8a9;
-  --sidebar: #0a1310;
-  --sidebar-foreground: #f6f3eb;
-  --sidebar-primary: #dcf99c;
-  --sidebar-primary-foreground: #112c25;
-  --sidebar-accent: #1a2b24;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: #dcf99c;
+  color-scheme: dark;
+  --background: #14121c;
+  --foreground: #f1eff8;
+  --card: #1e1b29;
+  --card-foreground: #f1eff8;
+  --popover: #1e1b29;
+  --popover-foreground: #f1eff8;
+  --primary: #bca2f3;
+  --primary-foreground: #21143d;
+  --secondary: #302a3f;
+  --secondary-foreground: #eeebf6;
+  --muted: #292535;
+  --muted-foreground: #b0aabd;
+  --accent: #382b51;
+  --accent-foreground: #e0d1ff;
+  --destructive: #f08998;
+  --destructive-foreground: #ffb0bb;
+  --success: #7ccba0;
+  --success-foreground: #a3dfbf;
+  --info: #93b9f4;
+  --info-foreground: #b5d0fa;
+  --warning: #e8bc69;
+  --warning-foreground: #f4d291;
+  --invert: #f1eff8;
+  --invert-foreground: #21143d;
+  --border: rgba(230, 222, 255, 0.12);
+  --input: rgba(230, 222, 255, 0.2);
+  --ring: #bca2f3;
+  --chart-1: #bca2f3;
+  --chart-2: #93b9f4;
+  --chart-3: #7ccba0;
+  --chart-4: #e8bc69;
+  --chart-5: #e7a0cb;
+  --sidebar: #191622;
+  --sidebar-foreground: #eeebf6;
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--accent);
+  --sidebar-accent-foreground: var(--accent-foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
 }
 
 @theme inline {
@@ -270,7 +271,7 @@
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-md) !important;
   overflow: hidden;
-  box-shadow: 0 8px 24px -18px rgba(17, 44, 37, 0.45) !important;
+  box-shadow: 0 8px 24px -18px color-mix(in srgb, var(--foreground) 45%, transparent) !important;
 }
 
 .leaflet-bar a {
@@ -281,7 +282,7 @@
 
 .leaflet-popup-content-wrapper {
   border-radius: var(--radius-lg) !important;
-  box-shadow: 0 18px 44px -24px rgba(17, 44, 37, 0.5) !important;
+  box-shadow: 0 18px 44px -24px color-mix(in srgb, var(--foreground) 50%, transparent) !important;
   font-family: var(--font-sans);
 }
 
@@ -297,8 +298,12 @@
   border: 3px solid var(--card);
   border-radius: 50% 50% 50% 6px;
   transform: rotate(-45deg);
-  background: var(--destructive);
-  box-shadow: 0 3px 12px rgba(17, 44, 37, 0.32);
+  background: var(--primary);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--foreground) 32%, transparent);
+}
+
+.site-marker-selected {
+  background: var(--info);
 }
 
 .worker-marker-dot {
@@ -307,7 +312,7 @@
   border: 3px solid var(--card);
   border-radius: 999px;
   background: var(--primary);
-  box-shadow: 0 2px 10px rgba(17, 44, 37, 0.4);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--foreground) 40%, transparent);
 }
 
 /* ── Print ────────────────────────────────────────────────────────────────── */

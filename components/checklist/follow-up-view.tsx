@@ -66,13 +66,29 @@ export function ChecklistFollowUpView({
       <MobileSummary
         className="md:hidden"
         items={[
-          { label: "Belum selesai", value: totals.open, icon: ListChecks },
-          { label: "Diproses", value: totals.inProgress, icon: LoaderCircle },
-          { label: "Terlambat", value: totals.overdue, icon: Clock3 },
+          {
+            label: "Belum selesai",
+            value: totals.open,
+            icon: ListChecks,
+            tone: totals.open > 0 ? "warning" : "neutral",
+          },
+          {
+            label: "Diproses",
+            value: totals.inProgress,
+            icon: LoaderCircle,
+            tone: "primary",
+          },
+          {
+            label: "Terlambat",
+            value: totals.overdue,
+            icon: Clock3,
+            tone: totals.overdue > 0 ? "destructive" : "neutral",
+          },
           {
             label: "Selesai bulan ini",
             value: totals.doneThisMonth,
             icon: CheckCircle2,
+            tone: "success",
           },
         ]}
       />
@@ -83,7 +99,7 @@ export function ChecklistFollowUpView({
           value={totals.open}
           suffix="temuan"
           icon={ListChecks}
-          tone="info"
+          tone={totals.open > 0 ? "warning" : "neutral"}
           helper="Terbuka, diproses, atau tertunda"
         />
         <StatCard
@@ -99,7 +115,7 @@ export function ChecklistFollowUpView({
           value={totals.overdue}
           suffix="temuan"
           icon={Clock3}
-          tone="warning"
+          tone={totals.overdue > 0 ? "destructive" : "neutral"}
           helper="Melewati deadline tindak lanjut"
         />
         <StatCard

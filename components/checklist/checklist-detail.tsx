@@ -123,11 +123,12 @@ export function ChecklistDetail({
   const closed = ["selesai", "dilewati"].includes(inspection.status);
   const canUpdateFollowUps =
     !detail.readOnly &&
+    detail.hasStarted &&
     (detail.canManage ||
       detail.assignees.some((person) => person.id === currentUserId));
   const canUpdateFollowUp = (row: ChecklistFollowUpRow) =>
     canUpdateFollowUps ||
-    (!detail.readOnly && row.followUp.picId === currentUserId);
+    (!detail.readOnly && detail.hasStarted && row.followUp.picId === currentUserId);
   const canEditFollowUp = (row: ChecklistFollowUpRow) =>
     canUpdateFollowUp(row) &&
     !["selesai", "dibatalkan"].includes(row.followUp.status);
@@ -417,6 +418,17 @@ export function ChecklistDetail({
         </InfoBanner>
       )}
 
+      {!closed && !detail.hasStarted && (
+        <InfoBanner tone="info" icon={CalendarClock}>
+          Checklist ini dijadwalkan pada{" "}
+          {formatDateHuman(
+            occurrenceIso(inspection.occurrenceDate),
+            "d MMMM yyyy",
+          )}
+          . Item baru dapat diisi mulai tanggal tersebut.
+        </InfoBanner>
+      )}
+
       {inspection.status === "selesai" && (
         <InfoBanner tone="success" icon={CheckCircle2}>
           Diselesaikan oleh {detail.completedByName ?? "anggota tim"}
@@ -548,7 +560,12 @@ export function ChecklistDetail({
             <FrameDescription className="text-xs">
               {closed
                 ? "Hasil pemeriksaan tersimpan."
-                : "Isi dan simpan setiap item pemeriksaan."}
+                : !detail.hasStarted
+                  ? `Baru dapat diisi mulai ${formatDateHuman(
+                      occurrenceIso(inspection.occurrenceDate),
+                      "d MMMM yyyy",
+                    )}.`
+                  : "Isi dan simpan setiap item pemeriksaan."}
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">

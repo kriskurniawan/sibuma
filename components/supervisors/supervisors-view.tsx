@@ -198,9 +198,9 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
         columns={3}
         className="md:hidden"
         items={[
-          { label: "Atasan", value: totals.supervisors },
-          { label: "Tim berjalan", value: totals.teams },
-          { label: "Divisi", value: totals.divisions },
+          { label: "Atasan", value: totals.supervisors, tone: "primary" },
+          { label: "Tim berjalan", value: totals.teams, tone: "primary" },
+          { label: "Divisi", value: totals.divisions, tone: "info" },
         ]}
       />
 
@@ -217,7 +217,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
           value={totals.teams}
           icon={UsersRound}
           helper="Atasan dengan anggota"
-          tone="success"
+          tone="primary"
         />
         <StatCard
           label="Divisi"

@@ -7,6 +7,10 @@ import {
 } from "@/lib/checklist-access";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
+import {
+  checklistHasStarted,
+  checklistNotStartedMessage,
+} from "@/lib/checklist-schedule";
 import { checklistFollowUpSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
@@ -33,6 +37,9 @@ export async function POST(request: Request) {
       if (!inspection) throw new Error("Checklist tidak ditemukan.");
       const allowed = await canAccessInspection(connection, user, inspection);
       if (!allowed) throw new Error("Kamu tidak ditugaskan pada checklist ini.");
+      if (!checklistHasStarted(inspection.occurrenceDate)) {
+        throw new Error(checklistNotStartedMessage(inspection.occurrenceDate));
+      }
 
       if (parsed.data.answerId) {
         const [answer] = await query(

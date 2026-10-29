@@ -315,6 +315,8 @@ export interface ChecklistInspectionDetail {
   ownerReadOnly: boolean;
   readOnly: boolean;
   canManage: boolean;
+  /** Tanggal jadwal sudah tiba sehingga item boleh diisi. */
+  hasStarted: boolean;
   canFill: boolean;
   canComplete: boolean;
   canReopen: boolean;

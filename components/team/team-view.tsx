@@ -577,9 +577,14 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
       <MobileSummary
         className="no-print md:hidden"
         items={[
-          { label: "Pekerja aktif", value: `${totals.active}/${totals.total}` },
+          {
+            label: "Pekerja aktif",
+            value: `${totals.active}/${totals.total}`,
+            tone: "primary",
+          },
           {
             label: "Durasi bulan ini",
+            tone: "info",
             value: (
               <>
                 <span>
@@ -593,8 +598,8 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
               </>
             ),
           },
-          { label: "Sesi absensi", value: totalSessions },
-          { label: "Foto kerja", value: totalDocuments },
+          { label: "Sesi absensi", value: totalSessions, tone: "primary" },
+          { label: "Foto kerja", value: totalDocuments, tone: "primary" },
         ]}
       />
 
@@ -613,6 +618,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
           suffix="jam"
           icon={Clock3}
           helper={`${totalMinutes % 60} menit tercatat`}
+          tone="info"
         />
         <StatCard
           label="Sesi absensi"

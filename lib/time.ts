@@ -64,8 +64,12 @@ export function formatDayName(iso: string, timeZone = APP_TIMEZONE) {
   });
 }
 
+export function localDate(now = new Date(), timeZone = APP_TIMEZONE) {
+  return formatInTimeZone(now, timeZone, "yyyy-MM-dd");
+}
+
 export function todayLocal(timeZone = APP_TIMEZONE) {
-  return formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd");
+  return localDate(new Date(), timeZone);
 }
 
 export function currentMonthRange(timeZone = APP_TIMEZONE) {

@@ -185,6 +185,7 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
         items={[
           {
             label: "Bulan ini",
+            tone: "info",
             value: (
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
                 <span className="sr-only">
@@ -205,10 +206,12 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
           {
             label: "Sesi selesai",
             value: overview.stats.completedSessions,
+            tone: "success",
           },
           {
             label: "Dokumentasi",
             value: overview.stats.documentationCount,
+            tone: "info",
           },
         ]}
       />
@@ -220,7 +223,7 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
           suffix="jam"
           icon={Clock3}
           helper={`${overview.stats.monthlyMinutes % 60} menit · target 20 jam`}
-          tone="primary"
+          tone="info"
         />
         <StatCard
           label="Sesi selesai"

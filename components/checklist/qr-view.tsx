@@ -127,9 +127,9 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
         columns={3}
         className="md:hidden"
         items={[
-          { label: "QR aktif", value: activeCount },
-          { label: "QR langsung", value: directCount },
-          { label: "Area publik", value: publicLocations.length },
+          { label: "QR aktif", value: activeCount, tone: "primary" },
+          { label: "QR langsung", value: directCount, tone: "info" },
+          { label: "Area publik", value: publicLocations.length, tone: "success" },
         ]}
       />
 

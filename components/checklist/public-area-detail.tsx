@@ -139,7 +139,7 @@ export function PublicAreaDetail({
           value={latest?.issueCount ?? 0}
           icon={TriangleAlert}
           helper="Perlu perhatian atau tidak baik"
-          tone={latest && latest.issueCount > 0 ? "warning" : "success"}
+          tone={latest && latest.issueCount > 0 ? "warning" : "neutral"}
         />
         <StatCard
           label="Tindak lanjut"
@@ -147,7 +147,7 @@ export function PublicAreaDetail({
           suffix="terbuka"
           icon={ClipboardCheck}
           helper={`${followUps.done} selesai`}
-          tone={followUps.open > 0 ? "warning" : "success"}
+          tone={followUps.open > 0 ? "warning" : "neutral"}
         />
         <StatCard
           label="Pembaruan"

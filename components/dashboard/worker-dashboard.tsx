@@ -46,6 +46,7 @@ import type {
 } from "@/lib/checklist-types";
 import type { WorkerOverview } from "@/lib/queries";
 import type { SessionUser } from "@/lib/types";
+import { checklistHasStarted } from "@/lib/checklist-schedule";
 import {
   formatDateHuman,
   formatDateTime,
@@ -81,6 +82,9 @@ export function WorkerDashboard({
     focus && focus.totalItems > 0
       ? Math.round((focus.answeredCount / focus.totalItems) * 100)
       : 0;
+  const focusStarted = focus
+    ? checklistHasStarted(focus.inspection.occurrenceDate)
+    : false;
   const overtime = overview.activeItem ?? overview.nextItem;
 
   return (
@@ -123,7 +127,7 @@ export function WorkerDashboard({
               <FrameTitle>
                 <Link
                   href={`/checklist/${focus.inspection.id}`}
-                  className="transition-colors hover:text-primary/70"
+                  className="transition-colors hover:text-primary hover:underline"
                 >
                   {focus.inspection.templateName}
                 </Link>
@@ -188,7 +192,9 @@ export function WorkerDashboard({
                 >
                   {focus.answeredCount > 0
                     ? "Lanjutkan checklist"
-                    : "Mulai checklist"}
+                    : focusStarted
+                      ? "Mulai checklist"
+                      : "Lihat checklist"}
                   <ArrowRight />
                 </Button>
               </div>
@@ -204,6 +210,7 @@ export function WorkerDashboard({
             label: "Checklist aktif",
             value: checklistTotals.todo,
             icon: ClipboardList,
+            tone: "primary",
             href: "/checklist?status=aktif",
             ariaLabel: `Buka ${checklistTotals.todo} checklist aktif`,
           },
@@ -211,6 +218,7 @@ export function WorkerDashboard({
             label: "Terlambat",
             value: checklistTotals.overdue,
             icon: AlertTriangle,
+            tone: checklistTotals.overdue > 0 ? "destructive" : "neutral",
             href: "/checklist?status=terlambat",
             ariaLabel: `Buka ${checklistTotals.overdue} checklist terlambat`,
           },
@@ -218,11 +226,13 @@ export function WorkerDashboard({
             label: "Selesai bulan ini",
             value: checklistTotals.completedThisMonth,
             icon: CheckCircle2,
+            tone: "success",
           },
           {
             label: "Tindak lanjut saya",
             value: myFollowUpTotal,
             icon: Wrench,
+            tone: myFollowUpTotal > 0 ? "warning" : "neutral",
             href: "/checklist/tindak-lanjut?mine=1",
             ariaLabel: `Buka tindak lanjut saya, ${myFollowUpTotal} belum selesai`,
           },
@@ -238,7 +248,7 @@ export function WorkerDashboard({
             <FrameTitle>Jadwal lembur</FrameTitle>
             <Link
               href="/riwayat"
-              className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+              className="text-xs font-medium text-primary transition-colors hover:underline"
             >
               Riwayat
             </Link>
@@ -304,7 +314,7 @@ export function WorkerDashboard({
                 {checklists.length > 1 && (
                   <Link
                     href="/checklist"
-                    className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+                    className="text-xs font-medium text-primary transition-colors hover:underline"
                   >
                     Semua
                   </Link>
@@ -375,7 +385,7 @@ export function WorkerDashboard({
             </div>
             <Link
               href="/checklist/tindak-lanjut?mine=1"
-              className="text-xs font-medium text-primary transition-colors hover:text-primary/70"
+              className="text-xs font-medium text-primary transition-colors hover:underline"
             >
               Semua
             </Link>
@@ -433,7 +443,7 @@ export function WorkerDashboard({
           value={checklistTotals.overdue}
           suffix="checklist"
           icon={CalendarClock}
-          tone="warning"
+          tone={checklistTotals.overdue > 0 ? "destructive" : "neutral"}
           helper={
             checklistTotals.overdue > 0
               ? "Selesaikan secepatnya"
@@ -453,7 +463,7 @@ export function WorkerDashboard({
           value={myFollowUpTotal}
           suffix="temuan"
           icon={Wrench}
-          tone="info"
+          tone={myFollowUpTotal > 0 ? "warning" : "neutral"}
           helper={
             myFollowUpTotal > 0
               ? "Ditugaskan kepadamu"

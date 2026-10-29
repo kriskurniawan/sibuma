@@ -364,7 +364,7 @@ export function AppShell({
                   <span className="truncate text-sm font-semibold tracking-[0.04em] text-sidebar-foreground">
                     SIBUMA
                   </span>
-                  <span className="truncate text-xs font-normal text-sidebar-foreground/60">
+                  <span className="truncate text-xs font-normal text-muted-foreground">
                     Sistem Building Management
                   </span>
                 </span>
@@ -415,7 +415,7 @@ export function AppShell({
                     <span className="truncate text-sm font-medium text-sidebar-foreground">
                       {user.name}
                     </span>
-                    <span className="truncate text-xs font-normal text-sidebar-foreground/60">
+                    <span className="truncate text-xs font-normal text-muted-foreground">
                       {ROLE_LABEL[user.role]} · {user.nik}
                     </span>
                   </span>
@@ -452,7 +452,7 @@ export function AppShell({
             </SidebarMenuItem>
           </SidebarMenu>
 
-          <p className="flex items-center gap-1.5 px-2 pb-1 text-xs text-sidebar-foreground/45 group-data-[collapsible=icon]:hidden">
+          <p className="flex items-center gap-1.5 px-2 pb-1 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
             <ShieldCheck className="size-3.5" aria-hidden="true" />
             Waktu server · jejak audit aktif
           </p>
@@ -486,7 +486,7 @@ export function AppShell({
               <span suppressHydrationWarning className="capitalize">
                 {todayLabel}
               </span>
-              <span className="text-muted-foreground/60">· WIB</span>
+              <span>· WIB</span>
             </span>
             {readOnly && (
               <Badge variant="warning-light" className="shrink-0">

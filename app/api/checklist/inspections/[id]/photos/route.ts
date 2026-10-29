@@ -8,6 +8,10 @@ import {
 } from "@/lib/checklist-access";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
+import {
+  checklistHasStarted,
+  checklistNotStartedMessage,
+} from "@/lib/checklist-schedule";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import type { ChecklistFollowUp } from "@/lib/checklist-types";
 import { pool, query, transaction } from "@/lib/db";
@@ -120,6 +124,9 @@ export async function POST(
     } else {
       const allowed = await canAccessInspection(pool(), user, inspection);
       if (!allowed) return apiError("Kamu tidak ditugaskan pada checklist ini.", 403);
+      if (!checklistHasStarted(inspection.occurrenceDate)) {
+        return apiError(checklistNotStartedMessage(inspection.occurrenceDate));
+      }
       if (["selesai", "dilewati"].includes(inspection.status)) {
         return apiError(
           "Checklist sudah selesai. Minta atasan membuka kembali sebelum menambah foto.",
@@ -163,6 +170,11 @@ export async function POST(
           ownerId: current.owner_id as string,
         });
         if (!allowed) throw new Error("Kamu tidak ditugaskan pada checklist ini.");
+        if (!checklistHasStarted(current.occurrence_date as string)) {
+          throw new Error(
+            checklistNotStartedMessage(current.occurrence_date as string),
+          );
+        }
         if (["selesai", "dilewati"].includes(current.status as string)) {
           throw new Error(
             "Checklist sudah selesai. Minta atasan membuka kembali sebelum menambah foto.",

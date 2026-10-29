@@ -5,7 +5,7 @@
  * API, because a cached document can outlive logout or an account switch on a
  * shared phone. Only public, versionless shell assets are precached.
  */
-const CACHE_NAME = "sibuma-static-v2";
+const CACHE_NAME = "sibuma-static-v3";
 const LEGACY_CACHE_PREFIXES = ["lembur-shell-", "sibuma-static-"];
 const OFFLINE_URL = "/offline.html";
 const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icons/icon-192.png"];
