@@ -158,7 +158,7 @@ export default async function DocumentsPage({
         : readOnly
           ? "Akunmu berada dalam mode hanya-baca, jadi belum dapat mengunggah dokumen kerja. Dokumen yang dibagikan tetap dapat dibuka."
           : selectedFolder
-            ? "Unggah berkas untuk mengisi folder ini. Nama dan deskripsi folder berlaku untuk seluruh isinya."
+            ? "Unggah berkas untuk mengisi folder ini. Setiap berkas dapat diberi deskripsi sendiri saat diunggah."
             : folderFilter === null
               ? "Dokumen yang belum dimasukkan ke folder akan muncul di sini."
               : "Unggah referensi, panduan, atau tutorial kerja. Dokumen tetap privat sampai kamu membagikannya.",
@@ -221,7 +221,7 @@ export default async function DocumentsPage({
       <PageHeader
         eyebrow="Dokumen kerja"
         title="Dokumen Kerja"
-        description="Berkas referensi dan tutorial milikmu. Privat secara default, dapat dibagikan hanya-baca ke divisi atau atasan yang dipilih, dan aksesnya dapat ditutup kapan saja."
+        description="Dokumen pendukung pekerjaanmu. Privat secara default, dapat dibagikan hanya-baca ke divisi atau atasan yang dipilih, dan aksesnya dapat ditutup kapan saja."
         action={uploadAction}
       />
 
@@ -284,6 +284,8 @@ export default async function DocumentsPage({
                 total={data.total}
                 pagination={data.page}
                 tab={tab}
+                readOnly={readOnly}
+                trashRetentionDays={settings.trashRetentionDays}
               />
             )}
           </FramePanel>

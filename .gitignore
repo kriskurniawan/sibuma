@@ -3,6 +3,7 @@ node_modules
 out
 .env
 .env.local
+.env.push
 data/db.json
 data/*.bak
 data/uploads/*

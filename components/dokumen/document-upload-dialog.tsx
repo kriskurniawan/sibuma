@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { FolderUp, UploadCloud, X } from "lucide-react";
+import { FolderUp, Pencil, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
 import { DocumentFileIcon } from "@/components/dokumen/document-file-icon";
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   formatDocumentBytes,
@@ -28,6 +29,7 @@ import {
 interface QueueItem {
   id: string;
   file: File;
+  description: string;
   status: "pending" | "uploading" | "done" | "error";
   progress: number;
   error?: string;
@@ -56,8 +58,16 @@ export function DocumentUploadDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [editingDescriptionId, setEditingDescriptionId] = useState<
+    string | null
+  >(null);
+  const [descriptionBeforeEdit, setDescriptionBeforeEdit] = useState("");
+  const [focusDescription, setFocusDescription] = useState(false);
 
   const pending = items.filter((item) => item.status !== "done");
+  const describedCount = items.filter(
+    (item) => item.description.trim().length > 0,
+  ).length;
   const quotaFull = usedBytes >= settings.quotaBytes;
   const uploadDisabled = !settings.uploadsEnabled || quotaFull;
   const totalBytes = useMemo(
@@ -72,6 +82,9 @@ export function DocumentUploadDialog({
 
   function reset() {
     setItems([]);
+    setEditingDescriptionId(null);
+    setDescriptionBeforeEdit("");
+    setFocusDescription(false);
     setError(null);
     setFolderId(currentFolderId ?? NO_FOLDER);
   }
@@ -106,12 +119,20 @@ export function DocumentUploadDialog({
       accepted.push({
         id: `${file.name}-${file.size}-${crypto.randomUUID()}`,
         file,
+        description: "",
         status: "pending",
         progress: 0,
       });
     }
 
+    // Berkas tunggal langsung dibuka; antrean banyak tetap ringkas.
+    const shouldOpenDescription = items.length === 0 && accepted.length === 1;
     setItems((current) => [...current, ...accepted].slice(0, MAX_FILES));
+    if (shouldOpenDescription) {
+      setEditingDescriptionId(accepted[0].id);
+      setDescriptionBeforeEdit("");
+      setFocusDescription(false);
+    }
     if (incoming.length > MAX_FILES) {
       messages.push(`Maksimal ${MAX_FILES} berkas sekali unggah.`);
     }
@@ -135,6 +156,38 @@ export function DocumentUploadDialog({
     );
   }
 
+  function openDescription(item: QueueItem) {
+    setEditingDescriptionId(item.id);
+    setDescriptionBeforeEdit(item.description);
+    setFocusDescription(true);
+  }
+
+  function closeDescription(save: boolean) {
+    if (!editingDescriptionId) return;
+    if (save) {
+      const item = items.find((entry) => entry.id === editingDescriptionId);
+      updateItem(editingDescriptionId, {
+        description: item?.description.trim() ?? "",
+      });
+    } else {
+      updateItem(editingDescriptionId, {
+        description: descriptionBeforeEdit,
+      });
+    }
+    setEditingDescriptionId(null);
+    setDescriptionBeforeEdit("");
+    setFocusDescription(false);
+  }
+
+  function removeItem(id: string) {
+    setItems((current) => current.filter((entry) => entry.id !== id));
+    if (editingDescriptionId === id) {
+      setEditingDescriptionId(null);
+      setDescriptionBeforeEdit("");
+      setFocusDescription(false);
+    }
+  }
+
   async function submit() {
     const queue = items.filter((item) => item.status !== "done");
     if (queue.length === 0 || busy) return;
@@ -146,6 +199,9 @@ export function DocumentUploadDialog({
       return;
     }
 
+    setEditingDescriptionId(null);
+    setDescriptionBeforeEdit("");
+    setFocusDescription(false);
     setBusy(true);
     setError(null);
     let uploaded = 0;
@@ -194,6 +250,7 @@ export function DocumentUploadDialog({
             fileName: item.file.name,
             sizeBytes: item.file.size,
             checksumSha256: checksum,
+            description: item.description.trim(),
             folderId: folderId === NO_FOLDER ? null : folderId,
           }),
         });
@@ -218,6 +275,7 @@ export function DocumentUploadDialog({
     }
 
     setBusy(false);
+    const allSucceeded = uploaded > 0 && uploaded === queue.length;
     if (uploaded > 0) {
       toast.success(
         uploaded === 1
@@ -226,7 +284,14 @@ export function DocumentUploadDialog({
       );
       router.refresh();
     }
-    setItems((current) => current.filter((item) => item.status !== "done"));
+    if (allSucceeded) {
+      // Semua berkas berhasil: tutup dialog. Jika ada yang gagal, biarkan
+      // terbuka agar pesan error per berkas tetap bisa dibaca.
+      setOpen(false);
+      reset();
+    } else {
+      setItems((current) => current.filter((item) => item.status !== "done"));
+    }
   }
 
   return (
@@ -254,6 +319,7 @@ export function DocumentUploadDialog({
         description="Berkas privat; hanya kamu dan penerima berbagi folder yang dapat membukanya."
         size="md"
         dismissible={!busy}
+        stickyFooter
         footer={
           <>
             <Button
@@ -306,7 +372,8 @@ export function DocumentUploadDialog({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Nama dan deskripsi folder mewakili seluruh berkas di dalamnya.
+              Deskripsi folder menjelaskan isi folder. Setiap berkas juga dapat
+              diberi deskripsi sendiri.
             </p>
           </div>
 
@@ -359,28 +426,111 @@ export function DocumentUploadDialog({
           </div>
 
           {items.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {items.length} berkas
+              {describedCount > 0
+                ? ` · ${describedCount} diberi deskripsi`
+                : ""}
+            </p>
+          )}
+
+          {items.length > 0 && (
             <ul className="flex flex-col divide-y divide-border/70 rounded-lg border border-border">
               {items.map((item) => {
                 const extension = (
                   item.file.name.split(".").pop() ?? ""
                 ).toLowerCase();
                 return (
-                  <li key={item.id} className="flex items-start gap-3 p-3">
-                    <DocumentFileIcon extension={extension} />
+                  <li key={item.id} className="flex items-start gap-2 p-3">
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <span className="truncate text-sm font-medium text-foreground">
                         {item.file.name}
                       </span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {formatDocumentBytes(item.file.size)} ·{" "}
-                        {extension.toUpperCase()}
-                        {item.status === "uploading" && ` · ${item.progress}%`}
-                      </span>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                          <DocumentFileIcon extension={extension} size="xs" />
+                          <span className="truncate tabular-nums">
+                            {formatDocumentBytes(item.file.size)} ·{" "}
+                            {extension.toUpperCase()}
+                            {item.status === "uploading" &&
+                              ` · ${item.progress}%`}
+                          </span>
+                        </span>
+                        {editingDescriptionId !== item.id && (
+                          <Button
+                            type="button"
+                            size="xs"
+                            variant="ghost"
+                            className="ml-auto"
+                            aria-label={
+                              item.description
+                                ? `Ubah deskripsi ${item.file.name}`
+                                : `Tambah deskripsi ${item.file.name}`
+                            }
+                            disabled={busy}
+                            onClick={() => openDescription(item)}
+                          >
+                            <Pencil aria-hidden="true" />
+                            <span className="hidden min-[360px]:inline">
+                              {item.description ? "Ubah" : "Tambah deskripsi"}
+                            </span>
+                          </Button>
+                        )}
+                      </div>
                       {item.error && (
                         <span className="text-xs font-medium text-destructive">
                           {item.error}
                         </span>
                       )}
+                      {editingDescriptionId === item.id ? (
+                        <div className="flex flex-col gap-1.5">
+                          <Textarea
+                            aria-label={`Deskripsi ${item.file.name}`}
+                            value={item.description}
+                            maxLength={1_000}
+                            rows={3}
+                            disabled={busy}
+                            autoFocus={focusDescription}
+                            placeholder="Contoh: sumber referensi, kondisi, atau catatan penting."
+                            onChange={(event) =>
+                              updateItem(item.id, {
+                                description: event.target.value,
+                              })
+                            }
+                          />
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {item.description.length}/1.000
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                type="button"
+                                size="xs"
+                                variant="ghost"
+                                disabled={busy}
+                                onClick={() => closeDescription(false)}
+                              >
+                                Batal
+                              </Button>
+                              <Button
+                                type="button"
+                                size="xs"
+                                disabled={busy}
+                                onClick={() => closeDescription(true)}
+                              >
+                                Simpan
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : item.description ? (
+                        <p
+                          className="min-w-0 truncate text-xs text-muted-foreground"
+                          title={item.description}
+                        >
+                          {item.description}
+                        </p>
+                      ) : null}
                     </div>
                     {item.status === "done" ? (
                       <Badge variant="success-light">Selesai</Badge>
@@ -391,11 +541,7 @@ export function DocumentUploadDialog({
                         variant="ghost"
                         aria-label={`Hapus ${item.file.name} dari antrean`}
                         disabled={busy}
-                        onClick={() =>
-                          setItems((current) =>
-                            current.filter((entry) => entry.id !== item.id),
-                          )
-                        }
+                        onClick={() => removeItem(item.id)}
                       >
                         <X aria-hidden="true" />
                       </Button>

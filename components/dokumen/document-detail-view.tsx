@@ -658,7 +658,8 @@ export function DocumentDetailView({
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              Nama dan deskripsi folder mewakili seluruh berkas di dalamnya.
+              Folder mengelompokkan berkas; keterangan tiap berkas tetap
+              tersimpan saat dipindahkan.
             </p>
           </div>
         </form>

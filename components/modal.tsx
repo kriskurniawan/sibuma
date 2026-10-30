@@ -37,6 +37,7 @@ export function Modal({
   size = "md",
   dismissible = true,
   mobileSheet = false,
+  stickyFooter = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -47,6 +48,7 @@ export function Modal({
   size?: keyof typeof SIZE_CLASSES;
   dismissible?: boolean;
   mobileSheet?: boolean;
+  stickyFooter?: boolean;
 }) {
   const isMobile = useIsMobile();
   // Di perangkat sentuh, fokuskan wadah dialog agar keyboard tidak langsung
@@ -107,7 +109,10 @@ export function Modal({
         showCloseButton={dismissible}
         initialFocus={isMobile ? contentRef : undefined}
         className={cn(
-          "max-h-[calc(100svh-2rem)] overflow-y-auto",
+          "max-h-[calc(100svh-2rem)]",
+          stickyFooter
+            ? "grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden"
+            : "overflow-y-auto",
           SIZE_CLASSES[size],
         )}
       >
@@ -119,8 +124,19 @@ export function Modal({
           )}
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        <div className="min-w-0">{children}</div>
-        {footer && <DialogFooter>{footer}</DialogFooter>}
+        <div
+          className={cn(
+            "min-w-0",
+            stickyFooter && "min-h-0 overflow-y-auto",
+          )}
+        >
+          {children}
+        </div>
+        {footer && (
+          <DialogFooter className={stickyFooter ? "bg-muted" : undefined}>
+            {footer}
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );

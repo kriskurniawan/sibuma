@@ -13,8 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import type { WorkDocumentFolder } from "@/lib/work-document-types";
 
 /**
- * Folder satu tingkat. Nama dan deskripsi folder mewakili seluruh berkas di
- * dalamnya; berkas sendiri hanya menyimpan nama tampilan dan jenisnya.
+ * Folder satu tingkat. Deskripsi folder menjelaskan isi folder; setiap berkas
+ * tetap menyimpan keterangannya sendiri.
  */
 export function DocumentFolderDialog({
   open,
@@ -87,7 +87,7 @@ export function DocumentFolderDialog({
       open={open}
       onClose={close}
       title={editing ? "Ubah folder" : "Folder baru"}
-      description="Folder mengelompokkan berkas. Deskripsi folder menjadi keterangan seluruh isinya."
+      description="Folder mengelompokkan berkas. Deskripsi folder menjelaskan isi folder; tiap berkas tetap punya keterangan sendiri."
       size="md"
       dismissible={!busy}
       footer={

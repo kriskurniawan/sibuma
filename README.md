@@ -24,9 +24,10 @@ Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan di
 ### Dokumen kerja
 
 - Menyimpan **referensi, panduan, atau tutorial** pribadi dalam PDF, JPG, PNG, DOCX, XLSX, PPTX, atau video MP4/WEBM/MOV. Berkas privat secara default dan terpisah dari dokumentasi bukti pekerjaan yang immutable.
-- Menyusun dokumen dalam **folder satu tingkat** (mis. per proyek atau kategori) dan mengunggah beberapa berkas sekaligus. Deskripsi/label melekat pada folder, bukan per berkas.
+- Menyusun dokumen dalam **folder satu tingkat** (mis. per proyek atau kategori) dan mengunggah beberapa berkas sekaligus. Folder punya deskripsi umum, dan setiap berkas dapat diberi deskripsi sendiri saat diunggah atau diubah kapan saja.
 - Membuka atau menutup akses **hanya-baca** ke divisi mana pun dan atasan mana pun yang dipilih, baik per dokumen maupun per folder. Akses folder berlaku untuk seluruh isinya; akses dokumen tetap bekerja untuk berkas di luar folder. Setiap penerima dapat ditambah/dicabut sendiri, dan akses diperiksa ulang pada setiap pratinjau/unduhan sehingga pencabutan langsung berlaku.
 - Pratinjau di browser untuk PDF, gambar, dan video; berkas Office diunduh. Kuota per akun dihitung termasuk berkas di sampah sampai dihapus permanen, dan perubahan batas oleh super admin tidak membatalkan dokumen lama.
+- Memilih beberapa dokumen sekaligus lalu memindahkannya ke sampah, memulihkannya, atau menghapusnya permanen. Aksi massal hanya tersedia untuk dokumen milik sendiri; UI menampilkan hasil per dokumen agar yang gagal tetap terpilih dan bisa dicoba ulang.
 
 ### Atasan
 
@@ -365,10 +366,11 @@ Ringkasan API utama:
 | `POST /api/spkl/:id/documents/video/prepare`, `POST /api/spkl/:id/documents/video/complete` | Terbitkan URL `PUT` video, lalu verifikasi dan simpan dokumentasi video |
 | `GET /api/uploads/:key` | Sajikan file dokumentasi terproteksi; video dialihkan `302` ke URL baca bertanda tangan 15 menit |
 | `POST /api/dokumen/upload` | Terbitkan URL `PUT` sementara untuk unggah langsung ke bucket (validasi jenis, ukuran, kuota) |
-| `POST /api/dokumen` | Selesaikan unggahan: verifikasi ulang ukuran, magic bytes, kuota, lalu simpan metadata |
+| `POST /api/dokumen` | Selesaikan unggahan: verifikasi ulang ukuran, magic bytes, kuota, lalu simpan metadata beserta `description`, `title`, dan `folderId` opsional |
 | `GET /api/dokumen/:id/file` | Pratinjau/unduh privat; `download=1` memaksa unduhan; akses diperiksa ulang |
 | `PATCH/DELETE /api/dokumen/:id` | Ubah nama/keterangan atau pindahkan ke sampah |
 | `POST /api/dokumen/:id/restore`, `POST /api/dokumen/:id/purge` | Pulihkan dari sampah atau hapus permanen |
+| `POST /api/dokumen/bulk` | Aksi massal dokumen milik sendiri; body `{ action: "trash" \| "restore" \| "purge", ids: string[] }` (1–100 ID unik); memproses maksimal 4 sekaligus dan mengembalikan `results: [{ id, ok, message? }]` per dokumen. Respons tetap `200` meski ada dokumen yang gagal; baris yang gagal dilaporkan terpisah agar bisa dicoba ulang |
 | `PUT /api/dokumen/:id/shares` | Ganti penerima hanya-baca; body `{ divisionIds: string[], supervisorIds: string[] }`; array kosong mencabut semua |
 | `PATCH /api/dokumen/:id/move` | Pindahkan dokumen ke folder lain atau keluar folder |
 | `GET/POST /api/dokumen/folders`, `PATCH/DELETE /api/dokumen/folders/:id` | Daftar, buat, ubah, atau hapus folder satu tingkat milik sendiri |

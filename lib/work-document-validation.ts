@@ -123,6 +123,7 @@ export const workDocumentUploadCompleteSchema =
 
 const DIVISION_ID_PATTERN = /^div_[A-Za-z0-9-]{1,64}$/;
 const EMPLOYEE_ID_PATTERN = /^emp_[A-Za-z0-9-]{1,64}$/;
+const DOCUMENT_ID_PATTERN = /^doc_[A-Za-z0-9-]{1,64}$/;
 
 function uniqueIds(values: string[]) {
   return new Set(values).size === values.length;
@@ -165,5 +166,22 @@ export const workDocumentMoveSchema = z.object({
     .regex(/^fld_[a-z0-9-]{36}$/, "Folder tidak valid.")
     .nullable(),
 });
+
+export const WORK_DOCUMENT_BULK_ACTIONS = [
+  "trash",
+  "restore",
+  "purge",
+] as const;
+
+export const workDocumentBulkSchema = z.object({
+  action: z.enum(WORK_DOCUMENT_BULK_ACTIONS),
+  ids: z
+    .array(z.string().regex(DOCUMENT_ID_PATTERN, "Dokumen tidak valid."))
+    .min(1, "Pilih minimal satu dokumen.")
+    .max(100, "Terlalu banyak dokumen yang dipilih.")
+    .refine(uniqueIds, "Dokumen yang dipilih tidak boleh ganda."),
+});
+
+export type WorkDocumentBulkInput = z.infer<typeof workDocumentBulkSchema>;
 
 export type WorkDocumentFolderInput = z.infer<typeof workDocumentFolderSchema>;
