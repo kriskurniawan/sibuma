@@ -46,6 +46,7 @@ export default async function ChecklistPage({
       locations={locations}
       canManage={user.role === "atasan" && !isReadOnly(user)}
       readOnly={isReadOnly(user)}
+      showMobileScan={user.role === "atasan"}
     />
   );
 }

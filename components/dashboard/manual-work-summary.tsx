@@ -137,7 +137,7 @@ export function ManualWorkSummary({
             description={
               canManage
                 ? canAssign
-                  ? "Buat pekerjaan harian dengan dokumentasi foto."
+                  ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
                   : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
                 : readOnly
                   ? "Belum ada pekerjaan aktif untuk tim ini."

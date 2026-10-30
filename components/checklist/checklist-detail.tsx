@@ -62,7 +62,6 @@ import { ChecklistFollowUpUpdateDialog } from "@/components/checklist/follow-up-
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
 import { checklistIntervalLabel } from "@/lib/checklist-schedule";
 import {
-  CHECKLIST_MAX_PHOTOS,
   conditionRequiresNote,
   isIssueCondition,
   type ChecklistAnswer,
@@ -92,10 +91,18 @@ export function ChecklistDetail({
   detail,
   currentUserId,
   conditions,
+  photoLimit,
+  videoLimit,
+  videoMaxBytes,
+  videoEnabled,
 }: {
   detail: ChecklistInspectionDetail;
   currentUserId: string;
   conditions: ChecklistConditionOption[];
+  photoLimit: number;
+  videoLimit: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
 }) {
   const router = useRouter();
   const { inspection } = detail;
@@ -198,7 +205,7 @@ export function ChecklistDetail({
       (persisted.photoPolicy === "wajib" ||
         (persisted.photoPolicy === "wajib_saat_masalah" &&
           isIssueCondition(condition, conditions))) &&
-      entry.photos.length === 0
+      entry.photos.filter((photo) => photo.kind !== "video").length === 0
     ) {
       reason = "foto wajib dilampirkan";
     }
@@ -621,6 +628,10 @@ export function ChecklistDetail({
                           followUp={active ?? null}
                           conditions={conditions}
                           nested={Boolean(block.groupPath)}
+                          maxPhotos={photoLimit}
+                          maxVideos={videoLimit}
+                          videoMaxBytes={videoMaxBytes}
+                          videoEnabled={videoEnabled}
                           onCreateFollowUp={openCreateFollowUp}
                           onDraftChange={handleDraftChange}
                           onUploadingChange={(_, uploading) =>
@@ -829,12 +840,13 @@ export function ChecklistDetail({
                         photos={photos}
                         inspectionId={inspection.id}
                         followUpId={row.followUp.id}
-                        canUpload={
-                          canEditFollowUp(row) &&
-                          photos.length < CHECKLIST_MAX_PHOTOS
-                        }
+                        canUpload={canEditFollowUp(row)}
                         canDelete={canEditFollowUp(row)}
                         stage="perbaikan"
+                        maxPhotos={photoLimit}
+                        maxVideos={videoLimit}
+                        videoMaxBytes={videoMaxBytes}
+                        videoEnabled={videoEnabled}
                         onChanged={() => router.refresh()}
                         onUploadingChange={(uploading) =>
                           handleUploadingChange(

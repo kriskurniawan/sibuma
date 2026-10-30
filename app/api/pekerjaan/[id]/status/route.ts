@@ -96,7 +96,8 @@ export async function POST(
         }
         if (work.requiresDocumentation) {
           const [photos] = await query<{ total: number }>(
-            `SELECT count(*)::integer total FROM manual_work_photos WHERE work_id=$1`,
+            `SELECT count(*)::integer total FROM manual_work_photos
+             WHERE work_id=$1 AND kind='photo'`,
             [id],
             connection,
           );

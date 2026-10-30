@@ -87,6 +87,13 @@ function docsForSpkl(db: Database, spklId: string) {
   return db.documentations.filter((doc) => doc.spklId === spklId);
 }
 
+/** Hitungan yang tampil sebagai "foto" tetap hanya foto, bukan video. */
+function photoCountForSpkl(db: Database, spklId: string) {
+  return db.documentations.filter(
+    (doc) => doc.spklId === spklId && (doc.kind ?? "photo") === "photo",
+  ).length;
+}
+
 function buildListItem(
   db: Database,
   spkl: Spkl,
@@ -126,7 +133,7 @@ function buildListItem(
     myAttendance: attendance ?? null,
     canCheckIn: assigned && !attendance && isCheckInOpen(spkl),
     workerCount: workers.length,
-    documentationCount: docsForSpkl(db, spkl.id).length,
+    documentationCount: photoCountForSpkl(db, spkl.id),
     creator,
     division,
     divisions,
@@ -295,7 +302,7 @@ export async function getSupervisorOverview(
         spkl,
         status: spklStatus(spkl),
         workers: workerRows,
-        documentationCount: docsForSpkl(db, spkl.id).length,
+        documentationCount: photoCountForSpkl(db, spkl.id),
         checkedIn: workerRows.filter(
           (item) => item.attendance?.status === "berjalan",
         ).length,
@@ -384,11 +391,6 @@ export async function getSpklDetail(
   const graceEnd = new Date(
     new Date(spkl.endAt).getTime() + db.policy.docGraceMinutes * 60_000,
   );
-  const myDocCount = myAttendance
-    ? db.documentations.filter(
-        (doc) => doc.attendanceId === myAttendance.id,
-      ).length
-    : 0;
 
   return {
     ...base,
@@ -407,8 +409,7 @@ export async function getSpklDetail(
       user.role === "pekerja" &&
       Boolean(myAttendance?.checkInAt) &&
       myAttendance?.status !== "tidak_hadir" &&
-      now.getTime() <= graceEnd.getTime() &&
-      myDocCount < 12,
+      now.getTime() <= graceEnd.getTime(),
     isAssigned: assigned,
     myAttendance,
     status,

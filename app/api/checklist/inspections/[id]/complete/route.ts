@@ -44,7 +44,7 @@ export async function POST(
       if (current.status === "dilewati") throw new Error("Checklist ini dilewati.");
 
       const answers = await query(
-        `SELECT a.*,(SELECT count(*)::integer FROM checklist_photos p WHERE p.answer_id=a.id) photo_count
+        `SELECT a.*,(SELECT count(*)::integer FROM checklist_photos p WHERE p.answer_id=a.id AND p.kind='photo') photo_count
          FROM checklist_answers a WHERE a.inspection_id=$1 ORDER BY a.position,a.id`,
         [id],
         connection,

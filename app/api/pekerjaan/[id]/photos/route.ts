@@ -7,10 +7,7 @@ import {
   loadManualWork,
 } from "@/lib/manual-work-access";
 import { manualWorkErrorMessage } from "@/lib/manual-work-errors";
-import {
-  MANUAL_WORK_MAX_PHOTOS,
-  type ManualWorkStatus,
-} from "@/lib/manual-work-types";
+import type { ManualWorkStatus } from "@/lib/manual-work-types";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import { pool, query, transaction } from "@/lib/db";
 import {
@@ -19,6 +16,7 @@ import {
   readSibumaJpegComment,
 } from "@/lib/documentation-marker";
 import { apiError, apiOk } from "@/lib/http";
+import { getPhotoLimits } from "@/lib/photo-limits";
 import { deleteObject, putObject } from "@/lib/storage";
 import { zonedToIso } from "@/lib/time";
 
@@ -129,12 +127,14 @@ export async function POST(
         "Pekerjaan sudah ditutup. Minta pemilik pekerjaan membuka kembali sebelum menambah foto.",
       );
     }
+    const { workPhotos: maxPhotos } = await getPhotoLimits();
     const [before] = await query<{ total: number }>(
-      `SELECT count(*)::integer total FROM manual_work_photos WHERE work_id=$1`,
+      `SELECT count(*)::integer total FROM manual_work_photos
+       WHERE work_id=$1 AND kind='photo'`,
       [id],
     );
-    if ((before?.total ?? 0) >= MANUAL_WORK_MAX_PHOTOS) {
-      return apiError(`Maksimal ${MANUAL_WORK_MAX_PHOTOS} foto per pekerjaan.`);
+    if ((before?.total ?? 0) >= maxPhotos) {
+      return apiError(`Maksimal ${maxPhotos} foto per pekerjaan.`);
     }
 
     await putObject(storageKey, buffer, file.type);
@@ -165,13 +165,15 @@ export async function POST(
           "Waktu foto lebih dari 24 jam sebelum tanggal mulai pekerjaan. Pilih foto yang diambil saat pekerjaan berlangsung.",
         );
       }
+      const { workPhotos: currentLimit } = await getPhotoLimits(connection);
       const [count] = await query<{ total: number }>(
-        `SELECT count(*)::integer total FROM manual_work_photos WHERE work_id=$1`,
+        `SELECT count(*)::integer total FROM manual_work_photos
+         WHERE work_id=$1 AND kind='photo'`,
         [id],
         connection,
       );
-      if ((count?.total ?? 0) >= MANUAL_WORK_MAX_PHOTOS) {
-        throw new Error(`Maksimal ${MANUAL_WORK_MAX_PHOTOS} foto per pekerjaan.`);
+      if ((count?.total ?? 0) >= currentLimit) {
+        throw new Error(`Maksimal ${currentLimit} foto per pekerjaan.`);
       }
 
       const now = new Date().toISOString();

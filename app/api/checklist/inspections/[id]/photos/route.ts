@@ -13,13 +13,11 @@ import {
   checklistNotStartedMessage,
 } from "@/lib/checklist-schedule";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
-import {
-  CHECKLIST_MAX_PHOTOS,
-  type ChecklistFollowUp,
-} from "@/lib/checklist-types";
+import type { ChecklistFollowUp } from "@/lib/checklist-types";
 import { pool, query, transaction } from "@/lib/db";
 import { rowToCamel } from "@/lib/db-model";
 import { apiError, apiOk } from "@/lib/http";
+import { getPhotoLimits } from "@/lib/photo-limits";
 import { deleteObject, putObject } from "@/lib/storage";
 
 export const maxDuration = 30;
@@ -137,6 +135,17 @@ export async function POST(
       }
     }
 
+    const { checklistPhotos: maxPhotos } = await getPhotoLimits();
+    const [before] = await query<{ total: number }>(
+      `SELECT count(*)::integer total FROM checklist_photos
+       WHERE inspection_id=$1 AND kind='photo'
+         AND (($2::text IS NOT NULL AND answer_id=$2) OR ($3::text IS NOT NULL AND follow_up_id=$3))`,
+      [id, answerId, followUpId],
+    );
+    if ((before?.total ?? 0) >= maxPhotos) {
+      return apiError(`Maksimal ${maxPhotos} foto per item atau tindak lanjut.`);
+    }
+
     await putObject(storageKey, buffer, file.type);
     stored = true;
 
@@ -191,15 +200,17 @@ export async function POST(
         if (!answer) throw new Error("Item checklist tidak ditemukan.");
       }
 
+      const { checklistPhotos: currentLimit } = await getPhotoLimits(connection);
       const [count] = await query(
         `SELECT count(*)::integer total FROM checklist_photos
-         WHERE inspection_id=$1 AND (($2::text IS NOT NULL AND answer_id=$2) OR ($3::text IS NOT NULL AND follow_up_id=$3))`,
+         WHERE inspection_id=$1 AND kind='photo'
+           AND (($2::text IS NOT NULL AND answer_id=$2) OR ($3::text IS NOT NULL AND follow_up_id=$3))`,
         [id, answerId, followUpId],
         connection,
       );
-      if (count.total >= CHECKLIST_MAX_PHOTOS) {
+      if (count.total >= currentLimit) {
         throw new Error(
-          `Maksimal ${CHECKLIST_MAX_PHOTOS} foto per item atau tindak lanjut.`,
+          `Maksimal ${currentLimit} foto per item atau tindak lanjut.`,
         );
       }
 

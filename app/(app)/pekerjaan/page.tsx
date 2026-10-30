@@ -7,6 +7,7 @@ import {
   getManualWorks,
 } from "@/lib/manual-work-queries";
 import { pageRequest } from "@/lib/pagination";
+import { getPhotoLimits } from "@/lib/photo-limits";
 
 export const metadata = { title: "Pekerjaan Harian" };
 
@@ -52,9 +53,10 @@ export default async function ManualWorkPage({
         : "",
   };
   const request = pageRequest(first(params.page), first(params.size));
-  const [data, filterOptions] = await Promise.all([
+  const [data, filterOptions, photoLimits] = await Promise.all([
     getManualWorks(user, filters, request),
     getManualWorkFilterOptions(user),
+    getPhotoLimits(),
   ]);
 
   return (
@@ -68,6 +70,7 @@ export default async function ManualWorkPage({
       canManage={!isReadOnly(user)}
       canAssign={user.role === "atasan"}
       readOnly={isReadOnly(user)}
+      photoLimit={photoLimits.workPhotos}
     />
   );
 }

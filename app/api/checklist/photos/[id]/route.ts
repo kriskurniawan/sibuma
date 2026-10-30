@@ -11,7 +11,8 @@ import {
 import { getChecklistPhoto } from "@/lib/checklist-queries";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk } from "@/lib/http";
-import { deleteObject, getObject } from "@/lib/storage";
+import { deleteObject, getObject, presignObjectView } from "@/lib/storage";
+import { isVideoMime } from "@/lib/video";
 
 const CONTENT_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -34,6 +35,22 @@ export async function GET(
   if (!result) return apiError("Foto tidak ditemukan atau bukan bagian dari aksesmu.", 404);
 
   try {
+    // Video dialihkan ke URL bertanda tangan agar byte dan Range tidak
+    // melewati fungsi Vercel. Hak akses sudah diperiksa di atas.
+    if (
+      result.photo.kind === "video" ||
+      isVideoMime(result.photo.mimeType)
+    ) {
+      const target = await presignObjectView(result.photo.storageKey);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: target,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
     const object = await getObject(result.photo.storageKey, "s3");
     const extension = path.extname(result.photo.storageKey).slice(1).toLowerCase();
     const contentType = CONTENT_TYPES[extension] ?? result.photo.mimeType;
@@ -70,7 +87,7 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    const { storageKey } = await transaction(async (connection) => {
+    const { storageKey, isVideo } = await transaction(async (connection) => {
       // Lock the parent inspection before the photo so every evidence mutation
       // follows the same inspection -> child order as completion/reopen.
       const [photo] = await query(
@@ -84,7 +101,7 @@ export async function DELETE(
         [id],
         connection,
       );
-      if (!photo) throw new Error("Foto tidak ditemukan.");
+      if (!photo) throw new Error("Bukti dokumentasi tidak ditemukan.");
 
       // Answer evidence for a finalized inspection is immutable. Repair evidence
       // stays editable while its follow-up is still active, even after the
@@ -120,28 +137,35 @@ export async function DELETE(
         );
         allowed = Boolean(assigned);
       }
-      if (!allowed) throw new Error("Kamu tidak berhak menghapus foto ini.");
+      if (!allowed) throw new Error("Kamu tidak berhak menghapus bukti ini.");
+      const isVideo =
+        photo.kind === "video" || isVideoMime(photo.mime_type as string);
       await query(`DELETE FROM checklist_photos WHERE id=$1`, [id], connection);
       await insertChecklistAudit(connection, {
         actorId: user.id,
         actorName: user.name,
-        action: "checklist_foto_dihapus",
+        action: isVideo ? "checklist_video_dihapus" : "checklist_foto_dihapus",
         objectType: "checklist",
         objectId: photo.inspection_id as string,
-        summary: `${user.name} menghapus foto checklist ${photo.file_name as string}.`,
+        summary: isVideo
+          ? `${user.name} menghapus video checklist ${photo.file_name as string}.`
+          : `${user.name} menghapus foto checklist ${photo.file_name as string}.`,
         before: {
           photoId: id,
+          kind: photo.kind ?? "photo",
           answerId: photo.answer_id,
           followUpId: photo.follow_up_id,
           storageKey: photo.storage_key,
         },
       });
-      return { storageKey: photo.storage_key as string };
+      return { storageKey: photo.storage_key as string, isVideo };
     });
     await deleteObject(storageKey, "s3").catch((error) => {
-      console.error(`Gagal menghapus objek foto checklist ${storageKey}:`, error);
+      console.error(`Gagal menghapus objek bukti checklist ${storageKey}:`, error);
     });
-    return apiOk({ message: "Foto checklist dihapus." });
+    return apiOk({
+      message: isVideo ? "Video checklist dihapus." : "Foto checklist dihapus.",
+    });
   } catch (error) {
     return apiError(checklistErrorMessage(error));
   }

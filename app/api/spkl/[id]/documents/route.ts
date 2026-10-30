@@ -1,12 +1,13 @@
 import path from "node:path";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
-import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PER_SESSION } from "@/lib/constants";
+import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import {
   parseDocumentationMarker,
   readSibumaJpegComment,
 } from "@/lib/documentation-marker";
 import { apiError, apiOk } from "@/lib/http";
+import { getPhotoLimits } from "@/lib/photo-limits";
 import { deleteObject, putObject } from "@/lib/storage";
 import { mutateDb, pushAudit } from "@/lib/store";
 import type {
@@ -139,6 +140,7 @@ export async function POST(
   let storedProvider: StorageProvider | null = null;
 
   try {
+    const { spklPhotos: maxDocs } = await getPhotoLimits();
     const documentation = await mutateDb({ kind: "spkl", id }, async (db) => {
       const spkl = db.spkls.find((item) => item.id === id);
       if (!spkl) throw new Error("SPKL tidak ditemukan.");
@@ -189,11 +191,13 @@ export async function POST(
       }
 
       const docCount = db.documentations.filter(
-        (doc) => doc.attendanceId === attendance.id,
+        (doc) =>
+          doc.attendanceId === attendance.id &&
+          (doc.kind ?? "photo") === "photo",
       ).length;
-      if (docCount >= UPLOAD_MAX_PER_SESSION) {
+      if (docCount >= maxDocs) {
         throw new Error(
-          `Batas maksimal ${UPLOAD_MAX_PER_SESSION} dokumentasi per sesi sudah tercapai.`,
+          `Batas maksimal ${maxDocs} dokumentasi per sesi sudah tercapai.`,
         );
       }
 

@@ -124,6 +124,10 @@ export interface Documentation {
   description: string;
   takenAt: string;
   location: GeoPoint | null;
+  kind?: "photo" | "video";
+  durationSeconds?: number | null;
+  posterKey?: string | null;
+  storageEtag?: string | null;
   createdAt: string;
 }
 
@@ -194,7 +198,8 @@ export interface AuditLog {
     | "autentikasi"
     | "checklist"
     | "tindak_lanjut"
-    | "pekerjaan";
+    | "pekerjaan"
+    | "dokumen";
   objectId: string;
   summary: string;
   before: unknown;

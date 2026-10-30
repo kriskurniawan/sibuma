@@ -9,12 +9,12 @@ import {
 import { apiError } from "@/lib/http";
 import { getManualWorkReportData } from "@/lib/manual-work-report";
 import {
-  MANUAL_WORK_MAX_PHOTOS,
   MANUAL_WORK_STATUS_LABEL,
   type ManualWorkReportFilters,
   type ManualWorkReportRow,
 } from "@/lib/manual-work-types";
 import { pdfFileResponse } from "@/lib/pdf";
+import { getPhotoLimits } from "@/lib/photo-limits";
 import { currentMonthRange, formatDateHuman, formatDateTime } from "@/lib/time";
 
 export const runtime = "nodejs";
@@ -114,10 +114,13 @@ export async function GET(request: Request) {
     search: url.searchParams.get("search")?.trim() || undefined,
   };
 
-  const data = await getManualWorkReportData(
-    isSuperAdmin(user) ? null : user.id,
-    filters,
-  );
+  const [data, photoLimits] = await Promise.all([
+    getManualWorkReportData(
+      isSuperAdmin(user) ? null : user.id,
+      filters,
+    ),
+    getPhotoLimits(),
+  ]);
   const formatParam = url.searchParams.get("format");
   const format =
     formatParam === "xlsx" ? "xlsx" : formatParam === "pdf" ? "pdf" : "csv";
@@ -193,7 +196,7 @@ export async function GET(request: Request) {
             row.work.safetyName || "-",
             row.createdByName,
             row.work.requiresDocumentation
-              ? `${row.photoCount}/${MANUAL_WORK_MAX_PHOTOS} foto`
+              ? `${row.photoCount}/${photoLimits.workPhotos} foto`
               : "Tidak wajib",
             row.sourceFollowUp?.title ?? "-",
             row.work.resultNote || "-",

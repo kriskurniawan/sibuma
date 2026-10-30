@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Copy,
+  FolderLock,
   Hammer,
   Inbox,
   KeyRound,
@@ -75,6 +76,7 @@ const OBJECT_LABEL: Record<AuditType, string> = {
   checklist: "Checklist",
   tindak_lanjut: "Tindak lanjut",
   pekerjaan: "Pekerjaan harian",
+  dokumen: "Dokumen kerja",
 };
 
 const OBJECT_VARIANT = {
@@ -87,6 +89,7 @@ const OBJECT_VARIANT = {
   checklist: "primary-light",
   tindak_lanjut: "info-light",
   pekerjaan: "warning-light",
+  dokumen: "info-light",
 } as const;
 
 const OBJECT_ICON_TONE = {
@@ -99,6 +102,7 @@ const OBJECT_ICON_TONE = {
   checklist: "text-primary",
   tindak_lanjut: "text-info",
   pekerjaan: "text-warning",
+  dokumen: "text-info",
 } as const;
 
 const ACTION_LABEL: Record<string, string> = {
@@ -137,6 +141,8 @@ const ACTION_LABEL: Record<string, string> = {
   super_admin_dipromosikan: "Super admin dipromosikan",
   checklist_foto_diunggah: "Foto checklist diunggah",
   checklist_foto_dihapus: "Foto checklist dihapus",
+  checklist_video_diunggah: "Video checklist diunggah",
+  checklist_video_dihapus: "Video checklist dihapus",
   checklist_selesai: "Checklist diselesaikan",
   checklist_dibuka_kembali: "Checklist dibuka kembali",
   tindak_lanjut_dibuat: "Tindak lanjut dibuat",
@@ -149,6 +155,21 @@ const ACTION_LABEL: Record<string, string> = {
   pekerjaan_dibuka_kembali: "Pekerjaan harian dibuka kembali",
   pekerjaan_foto_diunggah: "Foto pekerjaan diunggah",
   pekerjaan_foto_dihapus: "Foto pekerjaan dihapus",
+  pekerjaan_video_diunggah: "Video pekerjaan diunggah",
+  pekerjaan_video_dihapus: "Video pekerjaan dihapus",
+  dokumen_diunggah: "Dokumen kerja diunggah",
+  dokumen_diubah: "Dokumen kerja diubah",
+  dokumen_dipindahkan: "Dokumen kerja dipindahkan",
+  dokumen_dipindahkan_ke_sampah: "Dokumen kerja ke sampah",
+  dokumen_dipulihkan: "Dokumen kerja dipulihkan",
+  dokumen_dihapus_permanen: "Dokumen kerja dihapus permanen",
+  dokumen_berbagi_diubah: "Berbagi dokumen diubah",
+  folder_dokumen_dibuat: "Folder dokumen dibuat",
+  folder_dokumen_diubah: "Folder dokumen diubah",
+  folder_dokumen_dihapus: "Folder dokumen dihapus",
+  folder_dokumen_berbagi_diubah: "Berbagi folder diubah",
+  pengaturan_dokumen_diubah: "Pengaturan dokumen diubah",
+  pengaturan_batas_foto_diubah: "Batas foto diubah",
 };
 
 const OBJECT_ICON = {
@@ -161,6 +182,7 @@ const OBJECT_ICON = {
   checklist: ClipboardCheck,
   tindak_lanjut: ListChecks,
   pekerjaan: Hammer,
+  dokumen: FolderLock,
 } as const;
 
 const NOTIFICATION_LABEL: Record<NotificationLog["type"], string> = {
@@ -192,6 +214,7 @@ const AUDIT_FILTERS: Array<{ value: "semua" | AuditType; label: string }> = [
   { value: "checklist", label: "Checklist" },
   { value: "tindak_lanjut", label: "Tindak lanjut" },
   { value: "pekerjaan", label: "Pekerjaan harian" },
+  { value: "dokumen", label: "Dokumen kerja" },
 ];
 
 const NOTIFICATION_FILTERS: Array<{

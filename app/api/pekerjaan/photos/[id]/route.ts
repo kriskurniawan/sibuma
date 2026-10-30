@@ -10,8 +10,9 @@ import {
 import { manualWorkErrorMessage } from "@/lib/manual-work-errors";
 import { pool, query, transaction } from "@/lib/db";
 import { apiError, apiOk } from "@/lib/http";
-import { deleteObject, getObject } from "@/lib/storage";
+import { deleteObject, getObject, presignObjectView } from "@/lib/storage";
 import type { ManualWorkStatus } from "@/lib/manual-work-types";
+import { isVideoMime } from "@/lib/video";
 
 const CONTENT_TYPES: Record<string, string> = {
   jpg: "image/jpeg",
@@ -49,6 +50,22 @@ export async function GET(
   }
 
   try {
+    // Video dialihkan ke URL bertanda tangan agar byte dan Range tidak
+    // melewati fungsi Vercel. Hak akses sudah diperiksa di atas.
+    if (
+      photo.kind === "video" ||
+      isVideoMime(photo.mime_type as string)
+    ) {
+      const target = await presignObjectView(photo.storage_key as string);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: target,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
     const object = await getObject(photo.storage_key as string, "s3");
     const extension = path
       .extname(photo.storage_key as string)
@@ -90,13 +107,13 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    const { storageKey } = await transaction(async (connection) => {
+    const { storageKey, isVideo } = await transaction(async (connection) => {
       const [existing] = await query(
         `SELECT * FROM manual_work_photos WHERE id=$1`,
         [id],
         connection,
       );
-      if (!existing) throw new Error("Foto tidak ditemukan.");
+      if (!existing) throw new Error("Bukti dokumentasi tidak ditemukan.");
 
       // Parent-first lock: the work is frozen before its photo row changes.
       const work = await loadManualWork(
@@ -120,27 +137,37 @@ export async function DELETE(
         );
       }
 
+      const isVideo =
+        existing.kind === "video" ||
+        isVideoMime(existing.mime_type as string);
       await query(`DELETE FROM manual_work_photos WHERE id=$1`, [id], connection);
       await insertAudit(connection, {
         actorId: user.id,
         actorName: user.name,
-        action: "pekerjaan_foto_dihapus",
+        action: isVideo
+          ? "pekerjaan_video_dihapus"
+          : "pekerjaan_foto_dihapus",
         objectType: "pekerjaan",
         objectId: work.id,
-        summary: `${user.name} menghapus foto dokumentasi pekerjaan "${work.title}".`,
+        summary: isVideo
+          ? `${user.name} menghapus video dokumentasi pekerjaan "${work.title}".`
+          : `${user.name} menghapus foto dokumentasi pekerjaan "${work.title}".`,
         before: {
           photoId: id,
+          kind: existing.kind ?? "photo",
           fileName: existing.file_name,
           storageKey: existing.storage_key,
           caption: existing.caption,
         },
       });
-      return { storageKey: existing.storage_key as string };
+      return { storageKey: existing.storage_key as string, isVideo };
     });
     await deleteObject(storageKey, "s3").catch((error) => {
-      console.error(`Gagal menghapus objek foto pekerjaan ${storageKey}:`, error);
+      console.error(`Gagal menghapus objek bukti pekerjaan ${storageKey}:`, error);
     });
-    return apiOk({ message: "Foto dokumentasi dihapus." });
+    return apiOk({
+      message: isVideo ? "Video dokumentasi dihapus." : "Foto dokumentasi dihapus.",
+    });
   } catch (error) {
     return apiError(manualWorkErrorMessage(error));
   }

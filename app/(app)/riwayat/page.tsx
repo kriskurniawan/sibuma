@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getWorkerOverview } from "@/lib/queries";
 
 export const metadata = {
-  title: "Riwayat lembur",
+  title: "Lembur",
 };
 
 export default async function HistoryPage() {

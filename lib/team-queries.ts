@@ -18,7 +18,7 @@ const teamWhere = `e.supervisor_id=$1
   AND ($4::text IS NULL OR e.active=($4='aktif'))`;
 const teamStats = `LEFT JOIN LATERAL (
   SELECT sum(${effectiveMinutesSql}) minutes,count(*) FILTER(WHERE a.check_in_at IS NOT NULL) sessions,
-  coalesce(sum((SELECT count(*) FROM documentations doc WHERE doc.attendance_id=a.id)),0) documents
+  coalesce(sum((SELECT count(*) FROM documentations doc WHERE doc.attendance_id=a.id AND doc.kind='photo')),0) documents
   FROM attendances a JOIN spkls s ON s.id=a.spkl_id WHERE a.employee_id=e.id AND ${monthWhere}
 ) t ON true`;
 
@@ -46,7 +46,7 @@ export async function getTeamTotals(userId: string) {
     query(`SELECT count(*)::integer total,count(*) FILTER(WHERE active)::integer active,
       count(*) FILTER(WHERE division_id IS NULL)::integer unassigned FROM employees WHERE supervisor_id=$1`, [userId]),
     query(`SELECT coalesce(sum(${effectiveMinutesSql}),0)::integer minutes,count(*) FILTER(WHERE a.check_in_at IS NOT NULL)::integer sessions,
-      coalesce(sum((SELECT count(*) FROM documentations doc WHERE doc.attendance_id=a.id)),0)::integer documents
+      coalesce(sum((SELECT count(*) FROM documentations doc WHERE doc.attendance_id=a.id AND doc.kind='photo')),0)::integer documents
       FROM attendances a JOIN spkls s ON s.id=a.spkl_id JOIN employees e ON e.id=a.employee_id
       WHERE e.supervisor_id=$1 AND ${monthWhere}`, [userId]),
     query(`SELECT division_id,count(*)::integer total,count(*) FILTER(WHERE active)::integer active FROM employees

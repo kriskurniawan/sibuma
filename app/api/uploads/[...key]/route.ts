@@ -2,7 +2,8 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError } from "@/lib/http";
-import { getObject } from "@/lib/storage";
+import { getObject, presignObjectView } from "@/lib/storage";
+import { isVideoMime } from "@/lib/video";
 import { query, select } from "@/lib/db";
 
 export const maxDuration = 30;
@@ -35,6 +36,19 @@ export async function GET(
   }
 
   try {
+    // Video dialihkan ke URL bertanda tangan 15 menit. Byte dan Range tidak
+    // melewati fungsi Vercel, sehingga pemutaran dan seek tetap berjalan.
+    if (doc.kind === "video" || isVideoMime(doc.mimeType)) {
+      const target = await presignObjectView(storageKey);
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: target,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
+
     const object = await getObject(
       storageKey,
       doc.storageProvider,

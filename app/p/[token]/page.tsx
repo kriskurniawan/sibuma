@@ -87,6 +87,11 @@ export default async function PublicChecklistPage({
 
   const locations = await listChecklistPublicLocations(qr.ownerId);
   return (
-    <PublicAreaList qrName={qr.name} token={token} locations={locations} />
+    <PublicAreaList
+      qrName={qr.name}
+      token={token}
+      locations={locations}
+      loggedIn={Boolean(user)}
+    />
   );
 }

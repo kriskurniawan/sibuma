@@ -1,4 +1,3 @@
-export const MANUAL_WORK_MAX_PHOTOS = 6;
 export const MANUAL_WORK_MAX_ASSIGNEES = 20;
 
 export type ManualWorkStatus =
@@ -98,6 +97,9 @@ export interface ManualWorkPhoto {
   /** Waktu foto diambil; null untuk foto lama sebelum cap waktu wajib. */
   takenAt: string | null;
   captureSource: "exif" | "device" | null;
+  /** `video` hanya tambahan; foto tetap wajib untuk dokumentasi. */
+  kind?: "photo" | "video";
+  durationSeconds?: number | null;
   createdAt: string;
 }
 

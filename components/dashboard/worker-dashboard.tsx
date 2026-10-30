@@ -261,7 +261,7 @@ export function WorkerDashboard({
               href="/riwayat"
               className="text-xs font-medium text-primary transition-colors hover:underline"
             >
-              Riwayat
+              Lembur
             </Link>
           </FrameHeader>
           <FramePanel className="flex flex-col gap-3">
@@ -302,7 +302,7 @@ export function WorkerDashboard({
                     nativeButton={false}
                     render={<Link href="/riwayat" />}
                   >
-                    Lihat riwayat
+                    Lihat lembur
                   </Button>
                 }
               />

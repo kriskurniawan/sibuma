@@ -138,7 +138,7 @@ export default async function ProfilePage() {
           {
             href: "/riwayat",
             icon: History,
-            title: "Riwayat lembur",
+            title: "Lembur",
             description: "SPKL dan bukti pekerjaan",
           },
           {

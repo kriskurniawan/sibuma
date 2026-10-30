@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
+import { EvidenceVideoUpload } from "@/components/evidence-video-upload";
 import { Modal } from "@/components/modal";
 import {
   Alert,
@@ -45,6 +46,7 @@ import {
   documentSrc,
   fileSizeLabel,
 } from "@/lib/utils";
+import { formatVideoDuration } from "@/lib/video";
 
 type DocumentationWithEmployee = Documentation & {
   employee: Employee | null;
@@ -60,6 +62,10 @@ interface DocumentationPanelProps {
   maxUploads: number;
   remainingUploads: number;
   maxBytes: number;
+  videoLimit: number;
+  videoRemaining: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
 }
 
 interface PendingDocumentation {
@@ -83,6 +89,10 @@ export function DocumentationPanel({
   maxUploads,
   remainingUploads,
   maxBytes,
+  videoLimit,
+  videoRemaining,
+  videoMaxBytes,
+  videoEnabled,
 }: DocumentationPanelProps) {
   const router = useRouter();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -389,6 +399,10 @@ export function DocumentationPanel({
 
   const remainingSlots = Math.max(0, remainingUploads - queue.length);
   const exifLocationCount = queue.filter((photo) => photo.exifLocation).length;
+  const photoItems = documents.filter((doc) => doc.kind !== "video");
+  const videoItems = documents.filter((doc) => doc.kind === "video");
+  const photoAtLimit = remainingUploads <= 0;
+  const videoAvailable = videoEnabled && videoLimit > 0;
 
   return (
     <Frame id="dokumentasi">
@@ -396,14 +410,45 @@ export function DocumentationPanel({
         <div className="flex min-w-0 flex-col gap-1">
           <FrameTitle>Dokumentasi pekerjaan</FrameTitle>
           <FrameDescription className="text-xs">
-            {documents.length} foto · terlihat oleh anggota dan atasan SPKL
+            {photoItems.length} foto
+            {videoEnabled && videoLimit > 0
+              ? ` · ${videoItems.length} video`
+              : ""}{" "}
+            · terlihat oleh anggota dan atasan SPKL
           </FrameDescription>
         </div>
         {canUpload ? (
-          <Button type="button" size="sm" onClick={openUpload}>
-            <ImagePlus />
-            Tambah foto
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={openUpload}
+              disabled={photoAtLimit}
+              title={
+                photoAtLimit
+                  ? `Batas ${maxUploads} foto per sesi tercapai.`
+                  : undefined
+              }
+            >
+              <ImagePlus />
+              Tambah foto
+            </Button>
+            {videoAvailable && (
+              <EvidenceVideoUpload
+                prepareUrl={`/api/spkl/${spklId}/documents/video/prepare`}
+                completeUrl={`/api/spkl/${spklId}/documents/video/complete`}
+                maxBytes={videoMaxBytes}
+                captionMaxLength={600}
+                disabled={videoRemaining <= 0}
+                disabledReason={
+                  videoRemaining <= 0
+                    ? `Batas ${videoLimit} video per sesi tercapai.`
+                    : undefined
+                }
+                onUploaded={() => router.refresh()}
+              />
+            )}
+          </div>
         ) : (
           <Badge variant="outline">
             {uploadBlockedReason ?? "Unggahan tidak tersedia"}
@@ -418,8 +463,8 @@ export function DocumentationPanel({
             title="Belum ada dokumentasi"
             description={
               canUpload
-                ? "Ambil foto hasil pekerjaan dan tambahkan keterangan singkat. Foto akan tersimpan sebagai bukti."
-                : "Foto pekerjaan dari anggota tim akan muncul di sini."
+                ? "Ambil foto hasil pekerjaan dan tambahkan keterangan singkat. Video dapat ditambahkan dari galeri sebagai bukti tambahan."
+                : "Foto dan video pekerjaan dari anggota tim akan muncul di sini."
             }
             action={
               canUpload ? (
@@ -450,8 +495,8 @@ export function DocumentationPanel({
 
         <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
           <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-          Foto disimpan pada penyimpanan privat dan hanya dapat diakses pengguna
-          yang terhubung dengan SPKL ini.
+          Foto dan video disimpan pada penyimpanan privat dan hanya dapat
+          diakses pengguna yang terhubung dengan SPKL ini.
         </div>
       </FramePanel>
 
@@ -745,7 +790,8 @@ export function DocumentationPanel({
                     {selected.employee?.name ?? "Pekerja"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Waktu foto {formatDateHuman(selected.takenAt, "d MMM yyyy")} ·{" "}
+                    {selected.kind === "video" ? "Diunggah" : "Waktu foto"}{" "}
+                    {formatDateHuman(selected.takenAt, "d MMM yyyy")} ·{" "}
                     {formatTime(selected.takenAt)} WIB
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -778,18 +824,30 @@ export function DocumentationPanel({
         {selected && (
           <div className="flex flex-col gap-3">
             <div className="overflow-hidden rounded-lg bg-muted">
-              <img
-                src={documentSrc(selected.storageKey)}
-                alt={selected.description}
-                className="max-h-[60vh] w-full object-contain"
-              />
+              {selected.kind === "video" ? (
+                <video
+                  src={documentSrc(selected.storageKey)}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  className="max-h-[60vh] w-full rounded-lg bg-black"
+                />
+              ) : (
+                <img
+                  src={documentSrc(selected.storageKey)}
+                  alt={selected.description}
+                  className="max-h-[60vh] w-full object-contain"
+                />
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="outline">
                 {fileSizeLabel(selected.sizeBytes)}
               </Badge>
               <Badge variant="outline">
-                {selected.mimeType.replace("image/", "").toUpperCase()}
+                {selected.kind === "video"
+                  ? `Video · ${formatVideoDuration(selected.durationSeconds) ?? "durasi tidak tercatat"}`
+                  : selected.mimeType.replace("image/", "").toUpperCase()}
               </Badge>
               {selected.location && (
                 <Badge variant="outline">

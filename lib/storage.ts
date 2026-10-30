@@ -7,6 +7,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   isS3Configured,
   storageConfigMessage,
@@ -97,4 +98,70 @@ export async function deleteObject(
   await s3().send(
     new DeleteObjectCommand({ Bucket: bucket(), Key: key }),
   );
+}
+
+/** Video dokumentasi: unggah langsung dari browser, tidak lewat Vercel. */
+export const VIDEO_UPLOAD_URL_TTL_SECONDS = 15 * 60;
+/** Pemutaran: URL pendek, diterbitkan ulang setiap kali pemutaran dimulai. */
+export const VIDEO_VIEW_URL_TTL_SECONDS = 15 * 60;
+
+export async function headObject(key: string) {
+  const response = await s3().send(
+    new HeadObjectCommand({ Bucket: bucket(), Key: key }),
+  );
+  return {
+    contentLength: response.ContentLength ?? 0,
+    contentType: response.ContentType ?? null,
+    etag: response.ETag?.replaceAll('"', "") ?? null,
+  };
+}
+
+/**
+ * Ukuran dan tipe ikut ditandatangani agar storage menolak berkas yang
+ * berbeda dari yang diperiksa server.
+ */
+export async function presignObjectUpload(
+  key: string,
+  contentType: string,
+  contentLength: number,
+  expiresIn = VIDEO_UPLOAD_URL_TTL_SECONDS,
+) {
+  const uploadUrl = await getSignedUrl(
+    s3(),
+    new PutObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      ContentType: contentType,
+      ContentLength: contentLength,
+    }),
+    { expiresIn },
+  );
+  return { uploadUrl, expiresIn };
+}
+
+export async function presignObjectView(
+  key: string,
+  expiresIn = VIDEO_VIEW_URL_TTL_SECONDS,
+) {
+  return getSignedUrl(
+    s3(),
+    new GetObjectCommand({ Bucket: bucket(), Key: key }),
+    { expiresIn },
+  );
+}
+
+/**
+ * Hanya dipakai untuk memeriksa beberapa byte awal. Rentang ditandatangani
+ * langsung oleh SDK karena bucket utama mendukung GET dengan header Range.
+ */
+export async function readObjectRange(key: string, start: number, end: number) {
+  const response = await s3().send(
+    new GetObjectCommand({
+      Bucket: bucket(),
+      Key: key,
+      Range: `bytes=${start}-${end}`,
+    }),
+  );
+  if (!response.Body) throw new Error("Isi berkas tidak tersedia.");
+  return response.Body.transformToByteArray();
 }

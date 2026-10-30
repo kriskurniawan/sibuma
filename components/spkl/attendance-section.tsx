@@ -372,7 +372,9 @@ export function AttendanceSection({
           {attendances.map(({ employee, attendance }) => {
             const docCount = attendance
               ? documentation.filter(
-                  (doc) => doc.attendanceId === attendance.id,
+                  (doc) =>
+                    doc.attendanceId === attendance.id &&
+                    doc.kind !== "video",
                 ).length
               : 0;
             return (

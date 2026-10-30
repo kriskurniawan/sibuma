@@ -19,14 +19,20 @@
     "db:migrate:manual-work-photos": "node scripts/migrate-manual-work-photos.mjs",
     "db:migrate:manual-work-safety": "node scripts/migrate-manual-work-safety.mjs",
     "db:migrate:follow-up-safety": "node scripts/migrate-follow-up-safety.mjs",
+    "db:migrate:work-documents": "node scripts/migrate-work-documents.mjs",
+    "db:migrate:photo-limits": "node scripts/migrate-photo-limits.mjs",
+    "db:migrate:video-folders": "node scripts/migrate-video-and-folders.mjs",
+    "db:migrate:document-shares": "node scripts/migrate-document-share-targets.mjs",
     "db:promote:super-admin": "tsx scripts/promote-super-admin.mjs",
     "auth:test": "node --conditions=react-server --import tsx scripts/test-email-otp.mjs",
     "db:verify": "tsx scripts/verify-relational.mjs",
     "db:test": "node --conditions=react-server --import tsx scripts/test-relational.mjs",
-    "storage:init": "node scripts/init-storage.mjs"
+    "storage:init": "node scripts/init-storage.mjs",
+    "storage:init:documents": "node scripts/init-document-storage.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1156.0",
+    "@aws-sdk/s3-request-presigner": "^3.1160.0",
     "@base-ui/react": "^1.9.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/modifiers": "^9.0.0",

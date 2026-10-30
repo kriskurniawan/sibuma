@@ -404,7 +404,7 @@ export function ManualWorkForm({
         }
         description={
           canAssign
-            ? "Catat pekerjaan harian dengan dokumentasi foto. Satu pekerjaan boleh berlangsung beberapa hari."
+            ? "Catat pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
             : "Catat pekerjaan yang kamu dan tim kerjakan. Satu pekerjaan boleh berlangsung beberapa hari."
         }
         action={

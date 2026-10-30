@@ -42,6 +42,7 @@ export function ChecklistView({
   locations,
   canManage,
   readOnly = false,
+  showMobileScan = false,
 }: {
   items: ChecklistInspectionRow[];
   total: number;
@@ -56,6 +57,7 @@ export function ChecklistView({
   locations: ChecklistLocationOption[];
   canManage: boolean;
   readOnly?: boolean;
+  showMobileScan?: boolean;
 }) {
   const filtered =
     filters.status !== "aktif" ||
@@ -190,9 +192,12 @@ export function ChecklistView({
               {total} checklist sesuai filter.
             </FrameDescription>
           </div>
-          <span className="text-xs text-muted-foreground tabular-nums md:hidden">
-            {total} hasil
-          </span>
+          <div className="flex items-center gap-2 md:hidden">
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {total} hasil
+            </span>
+            {showMobileScan && <QrScanButton />}
+          </div>
         </FrameHeader>
 
         <FramePanel className="hidden md:block">

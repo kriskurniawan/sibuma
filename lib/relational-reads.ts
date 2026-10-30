@@ -63,7 +63,7 @@ export async function overviewMetrics(user: SessionUser) {
   const [documents] = await query(`SELECT count(*) FILTER(WHERE to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer monthly,
     count(*) FILTER(WHERE (d.taken_at AT TIME ZONE 'Asia/Jakarta')::date=(now() AT TIME ZONE 'Asia/Jakarta')::date)::integer today,
     count(*) FILTER(WHERE (d.taken_at AT TIME ZONE 'Asia/Jakarta')::date=(now() AT TIME ZONE 'Asia/Jakarta')::date-1)::integer yesterday
-    FROM documentations d JOIN spkls s ON s.id=d.spkl_id WHERE ${owner}`, [user.id]);
+    FROM documentations d JOIN spkls s ON s.id=d.spkl_id WHERE ${owner} AND d.kind='photo'`, [user.id]);
   const weekly = await query<{ date: string; minutes: number }>(`SELECT s.date::text date, sum(${effectiveMinutesSql})::integer minutes FROM attendances a JOIN spkls s ON s.id=a.spkl_id
     WHERE ${owner} ${employee} AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Jakarta')::date-6 AND (now() AT TIME ZONE 'Asia/Jakarta')::date GROUP BY s.date`, [user.id]);
   const recent = await query(`SELECT row_to_json(d) documentation,row_to_json(e) employee,row_to_json(s) spkl FROM documentations d

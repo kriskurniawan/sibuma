@@ -4,7 +4,7 @@ Aplikasi web mobile-first untuk operasional **SIBUMA**: tim mengisi checklist ar
 
 Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan dirancang sebagai PWA yang dapat dipasang di layar utama ponsel.
 
-> **Status:** MVP P0 selesai secara fungsional. Penyimpanan produksi memakai **Neon Postgres** (tabel relasional) dan **object storage S3-compatible** untuk dokumentasi. Seluruh data dan foto wajib memakai penyimpanan tersebut; tidak ada database atau fallback upload lokal. Pengiriman Chatery dan Resend sudah diimplementasikan, tetapi belum diuji dengan kredensial nyata.
+> **Status:** MVP P0 selesai secara fungsional. Penyimpanan produksi memakai **Neon Postgres** (tabel relasional) dan **object storage S3-compatible** untuk dokumentasi serta dokumen kerja pada bucket terpisah. Seluruh data dan foto wajib memakai penyimpanan tersebut; tidak ada database atau fallback upload lokal. Pengiriman Chatery dan Resend sudah diimplementasikan, tetapi belum diuji dengan kredensial nyata.
 
 ---
 
@@ -16,10 +16,17 @@ Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan di
 - Beranda berisi checklist aktif berikutnya lengkap dengan progres, antrean checklist, tindak lanjut yang ditugaskan, dan jadwal lembur ringkas.
 - Absen masuk/pulang dengan **verifikasi geofence** dan akurasi GPS. Absen masuk dibuka sejak 00:00 WIB pada tanggal SPKL, termasuk sebelum jam mulai.
 - Timer sesi berjalan serta riwayat lembur dan status kehadiran.
-- Unggah dokumentasi pekerjaan (foto + deskripsi + lokasi opsional) per sesi SPKL. Foto dapat diambil langsung dari kamera atau dipilih beberapa sekaligus dari galeri. Saat diproses di perangkat, nomor SPKL dan waktu foto WIB dicetak di bagian bawah foto; waktu diambil dari EXIF kamera bila tersedia, jika tidak dari jam perangkat. File tanpa cap waktu SIBUMA ditolak server, sehingga unggahan mentah di luar formulir tidak diterima.
+- Unggah dokumentasi pekerjaan (foto + deskripsi + lokasi opsional) per sesi SPKL. Foto dapat diambil langsung dari kamera atau dipilih beberapa sekaligus dari galeri. Saat diproses di perangkat, nomor SPKL dan waktu foto WIB dicetak di bagian bawah foto; waktu diambil dari EXIF kamera bila tersedia, jika tidak dari jam perangkat. File tanpa cap waktu SIBUMA ditolak server, sehingga unggahan mentah di luar formulir tidak diterima. Video MP4/WEBM/MOV dapat ditambahkan dari galeri sebagai bukti tambahan; video tidak diberi cap waktu dan tidak menggantikan kewajiban foto.
 - Mengisi **checklist operasional** yang ditugaskan: kondisi per item (baik / perlu perhatian / tidak baik / tidak berlaku), catatan wajib saat bermasalah, alasan saat tidak berlaku, dan foto sesuai kebijakan item. Item dapat dikelompokkan di bawah heading grup (mis. **Pemeriksaan Pompa → Periksa gear**); grup hanya judul dan tidak ikut dijawab atau dihitung progres. Semua anggota penugasan boleh mengisi dan menyelesaikan checklist; setiap item disimpan dengan pemeriksaan versi agar tidak saling menimpa.
 - Membuat dan memperbarui **tindak lanjut** dari item bermasalah, termasuk menutupnya tanpa persetujuan atasan.
 - Melihat catatan koreksi dan alasan yang diberikan atasan.
+
+### Dokumen kerja
+
+- Menyimpan **referensi, panduan, atau tutorial** pribadi dalam PDF, JPG, PNG, DOCX, XLSX, PPTX, atau video MP4/WEBM/MOV. Berkas privat secara default dan terpisah dari dokumentasi bukti pekerjaan yang immutable.
+- Menyusun dokumen dalam **folder satu tingkat** (mis. per proyek atau kategori) dan mengunggah beberapa berkas sekaligus. Deskripsi/label melekat pada folder, bukan per berkas.
+- Membuka atau menutup akses **hanya-baca** ke divisi mana pun dan atasan mana pun yang dipilih, baik per dokumen maupun per folder. Akses folder berlaku untuk seluruh isinya; akses dokumen tetap bekerja untuk berkas di luar folder. Setiap penerima dapat ditambah/dicabut sendiri, dan akses diperiksa ulang pada setiap pratinjau/unduhan sehingga pencabutan langsung berlaku.
+- Pratinjau di browser untuk PDF, gambar, dan video; berkas Office diunduh. Kuota per akun dihitung termasuk berkas di sampah sampai dihapus permanen, dan perubahan batas oleh super admin tidak membatalkan dokumen lama.
 
 ### Atasan
 
@@ -72,6 +79,7 @@ Sistem UI memakai **ReUI** di atas shadcn/ui dengan komponen gratis saja:
 - **Pagination** memakai `DataGridPagination` ReUI pada tabel laporan dan kontrol berbasis `Pagination` shadcn pada daftar log audit/outbox. Ukuran baris `10/25/50/100`, label Indonesia, dan halaman otomatis kembali ke awal saat filter atau pencarian berubah.
 - **Pemilih tanggal & waktu** memakai **TimePicker** ReUI dan **Calendar** shadcn di dalam `Popover` (pola gratis [date and time](https://reui.io/components/time-picker/c-time-picker-13)); tidak ada lagi kontrol native `type="date"`, `type="time"`, atau `type="datetime-local"`. Nilai form tetap `yyyy-MM-dd`/`HH:mm`, label berbahasa Indonesia, dan validasi tanggal minimum serta batas WIB dipertahankan.
 - **Shell aplikasi** memakai **Sidebar** ReUI varian standar (bukan *inset*): sidebar ivory `rgb(251,249,243)`, kanvas konten putih `rgb(255,255,255)`, kartu putih dengan border tipis, dan item menu berjarak `gap-1`. Header sidebar serta topbar sama-sama 56px sehingga bordernya sejajar. Navigasi berkelompok, menu akun `DropdownMenu`, dan tab bar bawah di mobile tetap dipertahankan. Warna diambil dari token `--sidebar`/`--background` sehingga tema gelap tinggal mengaktifkan token gelap yang sudah disiapkan.
+- **Navigasi mobile**: pekerja memakai **Beranda · Checklist · Scan · Pekerjaan · Lembur**; atasan memakai **Beranda · Checklist · Pekerjaan · Lembur · Menu**. Profil dibuka lewat avatar kanan atas. Scan QR atasan tersedia di halaman Checklist, termasuk akun hanya-lihat. Label **Lembur** pekerja mencakup jadwal, aktivitas berlangsung, dan riwayat; rute `/riwayat` tetap dipertahankan.
 - **Dashboard atasan** menyusun pita KPI checklist (aktif, terlambat, tindak lanjut, selesai bulan ini), daftar checklist prioritas dengan progres/anggota/deadline, rel tindak lanjut dan kartu **Lembur hari ini** ringkas. **Dashboard pekerja** menempatkan tugas lebih dulu: checklist paling mendesak (terlambat/berlangsung) sebagai panel fokus dengan progres dan aksi, lalu antrean checklist, tindak lanjut pribadi, dan jadwal lembur. KPI ringkas berada di bawahnya sebagai konteks, bukan hal pertama yang dilihat.
 - **State data**: rute terlindungi memakai `loading.tsx` (skeleton mengikuti layout) dan `error.tsx` (tombol *Coba lagi* + jalan kembali ke beranda); empty state dengan aksi tersedia di setiap region data.
 - **Login** memakai satu kartu ringkas di tengah dengan logo, **Field/InputGroup**, dan **InputOTP**, tanpa panel promosi atau dekorasi tambahan. Masuk hanya melalui OTP email atau WhatsApp terdaftar. Mengadaptasi contoh gratis [login form card](https://reui.io/preview/base/components/c-card-12?ref=mcp).
@@ -91,6 +99,7 @@ npm install
 Copy-Item .env.example .env.local
 # Isi SESSION_SECRET, DATABASE_URL, variabel object storage S3-compatible, dan BOOTSTRAP_ADMIN_*.
 npm run storage:init  # buat/periksa bucket dan blokir akses publik bila didukung
+npm run storage:init:documents  # bucket terpisah untuk dokumen kerja
 # Database baru: npm run db:init membuat skema dan satu akun super admin dari env bootstrap.
 # Database yang sudah berisi data tidak perlu diinisialisasi ulang.
 npm run dev
@@ -102,9 +111,9 @@ Buka `http://localhost:3000`.
 
 1. Buat project Neon di region **AWS Asia Pacific (Singapore)**.
 2. Dari **Connect**, salin `DATABASE_URL` (gunakan pooled connection untuk Vercel).
-3. Buat bucket privat di penyedia S3-compatible, lalu salin `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, dan `NEON_STORAGE_BUCKET` (nama variabel dipertahankan untuk kompatibilitas).
-4. Isi `.env.local`, lalu jalankan `npm run storage:init` untuk memeriksa bucket dan memblokir akses publik bila penyedia mendukung Public Access Block. Jika tidak didukung, pastikan bucket privat lewat konsol penyedia. Untuk database baru, isi `BOOTSTRAP_ADMIN_*`, lalu jalankan `npm run db:init`. Jangan inisialisasi ulang database yang sudah berisi data.
-5. Di Vercel, tambahkan variabel yang sama ditambah `SESSION_SECRET` dan variabel Chatery.
+3. Buat bucket privat di penyedia S3-compatible, lalu salin `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, dan `NEON_STORAGE_BUCKET` (nama variabel dipertahankan untuk kompatibilitas). Buat **bucket kedua yang berbeda** untuk dokumen kerja, lalu isi `DOCUMENTS_S3_BUCKET`; endpoint/region/kredensial boleh memakai ulang `AWS_*`, atau diisi lewat `DOCUMENTS_S3_*` bila berbeda. Isi `DOCUMENTS_S3_CORS_ORIGINS` dengan origin aplikasi (mis. `http://localhost:3000` dan domain produksi) agar browser dapat mengunggah langsung ke bucket.
+4. Isi `.env.local`, lalu jalankan `npm run storage:init` dan `npm run storage:init:documents` untuk memeriksa kedua bucket, memblokir akses publik bila penyedia mendukung Public Access Block, dan memasang CORS unggahan. Jika tidak didukung, atur bucket privat dan CORS lewat konsol penyedia. Untuk database baru, isi `BOOTSTRAP_ADMIN_*`, lalu jalankan `npm run db:init`. Jangan inisialisasi ulang database yang sudah berisi data.
+5. Di Vercel, tambahkan variabel yang sama ditambah `SESSION_SECRET`, variabel `DOCUMENTS_S3_*`, `DOCUMENTS_S3_CORS_ORIGINS`, dan variabel Chatery.
 
 `npm run db:init` hanya untuk database kosong; membuat tabel relasional dan satu akun super admin awal dari environment. Semua tabel harus kosong dan `--force` ditolak. Super admin membuat akun atasan lewat menu **Akun atasan**; atasan kemudian menambahkan pekerja dan divisi lewat menu **Tim**. Untuk instalasi lama gunakan `npm run db:migrate:relational -- --apply`, bukan init/reset.
 
@@ -116,6 +125,12 @@ Nama petugas safety pada tindak lanjut dicatat manual di kolom terpisah. Terapka
 
 Nama petugas safety pada pekerjaan harian juga dicatat manual di kolom `manual_works.safety_name`. Terapkan `npm run db:migrate:manual-work-safety` (DDL `db/migrations/019_manual_work_safety.sql`). Database baru lewat `db:init` sudah memuat kolom ini.
 
+Dokumen kerja memakai migrasi terpisah: `npm run db:migrate:work-documents` (DDL `db/migrations/020_work_documents.sql`). Migrasi ini menambah tabel `work_documents`, `work_document_shares`, dan singleton `work_document_settings`, serta memperluas tipe objek audit dengan `dokumen`. Baris audit lama tidak diubah. Migrasi tidak menyentuh tabel dokumentasi/bukti pekerjaan dan tidak memindahkan objek storage; bucket dokumen diinisialisasi terpisah lewat `npm run storage:init:documents`.
+
+Folder Dokumen Kerja dan video bukti pekerjaan memakai migrasi `npm run db:migrate:video-folders` (DDL `db/migrations/022_video_and_folders.sql`). Migrasi ini menambah `work_document_folders`, `work_document_folder_shares`, kolom `work_documents.folder_id` (`ON DELETE SET NULL`), kolom video pada `documentations`/`checklist_photos`/`manual_work_photos` (`kind`, `duration_seconds`, `storage_etag`, serta `poster_key` pada dokumentasi), dan kolom batas video pada `photo_limit_settings`. Migrasi idempoten dan aman dijalankan ulang.
+
+Pemilihan penerima berbagi Dokumen Kerja memakai migrasi `npm run db:migrate:document-shares` (DDL `db/migrations/023_document_share_targets.sql`). Migrasi ini menambah `work_document_share_targets` dan `work_document_folder_share_targets` dengan kunci `(document_id|folder_id, audience, target_id)`; `audience` bernilai `division` atau `supervisor`. Tabel lama `work_document_shares`/`work_document_folder_shares` tetap dipertahankan sebagai fallback agar akses yang sudah terbuka tidak hilang. Saat pemilik menyimpan pilihan baru, target eksplisit menggantikan baris lama secara atomik. Target hanya berlaku selama divisi/atasan masih aktif, dan atasan yang bukan lagi berperan `atasan` tidak lagi diberi akses. Migrasi idempoten dan aman dijalankan ulang.
+
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
 ### Migrasi lokal yang sudah dilakukan
@@ -125,11 +140,12 @@ Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL
 ### Deploy ke Vercel
 
 1. Hubungkan repositori ke Vercel dengan framework preset **Next.js**.
-2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada.
+2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada.
 3. `vercel.json` menetapkan **Function Region Singapore (`sin1`)** agar fungsi Vercel dekat dengan Neon.
-4. Jalankan `npm run storage:init` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
+4. Jalankan `npm run storage:init` dan `npm run storage:init:documents` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
 5. Buka `https://<domain>/api/health`; `database` harus `neon-postgres`, `schema` harus `relational-v1`, dan `storage` harus `neon-object-storage`.
-6. Pastikan bucket sesuai `NEON_STORAGE_BUCKET` privat. Jangan menambahkan URL publik, presigned URL, atau kredensial storage ke klien.
+6. Pastikan bucket `NEON_STORAGE_BUCKET` dan `DOCUMENTS_S3_BUCKET` privat dan berbeda. URL unggah dokumen ditandatangani sementara dan hanya untuk `PUT`; pratinjau/unduhan tetap melalui route aplikasi. Jangan menambahkan URL publik, presigned URL unduhan, atau kredensial storage ke klien.
+7. Unggahan dokumen dan video dikirim langsung dari browser ke bucket, sehingga tidak terkena batas body 4.5 MB Vercel Functions. Bucket dokumen wajib mengizinkan `PUT` dari origin aplikasi dengan header `content-type` (dipasang oleh `npm run storage:init:documents` bila didukung). Bucket utama juga harus mengizinkan `PUT` dari origin aplikasi untuk video bukti pekerjaan; atur CORS lewat konsol penyedia bila belum ada. Pemutaran video memakai redirect ke URL baca bertanda tangan, jadi `Range`/`206` ditangani storage, bukan fungsi Vercel.
 
 **Jika login OTP gagal di Vercel:** halaman login tetap terbuka tanpa database, jadi kegagalan konfigurasi biasanya baru terlihat saat OTP diminta. Periksa **Vercel → Deployments → Functions → Logs** untuk `/api/auth/otp/request` dan `/api/auth/otp/verify`. Penyebab paling umum:
 
@@ -204,6 +220,13 @@ Salin `.env.example` menjadi `.env.local`.
 | `AWS_ACCESS_KEY_ID` | Ya | Access key dari penyedia object storage. |
 | `AWS_SECRET_ACCESS_KEY` | Ya | Secret key dari penyedia object storage. |
 | `NEON_STORAGE_BUCKET` | Ya | Nama bucket privat; harus diisi eksplisit (deployment ini: `bkt-bb1ec7626cf0e63c`). |
+| `DOCUMENTS_S3_BUCKET` | Ya untuk dokumen | Bucket privat terpisah untuk dokumen kerja; wajib berbeda dari `NEON_STORAGE_BUCKET`. Tidak ada fallback. |
+| `DOCUMENTS_S3_ENDPOINT_URL` | Tidak | Endpoint khusus dokumen; fallback ke `AWS_ENDPOINT_URL_S3`. |
+| `DOCUMENTS_S3_REGION` | Tidak | Region khusus dokumen; fallback ke `AWS_REGION`. |
+| `DOCUMENTS_S3_ACCESS_KEY_ID` | Tidak | Access key khusus dokumen; fallback ke `AWS_ACCESS_KEY_ID`. |
+| `DOCUMENTS_S3_SECRET_ACCESS_KEY` | Tidak | Secret key khusus dokumen; fallback ke `AWS_SECRET_ACCESS_KEY`. |
+| `DOCUMENTS_S3_FORCE_PATH_STYLE` | Tidak | Default `true`; isi `false` hanya untuk penyedia virtual-hosted. |
+| `DOCUMENTS_S3_CORS_ORIGINS` | Tidak | Origin yang diizinkan mengunggah langsung ke bucket, dipisah koma (mis. `https://app.example.com,http://localhost:3000`). Fallback ke `NEXT_PUBLIC_APP_URL`. |
 
 Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di outbox dengan status `gagal` dan alasan konfigurasi. Jika diisi, aplikasi memanggil `POST {CHATERY_API_URL}/chats/send-text` dengan body `sessionId`, `chatId`, `message`, dan `typingTime`. Khusus OTP, WA tidak tersedia/gagal otomatis mencoba email Resend; jika dua kanal gagal maka permintaan ditolak.
 
@@ -221,10 +244,14 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Durasi | Dihitung dari waktu server sejak `max(checkInAt, startAt)` sampai `checkOutAt`/`endAt`, lalu dibulatkan sesuai kebijakan (default 15 menit). Absen lebih awal tidak menambah durasi. |
 | Absen pulang | Wajib di dalam radius. Jika SPKL mewajibkan dokumentasi, minimal satu dokumentasi harus sudah diunggah. |
 | Penutupan otomatis | Sesi `berjalan` ditutup saat `endAt` terlewati; pekerja tanpa absen masuk dicatat `tidak_hadir`. |
-| Dokumentasi | Maksimal 12 file per sesi, 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). Foto dari kamera atau galeri (boleh beberapa sekaligus) dikompresi di perangkat dan diberi cap **nomor SPKL + waktu foto WIB**. Waktu diambil dari EXIF `DateTimeOriginal` bila ada, jika tidak dari jam perangkat. Server menolak file tanpa penanda cap waktu SIBUMA, waktu foto lebih dari 10 menit di masa depan, atau lebih dari 24 jam sebelum `startAt`. `takenAt` menyimpan waktu foto dan `createdAt` menyimpan waktu unggah server. Penanda dibuat di klien sehingga menutup jalur unggah normal, bukan bukti anti-palsu. Server tidak melakukan OCR terhadap teks yang terlihat; validasi memakai penanda JPEG tersembunyi. |
+| Dokumentasi | Batas foto default 12 per sesi (dapat diubah super admin, maksimal 50), 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). Foto dari kamera atau galeri (boleh beberapa sekaligus) dikompresi di perangkat dan diberi cap **nomor SPKL + waktu foto WIB**. Waktu diambil dari EXIF `DateTimeOriginal` bila ada, jika tidak dari jam perangkat. Server menolak file tanpa penanda cap waktu SIBUMA, waktu foto lebih dari 10 menit di masa depan, atau lebih dari 24 jam sebelum `startAt`. `takenAt` menyimpan waktu foto dan `createdAt` menyimpan waktu unggah server. Penanda dibuat di klien sehingga menutup jalur unggah normal, bukan bukti anti-palsu. Server tidak melakukan OCR terhadap teks yang terlihat; validasi memakai penanda JPEG tersembunyi. |
+| Dokumentasi: video | Video MP4/WEBM/MOV hanya dari galeri (tidak ada rekaman dalam aplikasi dan tidak ada cap waktu di berkas). Kuota video terpisah dari foto; default 3 per sesi, dapat diubah super admin (0 menonaktifkan). Ukuran default 50 MB dan batas keras 100 MB. Server memverifikasi tipe yang ditandatangani, ukuran objek, magic bytes (`ftyp`/EBML), dan menyimpan ETag sebagai sidik jari. Video tidak memenuhi kewajiban foto. Pemutaran memakai redirect `302` ke URL baca bertanda tangan 15 menit agar byte dan `Range` tidak melewati Vercel. |
 | Koreksi | Hanya atasan pembuat SPKL. Alasan 10–500 karakter. Jam masuk boleh lebih awal dari `startAt`; durasi tetap dihitung sejak jam mulai. Durasi dihitung ulang dan status menjadi `dikoreksi`. |
 | Batas lembur | Durasi satu SPKL tidak boleh melebihi batas harian (default 480 menit / 8 jam) dan ditolak di klien maupun API saat membuat/mengubah. Total harian dan mingguan (default 2.400 menit / 40 jam) tetap dicek sebagai peringatan, bukan blokir. |
 | Kebijakan | Pembulatan hanya `0/5/10/15/30` menit; batas harian ≤ 480 menit; batas mingguan ≤ 2.400 menit. |
+| Dokumen kerja | Privat secara default. Pemilik memilih divisi mana pun dan atasan mana pun sebagai penerima hanya-baca; setiap penerima independen, dapat dicabut sendiri, dan diperiksa ulang saat pratinjau/unduhan. Pilihan disimpan sebagai target eksplisit; baris berbagi lama tetap berlaku sampai pemilik menyimpan pilihan baru. Super admin mengatur batas global dan dapat menonaktifkan penambahan penerima baru, tetapi tidak otomatis dapat membuka dokumen privat. |
+| Dokumen kerja: kuota | Kuota menghitung dokumen aktif + sampah sampai dihapus permanen. Menaikkan/menurunkan batas tidak membatalkan berkas lama; kuota penuh hanya memblokir unggahan baru. Pemulihan dari sampah tetap diizinkan meski kuota terlampaui. |
+| Dokumen kerja: sampah | `purge_after` ditetapkan saat penghapusan memakai retensi yang berlaku saat itu. Sampah kedaluwarsa dihapus best-effort saat halaman dokumen dibuka; penghapusan permanen manual menghapus baris lebih dulu lalu objek storage. |
 
 | Aturan checklist | Perilaku |
 | --- | --- |
@@ -232,7 +259,8 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Checklist: keterlambatan | Dihitung otomatis dari `due_at`. Menyelesaikan terlambat tidak menggeser occurrence berikutnya (kalender tetap). |
 | Checklist: pengisian | Semua anggota penugasan dan atasan pemilik boleh mengisi/menyelesaikan. Inspection baru dapat diisi sejak tanggal occurrence tiba (Asia/Jakarta); inspection bertanggal besok atau mendatang tampil baca-saja lebih dulu. Checklist boleh selesai meski ada temuan; status tindak lanjut terpisah. Tombol selesai dinonaktifkan sampai item wajib, catatan wajib, dan foto wajib terpenuhi, serta semua draf sudah disimpan. |
 | Checklist: kondisi | Baik / perlu perhatian / tidak baik / tidak berlaku. Catatan wajib saat bermasalah dan alasan wajib saat tidak berlaku. |
-| Checklist: foto | Opsional / wajib / wajib saat bermasalah, maksimal 6 foto per item atau tindak lanjut, 1,5 MB, JPG/PNG/WEBP dengan magic bytes yang cocok. Foto dapat diambil lewat kamera dalam aplikasi atau dipilih beberapa sekaligus dari galeri; unggahan diproses berurutan. Foto gagal unggah dapat dicoba ulang tanpa memilih berkas lagi. |
+| Checklist: foto | Opsional / wajib / wajib saat bermasalah, default 6 foto per item atau tindak lanjut (dapat diubah super admin, maksimal 50), 1,5 MB, JPG/PNG/WEBP dengan magic bytes yang cocok. Foto dapat diambil lewat kamera dalam aplikasi atau dipilih beberapa sekaligus dari galeri; unggahan diproses berurutan. Foto gagal unggah dapat dicoba ulang tanpa memilih berkas lagi. |
+| Checklist: video | Video MP4/WEBM/MOV dari galeri sebagai bukti tambahan; default 2 per item atau tindak lanjut dan dapat dinonaktifkan super admin. Video tidak memenuhi kewajiban foto dan tidak dihitung sebagai foto pada progres maupun laporan. |
 | Checklist: konflik | Simpan per item memakai `expectedVersion`; versi lama ditolak `409` tanpa menimpa data terbaru. Draf yang belum tersimpan disimpan per tab di `sessionStorage`, ditampilkan sebagai **Belum disimpan**, dan tidak ikut terkunci saat finalisasi. |
 | Checklist: tindak lanjut | Dibuat manual dari item bermasalah, satu tindak lanjut aktif per item; PIC dapat menutup tanpa persetujuan atasan. PIC juga dapat membuka checklist sumber secara baca dan mengelola bukti perbaikan selama tindak lanjut aktif. Template berversi immutable agar hasil lama tidak berubah. |
 | Checklist: QR publik | Token acak permanen per QR; mode `pilih_area` menampilkan daftar area publik, mode `langsung` membuka satu area. QR dapat dinonaktifkan kapan saja tanpa mengganti token. |
@@ -333,20 +361,36 @@ Ringkasan API utama:
 | `POST /api/spkl/:id/attendance` | Absen masuk |
 | `POST /api/attendance/:id/checkout` | Absen pulang |
 | `PATCH /api/attendance/:id/correct` | Koreksi absensi |
-| `POST /api/spkl/:id/documents` | Unggah dokumentasi |
-| `GET /api/uploads/:key` | Sajikan file dokumentasi terproteksi |
+| `POST /api/spkl/:id/documents` | Unggah dokumentasi foto |
+| `POST /api/spkl/:id/documents/video/prepare`, `POST /api/spkl/:id/documents/video/complete` | Terbitkan URL `PUT` video, lalu verifikasi dan simpan dokumentasi video |
+| `GET /api/uploads/:key` | Sajikan file dokumentasi terproteksi; video dialihkan `302` ke URL baca bertanda tangan 15 menit |
+| `POST /api/dokumen/upload` | Terbitkan URL `PUT` sementara untuk unggah langsung ke bucket (validasi jenis, ukuran, kuota) |
+| `POST /api/dokumen` | Selesaikan unggahan: verifikasi ulang ukuran, magic bytes, kuota, lalu simpan metadata |
+| `GET /api/dokumen/:id/file` | Pratinjau/unduh privat; `download=1` memaksa unduhan; akses diperiksa ulang |
+| `PATCH/DELETE /api/dokumen/:id` | Ubah nama/keterangan atau pindahkan ke sampah |
+| `POST /api/dokumen/:id/restore`, `POST /api/dokumen/:id/purge` | Pulihkan dari sampah atau hapus permanen |
+| `PUT /api/dokumen/:id/shares` | Ganti penerima hanya-baca; body `{ divisionIds: string[], supervisorIds: string[] }`; array kosong mencabut semua |
+| `PATCH /api/dokumen/:id/move` | Pindahkan dokumen ke folder lain atau keluar folder |
+| `GET/POST /api/dokumen/folders`, `PATCH/DELETE /api/dokumen/folders/:id` | Daftar, buat, ubah, atau hapus folder satu tingkat milik sendiri |
+| `PUT /api/dokumen/folders/:id/shares` | Ganti penerima hanya-baca seluruh isi folder; body `{ divisionIds: string[], supervisorIds: string[] }`; array kosong mencabut semua |
+| `PUT /api/pengaturan/foto` | Simpan batas foto dan video dokumentasi (super admin) |
+| `PUT /api/pengaturan/dokumen` | Simpan batas unggahan, kuota, jenis berkas, dan opsi berbagi (super admin) |
 | `POST /api/checklist/locations`, `PATCH /api/checklist/locations/:id` | Tambah/ubah area checklist |
 | `POST /api/checklist/templates`, `PATCH /api/checklist/templates/:id` | Buat/ubah template checklist |
 | `POST /api/checklist/templates/:id/versions` | Terbitkan versi item baru (versi lama immutable) |
 | `POST /api/checklist/schedules`, `PATCH /api/checklist/schedules/:id` | Buat/ubah jadwal; assignee inspection aktif ikut disinkronkan |
 | `PATCH /api/checklist/answers/:id` | Simpan kondisi/catatan per item dengan `expectedVersion` |
 | `POST /api/checklist/inspections/:id/photos` | Unggah foto item atau tindak lanjut |
-| `GET/DELETE /api/checklist/photos/:id` | Sajikan/hapus foto checklist sesuai akses |
+| `POST /api/checklist/inspections/:id/videos/prepare`, `POST /api/checklist/inspections/:id/videos/complete` | Terbitkan URL `PUT` video, lalu verifikasi dan simpan video item/tindak lanjut |
+| `GET/DELETE /api/checklist/photos/:id` | Sajikan/hapus foto atau video checklist sesuai akses; video dialihkan `302` |
 | `POST /api/checklist/inspections/:id/complete` | Selesaikan checklist setelah validasi item dan foto |
 | `POST /api/checklist/inspections/:id/reopen` | Buka kembali checklist selesai (atasan, alasan wajib) |
 | `POST /api/checklist/follow-ups`, `PATCH /api/checklist/follow-ups/:id` | Buat/perbarui tindak lanjut temuan |
 | `POST /api/checklist/qr`, `PATCH /api/checklist/qr/:id` | Buat/ubah QR publik (umum atau satu area), aktif/nonaktif |
 | `GET /api/checklist/qr/:id/image` | PNG QR 1024px; `download=1` memaksa unduhan |
+| `POST /api/pekerjaan/:id/photos` | Unggah foto dokumentasi pekerjaan harian |
+| `GET/DELETE /api/pekerjaan/photos/:id` | Sajikan/hapus foto atau video pekerjaan sesuai akses; video dialihkan `302` |
+| `POST /api/pekerjaan/:id/videos/prepare`, `POST /api/pekerjaan/:id/videos/complete` | Terbitkan URL `PUT` video, lalu verifikasi dan simpan video pekerjaan |
 | `GET/POST /api/employees` | Daftar / tambah pekerja |
 | `PATCH /api/employees/:id` | Ubah / nonaktifkan pekerja |
 | `GET/PATCH /api/policy` | Baca / ubah kebijakan |
@@ -360,13 +404,15 @@ Ringkasan API utama:
 
 ### Produksi — Neon
 
-- **Tabel aktif:** `employees`, `divisions`, `spkls`, `spkl_workers`, `attendances`, `documentations`, `policies`, `otp_records`, `notification_logs`, `audit_logs`.
+- **Tabel aktif:** `employees`, `divisions`, `spkls`, `spkl_workers`, `attendances`, `documentations`, `policies`, `otp_records`, `notification_logs`, `audit_logs`, `manual_works`, `manual_work_assignees`, `manual_work_photos`, `manual_work_events`, `work_locations`.
+- **Dokumen kerja:** `work_documents`, `work_document_folders`, `work_document_shares`, `work_document_folder_shares`, `work_document_share_targets`, `work_document_folder_share_targets`, dan `work_document_settings`. Metadata, pemilik, folder, status sampah, dan penerima berbagi disimpan eksplisit; objek disimpan di bucket dokumen terpisah dan kunci objek tidak memakai nama asli berkas. Folder hanya satu tingkat per pemilik; menghapus folder tidak menghapus berkas (`folder_id` menjadi `NULL`). Penerima disimpan sebagai `(scope, audience, target_id)` tanpa foreign key karena `target_id` polimorfik (divisi atau karyawan); API memvalidasi ID aktif saat disimpan dan query akses hanya menyertakan divisi/atasan yang masih aktif.
 - **Checklist:** `checklist_locations`, `checklist_templates`, `checklist_template_versions`, `checklist_template_items`, `checklist_schedules`, `checklist_schedule_assignees`, `checklist_inspections`, `checklist_inspection_assignees`, `checklist_answers`, `checklist_photos`, `checklist_follow_ups`, `checklist_follow_up_events`, `checklist_qr_codes`. Inspection menyimpan snapshot versi, prompt, nama grup (`group_path`), nama template, lokasi, label periode, dan visibilitas publik item sehingga perubahan template tidak mengubah hasil lama. Grup hanya heading (`item_type='grup'`); answer, progres, dan laporan hanya memakai item daun. QR menyimpan token acak permanen yang dapat dinonaktifkan; token bukan izin akses tulis.
 - Kolom eksplisit, foreign key, unique/check constraints, indeks, dan sequence nomor SPKL. JSONB hanya untuk payload audit dan metadata migrasi; tidak ada whole-state runtime.
 - Pool `pg` kecil (maksimal 4 per instance), koneksi pooled Neon, transaksi `SERIALIZABLE` dengan row locks dan retry serialization/deadlock. Working set hanya terkait operasi; hanya baris berubah yang ditulis.
 - DDL/migrasi dijalankan eksplisit, bukan otomatis pada request. Ketiga tabel era JSON (`app_state`, `app_state_archives`, `app_migrations`) sudah dihapus setelah verifikasi; catatan migrasi tetap berada di `schema_migrations`.
-- **Dokumentasi:** object storage S3-compatible, bucket privat. Metadata `storageProvider` dan `storageKey` disimpan di database. File tidak pernah diekspos lewat URL publik; `/api/uploads/...` tetap memeriksa sesi dan kepemilikan SPKL, lalu mengirim `Cache-Control: private, no-store`.
-- Validasi upload mencakup ukuran, MIME, pencocokan magic bytes, dan sanitasi nama file.
+- **Dokumentasi:** object storage S3-compatible, bucket privat. Metadata `storageProvider` dan `storageKey` disimpan di database. Foto tidak pernah diekspos lewat URL publik; `/api/uploads/...` tetap memeriksa sesi dan kepemilikan SPKL, lalu mengirim `Cache-Control: private, no-store`. Video memakai pemeriksaan akses yang sama, tetapi responsnya `302` ke URL baca bertanda tangan 15 menit agar byte dan `Range` dialirkan langsung dari storage tanpa melewati Vercel; URL diterbitkan ulang pada setiap permintaan.
+- **Dokumen kerja:** bucket S3-compatible terpisah (`DOCUMENTS_S3_BUCKET`) dan privat. Unggahan memakai URL `PUT` bertanda tangan berumur 15 menit dan dikirim langsung dari browser; server memverifikasi ulang ukuran, magic bytes, dan kuota sebelum menyimpan metadata. Pratinjau/unduhan melewati `/api/dokumen/:id/file` yang memeriksa ulang kepemilikan, akses dokumen, atau akses folder aktif, lalu mengirim `Cache-Control: private, no-store`. Video dialihkan `302` ke URL baca bertanda tangan 15 menit. Tidak ada public link atau presigned URL unduhan permanen. Penghapusan permanen menghapus baris lebih dulu, lalu objek storage secara best-effort; sampah kedaluwarsa dibersihkan saat halaman dokumen dibuka.
+- Validasi upload mencakup ukuran, MIME, pencocokan magic bytes, dan sanitasi nama file; unggahan langsung diverifikasi ulang saat penyelesaian sebelum metadata disimpan. Video memakai magic bytes container (`ftyp`/EBML) dan ETag objek sebagai sidik jari karena hashing 100 MB di perangkat seluler tidak praktis.
 - Tidak ada reset data dari aplikasi. Backup dan pemulihan dilakukan di luar aplikasi melalui Neon.
 - Snapshot/backup era JSON di `app_state_archives` ikut dihapus atas persetujuan pengguna. Pemulihan berikutnya memerlukan backup/PITR Neon yang dikonfigurasi terpisah.
 
@@ -400,7 +446,8 @@ Ringkasan API utama:
 ### QR area publik
 
 - Atasan membuat QR di `/checklist/qr`: **pilih area** (satu QR untuk banyak area publik) atau **langsung** (satu QR untuk satu area). Token 24 karakter dibuat acak di server dan bersifat permanen; QR hanya perlu diganti bila dicabut.
-- Halaman publik berada di `/p/[token]` dan `/p/[token]/area/[locationId]`, memakai layout tanpa shell aplikasi dan `noindex`. Area nonpublik tidak muncul di daftar dan tidak dapat dibuka lewat QR langsung.
+- Halaman publik berada di `/p/[token]` dan `/p/[token]/area/[locationId]`, memakai shell publik terpisah dan `noindex`. Area nonpublik tidak muncul di daftar dan tidak dapat dibuka lewat QR langsung.
+- **Mobile publik** memakai topbar tetap, ringkasan dua kolom, dan akses petugas sebelum hasil checklist. Riwayat serta linimasa dapat dibuka di ponsel dan tetap terbuka di desktop. Daftar area menyesuaikan status login; Skeleton, error dengan **Coba lagi**, QR tidak ditemukan, serta state kosong memakai komponen yang sama dengan aplikasi. Navigasi privat tidak ditampilkan dan scan tetap tidak memberi izin pengisian.
 - Hasil utama area adalah inspection **selesai** terbaru. Bila area belum punya inspection selesai, halaman menampilkan inspection terbaru sebagai fallback. Riwayat 24 periode dapat dibuka lewat `?inspection=<id>`; ID divalidasi harus milik area dan pemilik QR yang sama, dan tombol **Hasil terbaru** mengembalikan tampilan ke hasil utama.
 - Visibilitas bersifat *snapshot*: `public_visible` disalin dari template ke answer saat inspection dibuat, sehingga perubahan template tidak mengubah riwayat yang sudah terbit.
 - Linimasa publik hanya berisi status dan waktu; nama petugas, catatan, foto, deskripsi internal, serta detail tindak lanjut tidak pernah dimasukkan ke query publik.

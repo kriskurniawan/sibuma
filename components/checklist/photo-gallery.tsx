@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
-import { Camera, ImagePlus, RotateCcw, Trash2, X } from "lucide-react";
+import { Camera, Film, ImagePlus, Play, RotateCcw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
+import { EvidenceVideoUpload } from "@/components/evidence-video-upload";
 import { Modal } from "@/components/modal";
 import {
   AlertDialog,
@@ -19,12 +20,12 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { compressImage } from "@/lib/compress-image";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
-import {
-  CHECKLIST_MAX_PHOTOS,
-  type ChecklistPhoto,
-  type ChecklistPhotoStage,
+import type {
+  ChecklistPhoto,
+  ChecklistPhotoStage,
 } from "@/lib/checklist-types";
 import { formatDateTime } from "@/lib/time";
+import { formatVideoDuration } from "@/lib/video";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -44,6 +45,10 @@ export function ChecklistPhotoGallery({
   canUpload,
   canDelete,
   stage = "temuan",
+  maxPhotos,
+  maxVideos,
+  videoMaxBytes,
+  videoEnabled,
   onChanged,
   onUploadingChange,
 }: {
@@ -55,6 +60,10 @@ export function ChecklistPhotoGallery({
   /** Defaults to canUpload for callers that have a single permission. */
   canDelete?: boolean;
   stage?: ChecklistPhotoStage;
+  maxPhotos: number;
+  maxVideos: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
   onChanged: () => void;
   onUploadingChange?: (uploading: boolean) => void;
 }) {
@@ -78,12 +87,15 @@ export function ChecklistPhotoGallery({
   const [deleting, setDeleting] = useState(false);
 
   const allowDelete = canDelete ?? canUpload;
+  const photoItems = photos.filter((photo) => photo.kind !== "video");
+  const videoItems = photos.filter((photo) => photo.kind === "video");
   const visibleIds = new Set(photos.map((photo) => photo.id));
   const pendingUploads = optimisticIds.filter((id) => !visibleIds.has(id)).length;
-  const totalCount =
-    photos.length + failedPhotos.length + pendingUploads;
-  const atLimit = totalCount >= CHECKLIST_MAX_PHOTOS;
-  const remainingSlots = Math.max(0, CHECKLIST_MAX_PHOTOS - totalCount);
+  const totalCount = photoItems.length + failedPhotos.length + pendingUploads;
+  const atLimit = totalCount >= maxPhotos;
+  const remainingSlots = Math.max(0, maxPhotos - totalCount);
+  const videoAtLimit = videoItems.length >= maxVideos;
+  const videoAvailable = videoEnabled && maxVideos > 0;
 
   useEffect(() => {
     return () => {
@@ -169,11 +181,11 @@ export function ChecklistPhotoGallery({
       return true;
     });
 
-    const slots = Math.max(0, CHECKLIST_MAX_PHOTOS - totalCount);
+    const slots = Math.max(0, maxPhotos - totalCount);
     if (slots === 0) {
       setNotice(null);
       setError(
-        `Batas ${CHECKLIST_MAX_PHOTOS} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
+        `Batas ${maxPhotos} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
       );
       return;
     }
@@ -263,12 +275,12 @@ export function ChecklistPhotoGallery({
     const snapshot = [...failedRef.current];
     const slots = Math.max(
       0,
-      CHECKLIST_MAX_PHOTOS - (photos.length + pendingUploads),
+      maxPhotos - (photoItems.length + pendingUploads),
     );
     if (slots === 0) {
       setNotice(null);
       setError(
-        `Batas ${CHECKLIST_MAX_PHOTOS} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
+        `Batas ${maxPhotos} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
       );
       return;
     }
@@ -278,7 +290,7 @@ export function ChecklistPhotoGallery({
     setError(null);
     setNotice(
       skipped.length > 0
-        ? `Hanya ${slots} foto dapat diunggah karena batas ${CHECKLIST_MAX_PHOTOS} foto.`
+        ? `Hanya ${slots} foto dapat diunggah karena batas ${maxPhotos} foto.`
         : null,
     );
     setUploading(true);
@@ -360,7 +372,7 @@ export function ChecklistPhotoGallery({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        {photos.map((photo) => (
+        {photoItems.map((photo) => (
           <button
             key={photo.id}
             type="button"
@@ -381,6 +393,34 @@ export function ChecklistPhotoGallery({
                 Perbaikan
               </span>
             )}
+          </button>
+        ))}
+
+        {videoItems.map((video) => (
+          <button
+            key={video.id}
+            type="button"
+            onClick={() => setPreview(video)}
+            className="group relative size-16 overflow-hidden rounded-md bg-black outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label={video.caption || "Buka video checklist"}
+          >
+            <video
+              src={`/api/checklist/photos/${video.id}#t=0.5`}
+              preload="metadata"
+              muted
+              playsInline
+              className="size-full object-cover group-hover:opacity-90"
+            />
+            <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play
+                className="size-5 text-white"
+                fill="currentColor"
+                aria-hidden="true"
+              />
+            </span>
+            <span className="absolute inset-x-0 bottom-0 bg-foreground/70 py-0.5 text-center text-xs leading-none text-background">
+              {formatVideoDuration(video.durationSeconds) ?? "Video"}
+            </span>
           </button>
         ))}
 
@@ -435,7 +475,7 @@ export function ChecklistPhotoGallery({
               disabled={uploading || atLimit}
               title={
                 atLimit
-                  ? `Maksimal ${CHECKLIST_MAX_PHOTOS} foto per item atau tindak lanjut.`
+                  ? `Maksimal ${maxPhotos} foto per item atau tindak lanjut.`
                   : undefined
               }
             >
@@ -450,21 +490,49 @@ export function ChecklistPhotoGallery({
               disabled={uploading || atLimit}
               title={
                 atLimit
-                  ? `Maksimal ${CHECKLIST_MAX_PHOTOS} foto per item atau tindak lanjut.`
+                  ? `Maksimal ${maxPhotos} foto per item atau tindak lanjut.`
                   : undefined
               }
             >
               <ImagePlus aria-hidden="true" />
               Galeri
             </Button>
+            {videoAvailable && (
+              <EvidenceVideoUpload
+                prepareUrl={`/api/checklist/inspections/${inspectionId}/videos/prepare`}
+                completeUrl={`/api/checklist/inspections/${inspectionId}/videos/complete`}
+                target={
+                  followUpId
+                    ? { followUpId, stage: "perbaikan" }
+                    : { answerId, stage }
+                }
+                maxBytes={videoMaxBytes}
+                disabled={uploading || videoAtLimit}
+                disabledReason={
+                  videoAtLimit
+                    ? `Maksimal ${maxVideos} video per item atau tindak lanjut.`
+                    : uploading
+                      ? "Tunggu unggahan sebelumnya selesai."
+                      : undefined
+                }
+                onUploaded={() => onChanged()}
+              />
+            )}
             <span className="text-xs text-muted-foreground tabular-nums">
-              {totalCount}/{CHECKLIST_MAX_PHOTOS} foto
+              {totalCount}/{maxPhotos} foto
             </span>
+            {videoItems.length > 0 && (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {videoItems.length}/{maxVideos} video
+              </span>
+            )}
           </>
         )}
 
         {photos.length === 0 && failedPhotos.length === 0 && !canUpload && (
-          <span className="text-xs text-muted-foreground">Belum ada foto.</span>
+          <span className="text-xs text-muted-foreground">
+            Belum ada foto atau video.
+          </span>
         )}
       </div>
 
@@ -514,14 +582,17 @@ export function ChecklistPhotoGallery({
 
       {atLimit && (
         <p className="text-xs text-muted-foreground">
-          Batas {CHECKLIST_MAX_PHOTOS} foto tercapai.
+          Batas {maxPhotos} foto tercapai.
         </p>
       )}
 
       <Modal
         open={preview !== null}
         onClose={() => setPreview(null)}
-        title={preview?.caption || "Foto checklist"}
+        title={
+          preview?.caption ||
+          (preview?.kind === "video" ? "Video checklist" : "Foto checklist")
+        }
         description={
           preview?.createdAt
             ? `Diunggah ${formatDateTime(preview.createdAt, "d MMM yyyy, HH:mm")}`
@@ -537,19 +608,28 @@ export function ChecklistPhotoGallery({
               onClick={() => setDeleteTarget(preview)}
             >
               <Trash2 />
-              Hapus foto
+              {preview.kind === "video" ? "Hapus video" : "Hapus foto"}
             </Button>
           ) : undefined
         }
       >
-        {preview && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/api/checklist/photos/${preview.id}`}
-            alt={preview.caption || "Foto checklist"}
-            className="max-h-[65vh] w-full object-contain"
-          />
-        )}
+        {preview &&
+          (preview.kind === "video" ? (
+            <video
+              src={`/api/checklist/photos/${preview.id}`}
+              controls
+              playsInline
+              preload="metadata"
+              className="max-h-[65vh] w-full rounded-md bg-black"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/checklist/photos/${preview.id}`}
+              alt={preview.caption || "Foto checklist"}
+              className="max-h-[65vh] w-full object-contain"
+            />
+          ))}
       </Modal>
 
       <CameraCaptureDialog
@@ -561,7 +641,7 @@ export function ChecklistPhotoGallery({
         disabled={atLimit || uploading}
         disabledReason={
           atLimit
-            ? `Batas ${CHECKLIST_MAX_PHOTOS} foto tercapai. Hapus foto lama terlebih dahulu.`
+            ? `Batas ${maxPhotos} foto tercapai. Hapus foto lama terlebih dahulu.`
             : uploading
               ? "Tunggu unggahan foto sebelumnya selesai."
               : undefined
@@ -578,10 +658,13 @@ export function ChecklistPhotoGallery({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus foto ini?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Hapus {deleteTarget?.kind === "video" ? "video" : "foto"} ini?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Foto akan dihapus dari checklist dan penyimpanan privat. Tindakan
-              ini tidak dapat dibatalkan.
+              {deleteTarget?.kind === "video" ? "Video" : "Foto"} akan dihapus
+              dari checklist dan penyimpanan privat. Tindakan ini tidak dapat
+              dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -591,7 +674,9 @@ export function ChecklistPhotoGallery({
               onClick={remove}
               disabled={deleting}
             >
-              {deleting ? "Menghapus…" : "Hapus foto"}
+              {deleting
+                ? "Menghapus…"
+                : `Hapus ${deleteTarget?.kind === "video" ? "video" : "foto"}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -9,7 +9,6 @@ export const OTP_RESEND_SECONDS = 60;
 export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_LOCK_MINUTES = 15;
 export const UPLOAD_MAX_BYTES = 1.5 * 1024 * 1024;
-export const UPLOAD_MAX_PER_SESSION = 12;
 export const MAX_WEEKLY_MINUTES = 40 * 60;
 export const MAX_DAILY_MINUTES = 8 * 60;
 

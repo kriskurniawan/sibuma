@@ -30,6 +30,7 @@ import {
 } from "@/lib/manual-work-report";
 import type { ManualWorkReportFilters } from "@/lib/manual-work-types";
 import { pageRequest } from "@/lib/pagination";
+import { getPhotoLimits } from "@/lib/photo-limits";
 import { currentMonthRange, formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 
@@ -82,7 +83,7 @@ export async function ManualWorkReportScreen({
 
   const printing = first(params.print) === "1";
   const ownerId = isSuperAdmin(user) ? null : user.id;
-  const [data, options] = await Promise.all([
+  const [data, options, photoLimits] = await Promise.all([
     getManualWorkReportData(
       ownerId,
       filters,
@@ -91,6 +92,7 @@ export async function ManualWorkReportScreen({
         : pageRequest(first(params.page), first(params.size)),
     ),
     getManualWorkReportOptions(ownerId),
+    getPhotoLimits(),
   ]);
 
   const exportParams = new URLSearchParams({ from, to });
@@ -337,6 +339,7 @@ export async function ManualWorkReportScreen({
                 }
               }
               printRows={printing ? data.rows : undefined}
+              photoLimit={photoLimits.workPhotos}
             />
           </FramePanel>
         )}

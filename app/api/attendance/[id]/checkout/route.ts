@@ -73,7 +73,9 @@ export async function POST(
 
       if (spkl.requiresDocumentation) {
         const docs = db.documentations.filter(
-          (doc) => doc.attendanceId === attendance.id,
+          (doc) =>
+            doc.attendanceId === attendance.id &&
+            (doc.kind ?? "photo") === "photo",
         );
         if (docs.length === 0) {
           throw new Error(

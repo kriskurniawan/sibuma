@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
 import { ChecklistConditionBadge, ChecklistFollowUpBadge } from "@/components/checklist/checklist-badges";
 import {
-  CHECKLIST_MAX_PHOTOS,
   CHECKLIST_PHOTO_POLICY_LABEL,
   conditionRequiresNote,
   findChecklistCondition,
@@ -112,6 +111,10 @@ export function AnswerCard({
   followUp,
   conditions,
   nested,
+  maxPhotos,
+  maxVideos,
+  videoMaxBytes,
+  videoEnabled,
   onCreateFollowUp,
   onDraftChange,
   onUploadingChange,
@@ -125,6 +128,10 @@ export function AnswerCard({
   followUp: ChecklistFollowUpRow | null;
   conditions: ChecklistConditionOption[];
   nested?: boolean;
+  maxPhotos: number;
+  maxVideos: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
   onCreateFollowUp: (answer: ChecklistAnswer) => void;
   /** Reports local edits so the parent can mirror completion validation. */
   onDraftChange?: (answerId: string, state: AnswerDraftState) => void;
@@ -230,11 +237,12 @@ export function AnswerCard({
       (isIssueCondition(condition, conditions) && answer.requireNoteOnIssue)) &&
       note.trim().length < 3);
   const photoWarning =
-    answer.photoPolicy === "wajib" && photos.length === 0
+    answer.photoPolicy === "wajib" &&
+    photos.filter((photo) => photo.kind !== "video").length === 0
       ? "Foto wajib dilampirkan sebelum checklist diselesaikan."
       : answer.photoPolicy === "wajib_saat_masalah" &&
           isIssueCondition(condition, conditions) &&
-          photos.length === 0
+          photos.filter((photo) => photo.kind !== "video").length === 0
         ? "Kondisi bermasalah mewajibkan minimal satu foto."
         : null;
 
@@ -454,8 +462,12 @@ export function AnswerCard({
             photos={photos}
             inspectionId={inspectionId}
             answerId={answer.id}
-            canUpload={canFill && photos.length < CHECKLIST_MAX_PHOTOS}
+            canUpload={canFill}
             canDelete={canFill}
+            maxPhotos={maxPhotos}
+            maxVideos={maxVideos}
+            videoMaxBytes={videoMaxBytes}
+            videoEnabled={videoEnabled}
             onUploadingChange={(uploading) =>
               onUploadingChange?.(answer.id, uploading)
             }

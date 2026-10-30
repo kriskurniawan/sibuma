@@ -44,7 +44,7 @@ import {
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { UPLOAD_MAX_BYTES, UPLOAD_MAX_PER_SESSION } from "@/lib/constants";
+import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import { formatDistance } from "@/lib/geo";
 import {
   attendanceStartAt,
@@ -64,12 +64,20 @@ interface SpklDetailViewProps {
     docGraceMinutes: number;
     roundingMinutes: number;
   };
+  photoLimit: number;
+  videoLimit: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
 }
 
 export function SpklDetailView({
   user,
   detail,
   policy,
+  photoLimit,
+  videoLimit,
+  videoMaxBytes,
+  videoEnabled,
 }: SpklDetailViewProps) {
   const [dialog, setDialog] = useState<"checkin" | "checkout" | null>(null);
   const { spkl, status, myAttendance } = detail;
@@ -89,13 +97,22 @@ export function SpklDetailView({
   );
   const myDocCount = myAttendance
     ? detail.documentation.filter(
-        (doc) => doc.attendanceId === myAttendance.id,
+        (doc) =>
+          doc.attendanceId === myAttendance.id && doc.kind !== "video",
+      ).length
+    : 0;
+  const myVideoCount = myAttendance
+    ? detail.documentation.filter(
+        (doc) =>
+          doc.attendanceId === myAttendance.id && doc.kind === "video",
       ).length
     : 0;
   const presentCount = detail.attendances.filter(
     (row) => row.attendance?.checkInAt,
   ).length;
-  const docsToday = detail.documentation.length;
+  const docsToday = detail.documentation.filter(
+    (doc) => doc.kind !== "video",
+  ).length;
   // Client clock for the upload-message wording only; detail.canUpload remains
   // the server-authoritative permission check.
   const now = Date.now();
@@ -107,9 +124,7 @@ export function SpklDetailView({
       ? "Absen masuk terlebih dahulu"
       : graceExpired
         ? "Masa unggah sudah berakhir"
-        : myDocCount >= UPLOAD_MAX_PER_SESSION
-          ? "Batas foto tercapai"
-          : "Unggahan tidak tersedia";
+        : "Unggahan tidak tersedia";
 
   const markers: MapMarker[] = [
     {
@@ -140,7 +155,7 @@ export function SpklDetailView({
       ? { href: "/laporan?tab=lembur", label: "Kembali ke laporan" }
       : user.role === "atasan"
         ? { href: "/lembur", label: "Kembali ke lembur" }
-        : { href: "/riwayat", label: "Kembali ke riwayat" };
+        : { href: "/riwayat", label: "Kembali ke lembur" };
 
   return (
     <div className="flex flex-col gap-5">
@@ -394,12 +409,16 @@ export function SpklDetailView({
             documents={detail.documentation}
             canUpload={detail.canUpload}
             uploadBlockedReason={uploadBlockedReason}
-            maxUploads={UPLOAD_MAX_PER_SESSION}
+            maxUploads={photoLimit}
             remainingUploads={Math.max(
               0,
-              UPLOAD_MAX_PER_SESSION - myDocCount,
+              photoLimit - myDocCount,
             )}
             maxBytes={UPLOAD_MAX_BYTES}
+            videoLimit={videoLimit}
+            videoRemaining={Math.max(0, videoLimit - myVideoCount)}
+            videoMaxBytes={videoMaxBytes}
+            videoEnabled={videoEnabled}
           />
 
           <AttendanceSection
@@ -481,8 +500,13 @@ export function SpklDetailView({
                     />
                     <p className="text-xs text-muted-foreground">Dokumentasi</p>
                     <p className="mt-0.5 text-sm font-semibold text-foreground">
-                      {myDocCount} / {UPLOAD_MAX_PER_SESSION} foto
+                      {myDocCount} / {photoLimit} foto
                     </p>
+                    {videoEnabled && videoLimit > 0 && (
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {myVideoCount} / {videoLimit} video
+                      </p>
+                    )}
                   </div>
                 </div>
 

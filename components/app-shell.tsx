@@ -12,8 +12,8 @@ import {
   ClipboardCheck,
   Clock3,
   Eye,
+  FolderLock,
   Hammer,
-  History,
   Home,
   LayoutGrid,
   Loader2,
@@ -86,6 +86,7 @@ function navigationFor(
       main: [
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
+        { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
       ],
       manage: [
         { href: "/tim", label: "Akun atasan", icon: UsersRound },
@@ -118,6 +119,7 @@ function navigationFor(
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
         { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
+        { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
         { href: "/lembur", label: "Lembur", icon: Clock3 },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
       ],
@@ -133,6 +135,7 @@ function navigationFor(
       mobile: [
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
+        { href: "/pekerjaan", label: "Pekerjaan", icon: Hammer },
         {
           href: "/lembur",
           label: "Lembur",
@@ -144,14 +147,13 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/tindak-lanjut", "/pekerjaan", "/laporan"]
+            ? ["/tim", "/checklist/tindak-lanjut", "/laporan"]
             : [
                 "/tim",
                 "/checklist/template",
                 "/checklist/jadwal",
                 "/checklist/qr",
                 "/checklist/tindak-lanjut",
-                "/pekerjaan",
                 "/audit",
                 "/laporan",
               ],
@@ -165,19 +167,20 @@ function navigationFor(
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
       { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
-      { href: "/riwayat", label: "Riwayat lembur", icon: History },
+      { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
+      { href: "/riwayat", label: "Lembur", icon: Clock3 },
     ],
     manage: [],
     mobile: [
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
+      { href: "/pekerjaan", label: "Pekerjaan", icon: Hammer },
       {
         href: "/riwayat",
-        label: "Riwayat",
-        icon: History,
+        label: "Lembur",
+        icon: Clock3,
         match: ["/spkl"],
       },
-      { href: "/profil", label: "Profil", icon: UserRound },
     ],
   };
 }
@@ -208,7 +211,7 @@ const CHECKLIST_ROOT_PATHS = new Set([
 function spklBackTarget(role: SessionUser["role"]) {
   if (role === "super_admin") return { href: "/laporan", label: "Laporan" };
   if (role === "atasan") return { href: "/lembur", label: "Lembur" };
-  return { href: "/riwayat", label: "Riwayat" };
+  return { href: "/riwayat", label: "Lembur" };
 }
 
 /** Halaman detail atau form memakai tombol kembali di header mobile. */
@@ -220,6 +223,9 @@ function mobileBackLink(pathname: string, role: SessionUser["role"]) {
   if (workEdit) return { href: `/pekerjaan/${workEdit[1]}`, label: "Detail pekerjaan" };
   if (pathname.startsWith("/pekerjaan/")) {
     return { href: "/pekerjaan", label: "Pekerjaan harian" };
+  }
+  if (pathname.startsWith("/dokumen/")) {
+    return { href: "/dokumen", label: "Dokumen kerja" };
   }
   if (pathname === "/spkl/baru") return { href: "/lembur", label: "Lembur" };
   const edit = /^\/spkl\/([^/]+)\/edit$/.exec(pathname);
@@ -248,6 +254,8 @@ function currentSectionLabel(
   if (pathname === "/pekerjaan/baru") return "Pekerjaan baru";
   if (/^\/pekerjaan\/[^/]+\/ubah$/.test(pathname)) return "Ubah pekerjaan";
   if (pathname.startsWith("/pekerjaan/")) return "Detail pekerjaan";
+  if (pathname.startsWith("/dokumen/")) return "Detail dokumen";
+  if (pathname === "/dokumen") return "Dokumen kerja";
   if (pathname.startsWith("/spkl/baru")) return "Buat SPKL";
   if (pathname.startsWith("/spkl/")) return "Detail SPKL";
   if (pathname.startsWith("/checklist/tindak-lanjut")) return "Tindak lanjut";
@@ -328,7 +336,7 @@ export function AppShell({
   const readOnly = isReadOnly(user);
   const nav = navigationFor(user.role, readOnly);
   const mobileNav: Array<NavItem | "scan"> = [...nav.mobile];
-  if (user.role !== "super_admin") {
+  if (user.role === "pekerja") {
     mobileNav.splice(Math.floor(mobileNav.length / 2), 0, "scan");
   }
   const [loggingOut, setLoggingOut] = useState(false);
@@ -512,6 +520,17 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="md:hidden"
+              aria-label="Dokumen kerja"
+              title="Dokumen kerja"
+              nativeButton={false}
+              render={<Link href="/dokumen" />}
+            >
+              <FolderLock aria-hidden="true" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"

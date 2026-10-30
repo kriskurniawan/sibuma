@@ -4,7 +4,7 @@ import {
   BarChart3,
   CalendarClock,
   ChevronRight,
-  Hammer,
+  FolderLock,
   ListChecks,
   QrCode,
   ScrollText,
@@ -78,12 +78,6 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
           description: "Temuan yang masih terbuka atau diproses.",
           icon: ListChecks,
         },
-        {
-          href: "/pekerjaan",
-          label: "Pekerjaan harian",
-          description: "Pekerjaan harian beserta dokumentasi foto.",
-          icon: Hammer,
-        },
       ],
     },
     {
@@ -101,6 +95,19 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
           label: "Log audit",
           description: "Riwayat perubahan dan aktivitas penting.",
           icon: ScrollText,
+        },
+      ],
+    },
+    {
+      title: "Dokumen & referensi",
+      description: "Simpan referensi kerja dan atur akses hanya-baca.",
+      items: [
+        {
+          href: "/dokumen",
+          label: "Dokumen kerja",
+          description:
+            "Berkas referensi pribadi, dapat dibagikan ke divisi atau atasan yang dipilih.",
+          icon: FolderLock,
         },
       ],
     },
@@ -187,7 +194,7 @@ function MenuGroup({ group }: { group: MenuGroupData }) {
 export default async function MenuPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  // Pekerja sudah punya Profil di bottom nav; Menu hanya untuk peran pengelola.
+  // Pekerja membuka profil lewat avatar; Menu hanya untuk peran pengelola.
   if (user.role === "pekerja") redirect("/");
 
   const role = user.role as Extract<SessionUser["role"], "atasan" | "super_admin">;

@@ -17,7 +17,7 @@ const reportFrom = `FROM attendances a JOIN spkls s ON s.id=a.spkl_id JOIN emplo
   WHERE ($1::text IS NULL OR s.created_by=$1) AND s.date BETWEEN $2::date AND $3::date
   AND ($4::text IS NULL OR e.id=$4) AND ($5::text IS NULL OR s.id=$5)
   AND ($6::text IS NULL OR position(lower($6) in lower(e.name||' '||s.title||' '||s.number))>0)`;
-const documents = `(SELECT count(*)::integer FROM documentations d WHERE d.attendance_id=a.id)`;
+const documents = `(SELECT count(*)::integer FROM documentations d WHERE d.attendance_id=a.id AND d.kind='photo')`;
 
 export async function getReportData(supervisorId: string | null, filters: ReportFilters, request?: PageRequest) {
   await finalizeScope("($1::text IS NULL OR s.created_by=$1) AND s.date BETWEEN $2::date AND $3::date", [supervisorId, filters.from, filters.to]);

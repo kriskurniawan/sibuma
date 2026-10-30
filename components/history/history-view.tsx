@@ -172,12 +172,12 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
       <div className="hidden md:block">
         <PageHeader
           eyebrow="Arsip pribadi"
-          title="Riwayat lembur."
+          title="Lembur."
           description="Semua SPKL yang pernah dan akan kamu jalani, lengkap dengan durasi, kehadiran, dan dokumentasi."
         />
       </div>
 
-      <h1 className="sr-only md:hidden">Riwayat lembur</h1>
+      <h1 className="sr-only md:hidden">Lembur</h1>
 
       <MobileSummary
         className="md:hidden"

@@ -45,7 +45,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   MANUAL_WORK_EVENT_LABEL,
-  MANUAL_WORK_MAX_PHOTOS,
   type ManualWorkDetail,
 } from "@/lib/manual-work-types";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
@@ -54,7 +53,19 @@ function dateIso(value: string) {
   return `${value}T00:00:00+07:00`;
 }
 
-export function ManualWorkDetailView({ detail }: { detail: ManualWorkDetail }) {
+export function ManualWorkDetailView({
+  detail,
+  photoLimit,
+  videoLimit,
+  videoMaxBytes,
+  videoEnabled,
+}: {
+  detail: ManualWorkDetail;
+  photoLimit: number;
+  videoLimit: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
+}) {
   const router = useRouter();
   const work = detail.work;
   const [completeOpen, setCompleteOpen] = useState(false);
@@ -65,10 +76,15 @@ export function ManualWorkDetailView({ detail }: { detail: ManualWorkDetail }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
+  const photoCount = detail.photos.filter(
+    (photo) => photo.kind !== "video",
+  ).length;
+  const videoCount = detail.photos.filter(
+    (photo) => photo.kind === "video",
+  ).length;
+
   const completionReady =
-    !work.requiresDocumentation ||
-    detail.photos.length >= 1 ||
-    !detail.canComplete;
+    !work.requiresDocumentation || photoCount >= 1 || !detail.canComplete;
 
   async function runAction(
     action: "mulai" | "selesai" | "batal" | "buka_kembali",
@@ -219,7 +235,7 @@ export function ManualWorkDetailView({ detail }: { detail: ManualWorkDetail }) {
                   label="Dokumentasi"
                   value={
                     work.requiresDocumentation
-                      ? `Wajib, minimal 1 dari ${MANUAL_WORK_MAX_PHOTOS} foto`
+                      ? `Wajib, minimal 1 dari ${photoLimit} foto`
                       : "Opsional"
                   }
                 />
@@ -242,13 +258,16 @@ export function ManualWorkDetailView({ detail }: { detail: ManualWorkDetail }) {
               <div className="flex min-w-0 flex-col gap-0.5">
                 <FrameTitle>Dokumentasi</FrameTitle>
                 <FrameDescription>
-                  Bukti foto privat. Hanya pemilik pekerjaan, pelapor, dan
-                  pekerja yang ditugaskan dapat mengakses.
+                  Bukti foto dan video privat. Hanya pemilik pekerjaan, pelapor,
+                  dan pekerja yang ditugaskan dapat mengakses.
                 </FrameDescription>
               </div>
               <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
                 <Camera className="size-3.5" aria-hidden="true" />
-                {detail.photos.length}/{MANUAL_WORK_MAX_PHOTOS}
+                {photoCount}/{photoLimit} foto
+                {videoEnabled && videoLimit > 0
+                  ? ` · ${videoCount}/${videoLimit} video`
+                  : ""}
               </span>
             </FrameHeader>
             <FramePanel className="flex flex-col gap-3">
@@ -263,6 +282,10 @@ export function ManualWorkDetailView({ detail }: { detail: ManualWorkDetail }) {
                 workTitle={work.title}
                 canUpload={detail.canUpload}
                 canDelete={detail.canUpload}
+                maxPhotos={photoLimit}
+                maxVideos={videoLimit}
+                videoMaxBytes={videoMaxBytes}
+                videoEnabled={videoEnabled}
                 onChanged={() => router.refresh()}
                 onUploadingChange={setUploading}
               />
@@ -385,7 +408,7 @@ export function ManualWorkDetailView({ detail }: { detail: ManualWorkDetail }) {
                     <CheckCircle2 aria-hidden="true" />
                     Selesaikan
                   </Button>
-                  {work.requiresDocumentation && detail.photos.length === 0 && (
+                  {work.requiresDocumentation && photoCount === 0 && (
                     <p className="text-xs leading-relaxed text-muted-foreground">
                       Unggah minimal satu foto dokumentasi sebelum menyelesaikan.
                     </p>

@@ -112,7 +112,8 @@ export const MANUAL_WORK_ROW_JOINS = `JOIN employees o ON o.id=w.owner_id
     WHERE mwa.work_id=w.id
   ) asg ON true
   LEFT JOIN LATERAL (
-    SELECT count(*)::integer photo_count FROM manual_work_photos p WHERE p.work_id=w.id
+    SELECT count(*)::integer photo_count FROM manual_work_photos p
+    WHERE p.work_id=w.id AND p.kind='photo'
   ) pc ON true
   LEFT JOIN checklist_follow_ups f ON f.id=w.source_follow_up_id`;
 

@@ -46,7 +46,8 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="id" data-scroll-behavior="smooth">
-      <body>
+      {/* Browser extensions can add attributes to <body> before hydration. */}
+      <body suppressHydrationWarning>
         <TooltipProvider>{children}</TooltipProvider>
         <Toaster
           position="top-center"

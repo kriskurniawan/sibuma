@@ -107,7 +107,8 @@ export async function getManualWorkReportData(
          coalesce(sum(pc.photos),0)::integer photos
        FROM manual_works w
        LEFT JOIN LATERAL (
-         SELECT count(*)::integer photos FROM manual_work_photos p WHERE p.work_id=w.id
+         SELECT count(*)::integer photos FROM manual_work_photos p
+         WHERE p.work_id=w.id AND p.kind='photo'
        ) pc ON true
        ${where}`,
       values,

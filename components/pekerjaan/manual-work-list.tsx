@@ -30,7 +30,6 @@ import {
 } from "@/components/reui/frame";
 import { Avatar, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
-import { MANUAL_WORK_MAX_PHOTOS } from "@/lib/manual-work-types";
 import type {
   ManualWorkFilterOptions,
   ManualWorkRow,
@@ -51,7 +50,13 @@ function rangeLabel(row: ManualWorkRow) {
   return `${start} – ${formatDateHuman(dateIso(row.work.targetDate), "d MMM")}`;
 }
 
-export function ManualWorkListRow({ row }: { row: ManualWorkRow }) {
+export function ManualWorkListRow({
+  row,
+  photoLimit,
+}: {
+  row: ManualWorkRow;
+  photoLimit: number;
+}) {
   const work = row.work;
   const firstAssignee = row.assignees[0];
 
@@ -84,7 +89,7 @@ export function ManualWorkListRow({ row }: { row: ManualWorkRow }) {
         {work.requiresDocumentation && (
           <span className="inline-flex items-center gap-1 tabular-nums">
             <Camera className="size-3.5 shrink-0" aria-hidden="true" />
-            {row.photoCount}/{MANUAL_WORK_MAX_PHOTOS} foto
+            {row.photoCount}/{photoLimit} foto
           </span>
         )}
         {row.sourceFollowUp && (
@@ -135,6 +140,7 @@ export function ManualWorkListView({
   canManage,
   canAssign,
   readOnly,
+  photoLimit,
 }: {
   items: ManualWorkRow[];
   total: number;
@@ -150,6 +156,7 @@ export function ManualWorkListView({
   canManage: boolean;
   canAssign: boolean;
   readOnly: boolean;
+  photoLimit: number;
 }) {
   const filtered =
     filters.status !== "aktif" ||
@@ -164,7 +171,7 @@ export function ManualWorkListView({
         title="Pekerjaan Harian"
         description={
           canAssign
-            ? "Pekerjaan harian dengan dokumentasi foto. Satu pekerjaan boleh berlangsung beberapa hari."
+            ? "Pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
             : "Pekerjaan yang kamu dan tim kerjakan. Catatan langsung aktif."
         }
         action={
@@ -287,7 +294,7 @@ export function ManualWorkListView({
                   ? "Ubah kata kunci atau filter status, divisi, dan pekerja untuk melihat pekerjaan lain."
                   : canManage
                     ? canAssign
-                      ? "Buat pekerjaan harian dengan dokumentasi foto."
+                      ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
                       : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
                     : readOnly
                       ? "Belum ada pekerjaan harian untuk tim ini."
@@ -329,7 +336,11 @@ export function ManualWorkListView({
           ) : (
             <div className="divide-y divide-border/70">
               {items.map((row) => (
-                <ManualWorkListRow key={row.work.id} row={row} />
+                <ManualWorkListRow
+                  key={row.work.id}
+                  row={row}
+                  photoLimit={photoLimit}
+                />
               ))}
             </div>
           )}

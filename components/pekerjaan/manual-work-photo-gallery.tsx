@@ -3,14 +3,16 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   Camera,
-  Clock3,
+  Film,
   ImagePlus,
+  Play,
   Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
+import { EvidenceVideoUpload } from "@/components/evidence-video-upload";
 import { Modal } from "@/components/modal";
 import {
   AlertDialog,
@@ -28,11 +30,9 @@ import { compressImage } from "@/lib/compress-image";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import { buildManualWorkMarker } from "@/lib/documentation-marker";
 import { readImageExif } from "@/lib/exif";
-import {
-  MANUAL_WORK_MAX_PHOTOS,
-  type ManualWorkPhoto,
-} from "@/lib/manual-work-types";
+import type { ManualWorkPhoto } from "@/lib/manual-work-types";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
+import { formatVideoDuration } from "@/lib/video";
 
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
 
@@ -50,6 +50,10 @@ export function ManualWorkPhotoGallery({
   workTitle,
   canUpload,
   canDelete,
+  maxPhotos,
+  maxVideos,
+  videoMaxBytes,
+  videoEnabled,
   onChanged,
   onUploadingChange,
 }: {
@@ -58,6 +62,10 @@ export function ManualWorkPhotoGallery({
   workTitle: string;
   canUpload: boolean;
   canDelete: boolean;
+  maxPhotos: number;
+  maxVideos: number;
+  videoMaxBytes: number;
+  videoEnabled: boolean;
   onChanged: () => void;
   onUploadingChange?: (uploading: boolean) => void;
 }) {
@@ -82,12 +90,16 @@ export function ManualWorkPhotoGallery({
   const [deleting, setDeleting] = useState(false);
 
   const busy = uploading || processing;
-  const totalCount = photos.length + queue.length;
-  const atLimit = totalCount >= MANUAL_WORK_MAX_PHOTOS;
+  const photoItems = photos.filter((photo) => photo.kind !== "video");
+  const videoItems = photos.filter((photo) => photo.kind === "video");
+  const totalCount = photoItems.length + queue.length;
+  const atLimit = totalCount >= maxPhotos;
   const remainingSlots = Math.max(
     0,
-    MANUAL_WORK_MAX_PHOTOS - totalCount,
+    maxPhotos - totalCount,
   );
+  const videoAtLimit = videoItems.length >= maxVideos;
+  const videoAvailable = videoEnabled && maxVideos > 0;
 
   useEffect(() => {
     return () => {
@@ -135,7 +147,7 @@ export function ManualWorkPhotoGallery({
     const slots = remainingSlots;
     if (slots === 0) {
       setError(
-        `Batas ${MANUAL_WORK_MAX_PHOTOS} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
+        `Batas ${maxPhotos} foto sudah tercapai. Hapus foto lama terlebih dahulu.`,
       );
       return;
     }
@@ -329,6 +341,7 @@ export function ManualWorkPhotoGallery({
 
   async function remove() {
     if (!deleteTarget) return;
+    const label = deleteTarget.kind === "video" ? "video" : "foto";
     setDeleting(true);
     try {
       const response = await fetch(
@@ -337,21 +350,35 @@ export function ManualWorkPhotoGallery({
       );
       const data = (await response.json()) as { ok?: boolean; message?: string };
       if (!response.ok) {
-        toast.error(data.message ?? "Gagal menghapus foto.");
+        toast.error(data.message ?? `Gagal menghapus ${label}.`);
         return;
       }
-      toast.success("Foto dokumentasi dihapus.");
+      toast.success(
+        label === "video"
+          ? "Video dokumentasi dihapus."
+          : "Foto dokumentasi dihapus.",
+      );
       setDeleteTarget(null);
       setPreview(null);
       onChanged();
     } catch {
-      toast.error("Gagal menghapus foto. Coba lagi.");
+      toast.error(`Gagal menghapus ${label}. Coba lagi.`);
     } finally {
       setDeleting(false);
     }
   }
 
   function previewDescription(photo: ManualWorkPhoto) {
+    if (photo.kind === "video") {
+      return (
+        <span>
+          Diunggah {formatDateTime(photo.createdAt, "d MMM yyyy, HH:mm")}
+          {photo.durationSeconds
+            ? ` · ${formatVideoDuration(photo.durationSeconds)}`
+            : ""}
+        </span>
+      );
+    }
     return (
       <span className="flex flex-col gap-0.5">
         <span>
@@ -371,7 +398,7 @@ export function ManualWorkPhotoGallery({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        {photos.map((photo) => (
+        {photoItems.map((photo) => (
           <button
             key={photo.id}
             type="button"
@@ -387,6 +414,34 @@ export function ManualWorkPhotoGallery({
               decoding="async"
               className="size-full object-cover group-hover:opacity-90"
             />
+          </button>
+        ))}
+
+        {videoItems.map((video) => (
+          <button
+            key={video.id}
+            type="button"
+            onClick={() => setPreview(video)}
+            className="group relative size-16 overflow-hidden rounded-md bg-black outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            aria-label={video.caption || `Buka video ${workTitle}`}
+          >
+            <video
+              src={`/api/pekerjaan/photos/${video.id}#t=0.5`}
+              preload="metadata"
+              muted
+              playsInline
+              className="size-full object-cover group-hover:opacity-90"
+            />
+            <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+              <Play
+                className="size-5 text-white"
+                fill="currentColor"
+                aria-hidden="true"
+              />
+            </span>
+            <span className="absolute inset-x-0 bottom-0 bg-foreground/70 py-0.5 text-center text-xs leading-none text-background">
+              {formatVideoDuration(video.durationSeconds) ?? "Video"}
+            </span>
           </button>
         ))}
 
@@ -445,7 +500,7 @@ export function ManualWorkPhotoGallery({
               disabled={busy || atLimit}
               title={
                 atLimit
-                  ? `Maksimal ${MANUAL_WORK_MAX_PHOTOS} foto per pekerjaan.`
+                  ? `Maksimal ${maxPhotos} foto per pekerjaan.`
                   : undefined
               }
             >
@@ -460,18 +515,36 @@ export function ManualWorkPhotoGallery({
               disabled={busy || atLimit}
               title={
                 atLimit
-                  ? `Maksimal ${MANUAL_WORK_MAX_PHOTOS} foto per pekerjaan.`
+                  ? `Maksimal ${maxPhotos} foto per pekerjaan.`
                   : undefined
               }
             >
               <ImagePlus aria-hidden="true" />
               Galeri
             </Button>
+            {videoAvailable && (
+              <EvidenceVideoUpload
+                prepareUrl={`/api/pekerjaan/${workId}/videos/prepare`}
+                completeUrl={`/api/pekerjaan/${workId}/videos/complete`}
+                maxBytes={videoMaxBytes}
+                disabled={busy || videoAtLimit}
+                disabledReason={
+                  videoAtLimit
+                    ? `Maksimal ${maxVideos} video per pekerjaan.`
+                    : busy
+                      ? "Tunggu proses foto sebelumnya selesai."
+                      : undefined
+                }
+                onUploaded={() => onChanged()}
+              />
+            )}
           </>
         )}
 
         {photos.length === 0 && queue.length === 0 && !canUpload && (
-          <span className="text-xs text-muted-foreground">Belum ada foto.</span>
+          <span className="text-xs text-muted-foreground">
+            Belum ada foto atau video.
+          </span>
         )}
       </div>
 
@@ -535,21 +608,26 @@ export function ManualWorkPhotoGallery({
 
       {atLimit && (
         <p className="text-xs text-muted-foreground">
-          Batas {MANUAL_WORK_MAX_PHOTOS} foto tercapai.
+          Batas {maxPhotos} foto tercapai.
         </p>
       )}
 
-      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-        <Clock3 className="mt-0.5 size-3 shrink-0" aria-hidden="true" />
-        Foto kamera memakai waktu tombol Ambil ditekan. Foto galeri memakai EXIF
-        bila ada; jika tidak, waktu unggah dicetak dan ditandai &quot;Diunggah&quot;.
-        Server menolak foto tanpa cap waktu SIBUMA.
-      </p>
+      {(photos.length > 0 || canUpload) && (
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {photoItems.length}/{maxPhotos} foto
+          {videoAvailable
+            ? ` · ${videoItems.length}/${maxVideos} video`
+            : ""}
+        </p>
+      )}
 
       <Modal
         open={preview !== null}
         onClose={() => setPreview(null)}
-        title={preview?.caption || "Foto dokumentasi"}
+        title={
+          preview?.caption ||
+          (preview?.kind === "video" ? "Video dokumentasi" : "Foto dokumentasi")
+        }
         description={preview ? previewDescription(preview) : undefined}
         size="lg"
         footer={
@@ -561,19 +639,28 @@ export function ManualWorkPhotoGallery({
               onClick={() => setDeleteTarget(preview)}
             >
               <Trash2 aria-hidden="true" />
-              Hapus foto
+              {preview.kind === "video" ? "Hapus video" : "Hapus foto"}
             </Button>
           ) : undefined
         }
       >
-        {preview && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={`/api/pekerjaan/photos/${preview.id}`}
-            alt={preview.caption || `Foto dokumentasi ${workTitle}`}
-            className="max-h-[65vh] w-full object-contain"
-          />
-        )}
+        {preview &&
+          (preview.kind === "video" ? (
+            <video
+              src={`/api/pekerjaan/photos/${preview.id}`}
+              controls
+              playsInline
+              preload="metadata"
+              className="max-h-[65vh] w-full rounded-md bg-black"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/pekerjaan/photos/${preview.id}`}
+              alt={preview.caption || `Foto dokumentasi ${workTitle}`}
+              className="max-h-[65vh] w-full object-contain"
+            />
+          ))}
       </Modal>
 
       <CameraCaptureDialog
@@ -585,7 +672,7 @@ export function ManualWorkPhotoGallery({
         disabled={atLimit || busy}
         disabledReason={
           atLimit
-            ? `Batas ${MANUAL_WORK_MAX_PHOTOS} foto tercapai. Hapus foto lama terlebih dahulu.`
+            ? `Batas ${maxPhotos} foto tercapai. Hapus foto lama terlebih dahulu.`
             : busy
               ? "Tunggu proses foto sebelumnya selesai."
               : undefined
@@ -602,10 +689,13 @@ export function ManualWorkPhotoGallery({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus foto ini?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Hapus {deleteTarget?.kind === "video" ? "video" : "foto"} ini?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Foto akan dihapus dari pekerjaan dan penyimpanan privat. Tindakan
-              ini tidak dapat dibatalkan.
+              {deleteTarget?.kind === "video" ? "Video" : "Foto"} akan dihapus
+              dari pekerjaan dan penyimpanan privat. Tindakan ini tidak dapat
+              dibatalkan.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -615,7 +705,9 @@ export function ManualWorkPhotoGallery({
               onClick={remove}
               disabled={deleting}
             >
-              {deleting ? "Menghapus…" : "Hapus foto"}
+              {deleting
+                ? "Menghapus…"
+                : `Hapus ${deleteTarget?.kind === "video" ? "video" : "foto"}`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
