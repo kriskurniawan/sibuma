@@ -21,6 +21,7 @@ import {
 import { ProfileActions } from "@/components/profile/profile-actions";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { ProfileSection } from "@/components/profile/profile-section";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Badge } from "@/components/reui/badge";
 import {
   Frame,
@@ -198,6 +199,22 @@ export default async function ProfilePage() {
           ) : (
             <ProfileEditor user={user} />
           )}
+        </FramePanel>
+      </Frame>
+
+      <Frame id="tampilan" spacing="default">
+        <FrameHeader>
+          <FrameTitle>Tampilan</FrameTitle>
+        </FrameHeader>
+        <FramePanel className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <p className="text-sm font-medium">Tema aplikasi</p>
+            <p className="text-xs text-muted-foreground">
+              Pilihan tersimpan di perangkat ini. Pilih Sistem agar tampilan
+              mengikuti pengaturan perangkat dan berubah otomatis.
+            </p>
+          </div>
+          <ThemeToggle />
         </FramePanel>
       </Frame>
 

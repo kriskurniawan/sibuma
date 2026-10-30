@@ -142,11 +142,11 @@ export function ChecklistFollowUpView({
           </div>
         </FrameHeader>
 
-        <FramePanel>
-          <ChecklistFollowUpFilters filters={filters} />
-        </FramePanel>
-
         <FramePanel className="p-0">
+          <div className="border-b border-border p-4">
+            <ChecklistFollowUpFilters filters={filters} />
+          </div>
+
           {items.length === 0 ? (
             <EmptyState
               icon={ListChecks}

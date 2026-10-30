@@ -200,15 +200,15 @@ export function ChecklistView({
           </div>
         </FrameHeader>
 
-        <FramePanel className="hidden md:block">
-          <ChecklistFilterBar filters={filters} locations={locations} />
-        </FramePanel>
-
-        <FramePanel className="md:hidden">
-          <ChecklistMobileFilters filters={filters} locations={locations} />
-        </FramePanel>
-
         <FramePanel className="p-0">
+          <div className="hidden border-b border-border p-4 md:block">
+            <ChecklistFilterBar filters={filters} locations={locations} />
+          </div>
+
+          <div className="border-b border-border p-4 md:hidden">
+            <ChecklistMobileFilters filters={filters} locations={locations} />
+          </div>
+
           {items.length === 0 ? (
             <EmptyState
               icon={ClipboardList}

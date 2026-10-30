@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import { toast } from "sonner";
+import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -174,13 +174,22 @@ export function ChecklistFollowUpUpdateDialog({
               </Select>
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="update-due">Deadline</Label>
-              <Input
+              <Label htmlFor="update-due">Deadline (opsional)</Label>
+              <DatePicker
                 id="update-due"
-                type="date"
                 value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
+                onChange={setDueDate}
+                placeholder="Pilih deadline (opsional)"
               />
+              {dueDate && (
+                <button
+                  type="button"
+                  className="w-fit text-xs font-medium text-primary transition-colors hover:underline"
+                  onClick={() => setDueDate("")}
+                >
+                  Hapus deadline
+                </button>
+              )}
             </div>
           </div>
 

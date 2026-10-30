@@ -15,7 +15,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -80,64 +79,106 @@ export function ChecklistFilterBar({
       label: location.path,
     })),
   ];
+  const filtered =
+    status !== "aktif" ||
+    Boolean(locationId || search.text) ||
+    includeSub === "0";
 
   return (
     <div
       role="group"
       aria-label="Filter checklist"
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
     >
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
-        <div className="flex flex-col gap-2 xl:col-span-2">
-          <Label htmlFor="status">Status</Label>
-          <Select
-            value={status}
-            onValueChange={(next) => {
-              if (next === null) return;
-              const nextStatus = String(next);
-              setStatus(nextStatus);
-              navigate({ status: nextStatus });
-            }}
-            items={STATUS_OPTIONS}
+      <InputGroup className="w-full md:max-w-xs">
+        <InputGroupAddon>
+          <Search aria-hidden="true" />
+        </InputGroupAddon>
+        <InputGroupInput
+          type="search"
+          inputMode="search"
+          enterKeyHint="search"
+          aria-label="Cari checklist"
+          value={search.text}
+          onChange={(event) => search.change(event.target.value)}
+          onFocus={search.onFocus}
+          onBlur={search.onBlur}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              search.commitNow(event.currentTarget.value);
+            }
+          }}
+          placeholder="Cari template, kategori, atau lokasi…"
+        />
+        {search.text && (
+          <InputGroupAddon align="inline-end">
+            <InputGroupButton
+              type="button"
+              size="icon-xs"
+              aria-label="Hapus pencarian"
+              onClick={() => search.commitNow("")}
+            >
+              <X aria-hidden="true" />
+            </InputGroupButton>
+          </InputGroupAddon>
+        )}
+      </InputGroup>
+
+      <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+        <Select
+          value={status}
+          onValueChange={(next) => {
+            if (next === null) return;
+            const nextStatus = String(next);
+            setStatus(nextStatus);
+            navigate({ status: nextStatus });
+          }}
+          items={STATUS_OPTIONS}
+        >
+          <SelectTrigger
+            size="sm"
+            aria-label="Status checklist"
+            className="w-full sm:w-44"
           >
-            <SelectTrigger id="status" className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-2 xl:col-span-3">
-          <Label htmlFor="locationId">Lokasi</Label>
-          <Select
-            value={locationId}
-            onValueChange={(next) => {
-              if (next === null) return;
-              const nextLocation = String(next);
-              setLocationId(nextLocation);
-              navigate({ locationId: nextLocation });
-            }}
-            items={locationItems}
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {STATUS_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={locationId}
+          onValueChange={(next) => {
+            if (next === null) return;
+            const nextLocation = String(next);
+            setLocationId(nextLocation);
+            navigate({ locationId: nextLocation });
+          }}
+          items={locationItems}
+        >
+          <SelectTrigger
+            size="sm"
+            aria-label="Lokasi checklist"
+            className="w-full sm:w-56"
           >
-            <SelectTrigger id="locationId" className="w-full">
-              <SelectValue placeholder="Semua lokasi" />
-            </SelectTrigger>
-            <SelectContent>
-              {locationItems.map((option) => (
-                <SelectItem key={option.value || "__all"} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-2 xl:col-span-2">
-          <Label htmlFor="includeSub">Cakupan area</Label>
+            <SelectValue placeholder="Semua lokasi" />
+          </SelectTrigger>
+          <SelectContent>
+            {locationItems.map((option) => (
+              <SelectItem key={option.value || "__all"} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {locationId && (
           <Select
             value={includeSub}
             onValueChange={(next) => {
@@ -148,7 +189,11 @@ export function ChecklistFilterBar({
             }}
             items={SCOPE_OPTIONS}
           >
-            <SelectTrigger id="includeSub" className="w-full">
+            <SelectTrigger
+              size="sm"
+              aria-label="Cakupan area"
+              className="w-full sm:w-44"
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -159,55 +204,21 @@ export function ChecklistFilterBar({
               ))}
             </SelectContent>
           </Select>
-        </div>
-        <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-3">
-          <Label htmlFor="search">Cari</Label>
-          <InputGroup>
-            <InputGroupAddon>
-              <Search aria-hidden="true" />
-            </InputGroupAddon>
-            <InputGroupInput
-              id="search"
-              type="search"
-              inputMode="search"
-              enterKeyHint="search"
-              value={search.text}
-              onChange={(event) => search.change(event.target.value)}
-              onFocus={search.onFocus}
-              onBlur={search.onBlur}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  search.commitNow(event.currentTarget.value);
-                }
-              }}
-              placeholder="Template, kategori, atau lokasi…"
-            />
-            {search.text && (
-              <InputGroupAddon align="inline-end">
-                <InputGroupButton
-                  size="icon-xs"
-                  aria-label="Hapus pencarian"
-                  onClick={() => search.commitNow("")}
-                >
-                  <X aria-hidden="true" />
-                </InputGroupButton>
-              </InputGroupAddon>
-            )}
-          </InputGroup>
-        </div>
-      </div>
+        )}
 
-      <div className="flex flex-wrap items-center justify-end gap-3">
         <FilterPending pending={isPending} />
-        <Button
-          size="sm"
-          variant="outline"
-          nativeButton={false}
-          render={<Link href={resetHref} />}
-        >
-          Reset
-        </Button>
+
+        {filtered && (
+          <Button
+            size="sm"
+            variant="ghost"
+            nativeButton={false}
+            render={<Link href={resetHref} />}
+          >
+            <X aria-hidden="true" />
+            Reset
+          </Button>
+        )}
       </div>
     </div>
   );

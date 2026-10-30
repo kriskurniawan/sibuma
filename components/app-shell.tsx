@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
@@ -18,11 +19,15 @@ import {
   LayoutGrid,
   Loader2,
   LogOut,
+  Monitor,
+  Moon,
+  Palette,
   QrCode,
   ScrollText,
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
+  Sun,
   UserRound,
   UsersRound,
 } from "lucide-react";
@@ -37,6 +42,8 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -63,6 +70,12 @@ import { isReadOnly } from "@/lib/access";
 import { formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const ACCOUNT_THEME_OPTIONS = [
+  { value: "light", label: "Terang", icon: Sun },
+  { value: "dark", label: "Gelap", icon: Moon },
+  { value: "system", label: "Sistem", icon: Monitor },
+] as const;
 
 interface NavItem {
   href: string;
@@ -333,6 +346,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
   const readOnly = isReadOnly(user);
   const nav = navigationFor(user.role, readOnly);
   const mobileNav: Array<NavItem | "scan"> = [...nav.mobile];
@@ -447,9 +461,26 @@ export function AppShell({
                     aria-hidden="true"
                   />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent side="right" align="end" className="min-w-52">
+                <DropdownMenuContent side="right" align="end" className="min-w-60">
                   <DropdownMenuGroup>
-                    <DropdownMenuLabel>Akun saya</DropdownMenuLabel>
+                    <DropdownMenuLabel className="font-normal">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <Avatar
+                          name={user.name}
+                          seed={user.id}
+                          src={avatarUrl(user.id, user.avatarKey)}
+                          size="md"
+                        />
+                        <span className="grid min-w-0 flex-1 gap-0.5">
+                          <span className="truncate text-sm font-medium text-popover-foreground">
+                            {user.name}
+                          </span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {user.email || `${ROLE_LABEL[user.role]} · ${user.nik}`}
+                          </span>
+                        </span>
+                      </span>
+                    </DropdownMenuLabel>
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
@@ -457,8 +488,38 @@ export function AppShell({
                       <UserRound aria-hidden="true" />
                       Profil saya
                     </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <div className="flex items-center justify-between gap-3 px-1.5 py-1">
+                    <span className="flex items-center gap-1.5 text-sm">
+                      <Palette className="size-4" aria-hidden="true" />
+                      Tampilan
+                    </span>
+                    <DropdownMenuRadioGroup
+                      value={theme}
+                      onValueChange={(value) => {
+                        if (typeof value === "string") setTheme(value);
+                      }}
+                      aria-label="Tampilan"
+                      className="flex shrink-0 items-center gap-0.5 rounded-full bg-muted/50 p-0.5"
+                    >
+                      {ACCOUNT_THEME_OPTIONS.map((option) => (
+                        <DropdownMenuRadioItem
+                          key={option.value}
+                          value={option.value}
+                          closeOnClick={false}
+                          aria-label={option.label}
+                          title={option.label}
+                          className="size-6 justify-center rounded-full p-0 text-muted-foreground data-checked:bg-background data-checked:text-foreground data-checked:inset-ring data-checked:inset-ring-border data-checked:focus:bg-background [&_[data-slot=dropdown-menu-radio-item-indicator]]:hidden"
+                        >
+                          <option.icon className="size-3.5" aria-hidden="true" />
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
                     <DropdownMenuItem
-                      variant="destructive"
                       disabled={loggingOut}
                       onClick={logout}
                     >

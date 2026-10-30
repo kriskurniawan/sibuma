@@ -75,7 +75,7 @@ export function DocumentationCard({
           )}
         </span>
         {doc.location && (
-          <span className="absolute bottom-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-white/90 text-foreground backdrop-blur">
+          <span className="absolute bottom-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-background/90 text-foreground backdrop-blur">
             <MapPin className="size-3" />
           </span>
         )}

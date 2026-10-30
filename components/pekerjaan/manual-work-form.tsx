@@ -1069,7 +1069,7 @@ export function ManualWorkForm({
         </aside>
       </div>
 
-      <div className="above-mobile-nav fixed inset-x-0 z-30 border-t border-border bg-background/95 px-4 pt-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur-xl xl:hidden">
+      <div className="mobile-action-bar fixed inset-x-0 z-30 border-t border-border bg-background px-4 pt-2.5 xl:hidden">
         <div className="mx-auto flex max-w-2xl gap-2.5">
           <Button
             variant="outline"

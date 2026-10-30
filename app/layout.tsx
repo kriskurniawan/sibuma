@@ -1,8 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Toaster } from "sonner";
+import { ThemeProvider } from "next-themes";
 import { PwaRegister } from "@/components/pwa-register";
+import { ThemeColorSync } from "@/components/theme-color-sync";
+import { ThemeToaster } from "@/components/theme-toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { THEME_COLOR, THEME_STORAGE_KEY } from "@/lib/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -36,8 +39,8 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7f7fb" },
-    { media: "(prefers-color-scheme: dark)", color: "#14121c" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLOR.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLOR.dark },
   ],
 };
 
@@ -45,21 +48,21 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="id" data-scroll-behavior="smooth">
+    <html lang="id" suppressHydrationWarning data-scroll-behavior="smooth">
       {/* Browser extensions can add attributes to <body> before hydration. */}
       <body suppressHydrationWarning>
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster
-          position="top-center"
-          closeButton
-          richColors
-          toastOptions={{
-            classNames: {
-              toast: "font-sans",
-            },
-          }}
-        />
-        <PwaRegister />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          storageKey={THEME_STORAGE_KEY}
+          disableTransitionOnChange
+        >
+          <TooltipProvider>{children}</TooltipProvider>
+          <ThemeToaster />
+          <ThemeColorSync />
+          <PwaRegister />
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -71,20 +71,21 @@
 
 .dark {
   color-scheme: dark;
-  --background: #14121c;
-  --foreground: #f1eff8;
-  --card: #1e1b29;
-  --card-foreground: #f1eff8;
-  --popover: #1e1b29;
-  --popover-foreground: #f1eff8;
+  /* Neutral charcoal surfaces; violet stays an accent, not a tint. */
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #171717;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
   --primary: #bca2f3;
   --primary-foreground: #21143d;
-  --secondary: #302a3f;
-  --secondary-foreground: #eeebf6;
-  --muted: #292535;
-  --muted-foreground: #b0aabd;
-  --accent: #382b51;
-  --accent-foreground: #e0d1ff;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
+  --muted: #262626;
+  --muted-foreground: #a3a3a3;
+  --accent: #2a2a2a;
+  --accent-foreground: #fafafa;
   --destructive: #f08998;
   --destructive-foreground: #ffb0bb;
   --success: #7ccba0;
@@ -93,18 +94,18 @@
   --info-foreground: #b5d0fa;
   --warning: #e8bc69;
   --warning-foreground: #f4d291;
-  --invert: #f1eff8;
-  --invert-foreground: #21143d;
-  --border: rgba(230, 222, 255, 0.12);
-  --input: rgba(230, 222, 255, 0.2);
+  --invert: #fafafa;
+  --invert-foreground: #171717;
+  --border: #2a2a2a;
+  --input: #404040;
   --ring: #bca2f3;
   --chart-1: #bca2f3;
   --chart-2: #93b9f4;
   --chart-3: #7ccba0;
   --chart-4: #e8bc69;
   --chart-5: #e7a0cb;
-  --sidebar: #191622;
-  --sidebar-foreground: #eeebf6;
+  --sidebar: #111111;
+  --sidebar-foreground: #fafafa;
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
   --sidebar-accent: var(--accent);
@@ -247,6 +248,24 @@
   }
 }
 
+/* Solid action bar for forms. It reaches the viewport edge and pads its
+   content above the tab bar and the raised Scan button, so scrolled content
+   never shows through the space below the buttons. The tab bar is hidden from
+   md upward, where the bar sits flush with the edge again. */
+.mobile-action-bar {
+  bottom: 0;
+  padding-bottom: calc(
+    5.75rem + max(0.5rem, env(safe-area-inset-bottom)) +
+      max(0.625rem, env(safe-area-inset-bottom))
+  );
+}
+
+@media (min-width: 48rem) {
+  .mobile-action-bar {
+    padding-bottom: max(0.625rem, env(safe-area-inset-bottom));
+  }
+}
+
 /* ── Leaflet ──────────────────────────────────────────────────────────────── */
 
 .leaflet-container {
@@ -366,6 +385,50 @@
 
   a {
     text-decoration: none !important;
+  }
+}
+
+/* Printing forces white paper, so an active dark theme would otherwise print
+   light text on white. Restore the light palette for every printable token. */
+@media print {
+  html.dark {
+    color-scheme: light !important;
+    --background: #f7f7fb;
+    --foreground: #242136;
+    --card: #ffffff;
+    --card-foreground: #242136;
+    --popover: #ffffff;
+    --popover-foreground: #242136;
+    --primary: #623bbd;
+    --primary-foreground: #ffffff;
+    --secondary: #eeedf5;
+    --secondary-foreground: #3b354c;
+    --muted: #eeeef4;
+    --muted-foreground: #656273;
+    --accent: #ede7fa;
+    --accent-foreground: #5630a4;
+    --destructive: #c43d4b;
+    --destructive-foreground: #9e293a;
+    --success: #28734f;
+    --success-foreground: #215c40;
+    --info: #3768b2;
+    --info-foreground: #2c548f;
+    --warning: #b77919;
+    --warning-foreground: #785010;
+    --invert: #242136;
+    --invert-foreground: #f7f7fb;
+    --border: #e3e1ec;
+    --input: #c9c5d5;
+    --ring: #623bbd;
+    --chart-1: #623bbd;
+    --chart-2: #3768b2;
+    --chart-3: #28734f;
+    --chart-4: #b77919;
+    --chart-5: #b64f86;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #3b354c;
+    --sidebar-border: #e3e1ec;
+    --sidebar-ring: #623bbd;
   }
 }
 
