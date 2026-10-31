@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Dialog,
   DialogContent,
@@ -54,9 +54,38 @@ export function Modal({
   // Di perangkat sentuh, fokuskan wadah dialog agar keyboard tidak langsung
   // terbuka; pengguna mengetuk kolom sendiri saat siap mengisi.
   const contentRef = useRef<HTMLDivElement>(null);
+  // Klik kedua dari double-click pada tombol pemicu mendarat di backdrop yang
+  // baru muncul. Tahan dismissal pointer sebentar agar dialog tidak berkedip
+  // terbuka lalu langsung tertutup.
+  const [pointerDismissalReady, setPointerDismissalReady] = useState(false);
 
-  function handleOpenChange(nextOpen: boolean, details: { reason: string }) {
+  useEffect(() => {
+    if (!open) {
+      setPointerDismissalReady(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setPointerDismissalReady(true), 400);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+
+  function handleOpenChange(
+    nextOpen: boolean,
+    details: { reason: string; event?: Event },
+  ) {
     if (nextOpen) return;
+    // Klik kedua dan seterusnya dari double-click bisa mendarat di backdrop
+    // atau di tombol Close yang bergeser ke bawah kursor saat dialog
+    // beranimasi. Abaikan selama masa pengaman atau selama masih rangkaian
+    // klik berulang.
+    const repeatedClick =
+      details.event instanceof MouseEvent && details.event.detail > 1;
+    if (
+      (details.reason === "outside-press" ||
+        details.reason === "close-press") &&
+      (!pointerDismissalReady || repeatedClick)
+    ) {
+      return;
+    }
     if (!dismissible && details.reason !== "close-press") return;
     onClose();
   }
@@ -66,7 +95,7 @@ export function Modal({
       <Sheet
         open={open}
         onOpenChange={handleOpenChange}
-        disablePointerDismissal={!dismissible}
+        disablePointerDismissal={!dismissible || !pointerDismissalReady}
       >
         <SheetContent
           ref={contentRef}
@@ -102,7 +131,7 @@ export function Modal({
     <Dialog
       open={open}
       onOpenChange={handleOpenChange}
-      disablePointerDismissal={!dismissible}
+      disablePointerDismissal={!dismissible || !pointerDismissalReady}
     >
       <DialogContent
         ref={contentRef}

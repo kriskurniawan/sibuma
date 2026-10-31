@@ -127,12 +127,19 @@ export const supervisorUpdateSchema = z
     message: "Tidak ada perubahan yang dikirim.",
   });
 
+/** Profil sendiri; nomor WhatsApp hanya diterima untuk super admin. */
 export const profileUpdateSchema = z.object({
   name: z
     .string()
     .trim()
     .min(3, "Nama minimal 3 karakter.")
     .max(100, "Nama maksimal 100 karakter."),
+  phone: z
+    .string()
+    .trim()
+    .min(8, "Nomor HP minimal 8 digit.")
+    .max(20, "Nomor HP terlalu panjang.")
+    .optional(),
 });
 
 export const divisionInputSchema = z.object({

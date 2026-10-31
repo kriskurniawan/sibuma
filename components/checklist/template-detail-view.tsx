@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -71,6 +71,7 @@ export function ChecklistTemplateDetailView({
   );
   const [editOpen, setEditOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
+  const itemsFrameRef = useRef<HTMLDivElement>(null);
 
   const selected =
     versions.find((version) => version.id === selectedVersionId) ??
@@ -88,6 +89,19 @@ export function ChecklistTemplateDetailView({
     item,
     number: item.itemType === "item" ? ++leafNumber : null,
   }));
+
+  function viewVersion(versionId: string) {
+    setSelectedVersionId(versionId);
+    window.requestAnimationFrame(() => {
+      const reduceMotion = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      itemsFrameRef.current?.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+  }
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
@@ -136,13 +150,20 @@ export function ChecklistTemplateDetailView({
         }
       />
 
-      <Frame spacing="default" className="min-w-0">
+      <Frame
+        ref={itemsFrameRef}
+        spacing="default"
+        className="min-w-0 scroll-mt-20"
+      >
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Item checklist</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
               Versi terbit dan checklist lama tidak berubah.
             </FrameDescription>
+            <span className="sr-only" aria-live="polite">
+              {selected ? `Menampilkan versi ${selected.version}.` : ""}
+            </span>
           </div>
           {versions.length > 0 && (
             <Select
@@ -259,6 +280,10 @@ export function ChecklistTemplateDetailView({
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
             <FrameTitle>Riwayat versi</FrameTitle>
+            <FrameDescription className="text-xs">
+              Pilih “Lihat” untuk menampilkan item versi tersebut di bagian
+              atas.
+            </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
             {versions.length} versi
@@ -284,6 +309,11 @@ export function ChecklistTemplateDetailView({
                           Terbaru
                         </Badge>
                       )}
+                      {version.id === selected?.id && (
+                        <Badge variant="info-light" className="text-xs">
+                          Sedang dilihat
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground">
                       {leafCount(version.items)} item ·{" "}
@@ -296,7 +326,8 @@ export function ChecklistTemplateDetailView({
                   type="button"
                   size="sm"
                   variant="ghost"
-                  onClick={() => setSelectedVersionId(version.id)}
+                  onClick={() => viewVersion(version.id)}
+                  aria-label={`Lihat versi ${version.version}`}
                 >
                   Lihat
                 </Button>

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { normalizePhone } from "@/lib/phone";
 import type { SessionUser } from "@/lib/types";
 
 export function ProfileEditor({ user }: { user: SessionUser }) {
@@ -20,7 +21,9 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
   const isAdmin = user.role === "super_admin";
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(user.name);
+  const [phone, setPhone] = useState(editablePhone(user.phone));
   const [nameError, setNameError] = useState<string | null>(null);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
@@ -35,7 +38,9 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
 
   function openEditor() {
     setName(user.name);
+    setPhone(editablePhone(user.phone));
     setNameError(null);
+    setPhoneError(null);
     setServerError(null);
     setOpen(true);
   }
@@ -44,6 +49,7 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
     if (saving) return;
     setOpen(false);
     setNameError(null);
+    setPhoneError(null);
     setServerError(null);
   }
 
@@ -54,15 +60,31 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
       setNameError("Nama minimal 3 karakter.");
       return;
     }
+    const nextPhone = phone.trim();
+    if (isAdmin) {
+      if (!nextPhone) {
+        setPhoneError("Nomor HP wajib diisi.");
+        return;
+      }
+      if (!normalizePhone(nextPhone)) {
+        setPhoneError(
+          "Format nomor HP tidak valid. Gunakan format 08xx atau 628xx.",
+        );
+        return;
+      }
+    }
 
     setSaving(true);
     setNameError(null);
+    setPhoneError(null);
     setServerError(null);
     try {
       const response = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: nextName }),
+        body: JSON.stringify(
+          isAdmin ? { name: nextName, phone: nextPhone } : { name: nextName },
+        ),
       });
       const data = (await response.json()) as {
         ok: boolean;
@@ -121,24 +143,49 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
             className="flex flex-col gap-4"
             aria-busy={saving}
           >
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="profile-name">
-                Nama lengkap <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                ref={nameInputRef}
-                id="profile-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                aria-invalid={Boolean(nameError)}
-                aria-describedby={nameError ? "profile-name-error" : undefined}
-                autoComplete="name"
-              />
-              <FieldError id="profile-name-error">{nameError}</FieldError>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="profile-name">
+                  Nama lengkap <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  ref={nameInputRef}
+                  id="profile-name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  aria-invalid={Boolean(nameError)}
+                  aria-describedby={nameError ? "profile-name-error" : undefined}
+                  autoComplete="name"
+                />
+                <FieldError id="profile-name-error">{nameError}</FieldError>
+              </div>
+
+              {isAdmin && (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="profile-phone">
+                    Nomor WhatsApp <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="profile-phone"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    aria-invalid={Boolean(phoneError)}
+                    aria-describedby={
+                      phoneError
+                        ? "profile-phone-error profile-phone-help"
+                        : "profile-phone-help"
+                    }
+                    placeholder="08xxxxxxxxxx"
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                  <FieldError id="profile-phone-error">{phoneError}</FieldError>
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p id="profile-phone-help" className="text-xs text-muted-foreground">
               {isAdmin
-                ? "Nomor WhatsApp adalah identitas login. NIK dan kontak tidak diubah di sini."
+                ? "Nomor WhatsApp dipakai untuk login OTP. Perubahan berlaku untuk login berikutnya. NIK tidak dapat diubah di sini."
                 : user.role === "pekerja"
                   ? "WhatsApp adalah identitas login. NIK dan kontak dikelola atasan lewat menu Tim."
                   : "WhatsApp adalah identitas login. NIK dan kontak tidak dapat diubah di sini."}
@@ -169,4 +216,8 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
       </CollapsibleContent>
     </Collapsible>
   );
+}
+
+function editablePhone(phone: string) {
+  return phone.startsWith("62") ? `0${phone.slice(2)}` : phone;
 }

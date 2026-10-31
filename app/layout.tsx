@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { ThemeProvider } from "next-themes";
+import { HydrationMarker } from "@/components/hydration-marker";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeColorSync } from "@/components/theme-color-sync";
 import { ThemeToaster } from "@/components/theme-toaster";
@@ -51,6 +53,29 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning data-scroll-behavior="smooth">
       {/* Browser extensions can add attributes to <body> before hydration. */}
       <body suppressHydrationWarning>
+        <Script id="dialog-intent" strategy="beforeInteractive">
+          {`(function () {
+  var INTENT = "__sibumaDialogIntent";
+  var AT = "__sibumaDialogIntentAt";
+  document.addEventListener("click", function (event) {
+    if (window.__sibumaHydrated) {
+      delete window[INTENT];
+      delete window[AT];
+      return;
+    }
+    var target = event.target;
+    if (!target || typeof target.closest !== "function") return;
+    var trigger = target.closest("[data-dialog-intent]");
+    if (!trigger) return;
+    var intent = trigger.getAttribute("data-dialog-intent");
+    if (!intent) return;
+    window[INTENT] = intent;
+    // Waktu dicatat di event handler (bukan saat render) untuk TTL intent.
+    window[AT] = Date.now();
+  }, true);
+})();`}
+        </Script>
+        <HydrationMarker />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

@@ -37,6 +37,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/modal";
+import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import {
   TemplateItemEditor,
   emptyTemplateItem,
@@ -58,6 +59,11 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   const [editingLocation, setEditingLocation] =
     useState<ChecklistLocation | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+
+  // Klik sebelum hidrasi tidak memiliki handler React. Hook ini membuka dialog
+  // yang sama setelah komponen siap, sehingga klik pertama tidak hilang.
+  useDialogIntent("template-new", () => setTemplateOpen(true));
+  useDialogIntent("location-new", () => openLocation(null));
 
   const locationNames = new Map(
     setup.locations.map((location) => [location.id, location.name]),
@@ -152,7 +158,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
             <Button
               size="sm"
               nativeButton={false}
-              render={<a href={TEMPLATE_NEW_HASH} />}
+              render={<a href={TEMPLATE_NEW_HASH} data-dialog-intent="template-new" />}
               onClick={(event) => {
                 event.preventDefault();
                 setTemplateOpen(true);
@@ -174,7 +180,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               size="sm"
               variant="outline"
               nativeButton={false}
-              render={<a href={LOCATION_NEW_HASH} />}
+              render={<a href={LOCATION_NEW_HASH} data-dialog-intent="location-new" />}
               onClick={(event) => {
                 event.preventDefault();
                 openLocation(null);
@@ -210,7 +216,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                 <Button
                   size="sm"
                   nativeButton={false}
-                  render={<a href={LOCATION_NEW_HASH} />}
+                  render={<a href={LOCATION_NEW_HASH} data-dialog-intent="location-new" />}
                   onClick={(event) => {
                     event.preventDefault();
                     openLocation(null);
@@ -308,7 +314,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                 <Button
                   size="sm"
                   nativeButton={false}
-                  render={<a href={TEMPLATE_NEW_HASH} />}
+                  render={<a href={TEMPLATE_NEW_HASH} data-dialog-intent="template-new" />}
                   onClick={(event) => {
                     event.preventDefault();
                     setTemplateOpen(true);

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
+import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
   Frame,
@@ -205,6 +206,12 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
     }, 300);
     return () => clearTimeout(timer);
   }, [workerSearch, workerDivisionFilter, workerStatusFilter, filters, pagination.pageSize, router]);
+
+  // Klik sebelum hidrasi tidak memiliki handler React. Hook ini membuka dialog
+  // yang sama setelah komponen siap, sehingga klik pertama tidak hilang.
+  useDialogIntent("worker-new", openAddFromHeader);
+  useDialogIntent("division-new", () => setDivisionModal({ mode: "create" }));
+
   const filteredDivisions = useMemo(() => {
     const query = divisionSearch.trim().toLowerCase();
     if (!query && divisionStatusFilter === "semua") return divisions;
@@ -535,6 +542,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                 type="button"
                 onClick={openCreateDivision}
                 size="sm"
+                data-dialog-intent="division-new"
               >
                 <FolderPlus />
                 Buat divisi
@@ -544,6 +552,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                 type="button"
                 onClick={openCreateDivision}
                 size="sm"
+                data-dialog-intent="division-new"
               >
                 <FolderPlus />
                 Tambah divisi
@@ -554,6 +563,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   type="button"
                   onClick={openAddFromHeader}
                   size="sm"
+                  data-dialog-intent="worker-new"
                 >
                   <UserPlus />
                   Tambah pekerja
@@ -563,6 +573,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   variant="outline"
                   onClick={openCreateDivision}
                   size="sm"
+                  data-dialog-intent="division-new"
                 >
                   <FolderPlus />
                   Tambah divisi
@@ -787,6 +798,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                           type="button"
                           size="sm"
                           onClick={openCreateDivision}
+                          data-dialog-intent="division-new"
                         >
                           <FolderPlus />
                           Buat divisi
@@ -811,6 +823,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                           type="button"
                           size="sm"
                           onClick={openCreateDivision}
+                          data-dialog-intent="division-new"
                         >
                           <FolderPlus />
                           Tambah divisi
@@ -835,6 +848,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                           type="button"
                           size="sm"
                           onClick={() => openAdd()}
+                          data-dialog-intent="worker-new"
                         >
                           <UserPlus />
                           Tambah pekerja
@@ -962,6 +976,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                           type="button"
                           size="sm"
                           onClick={openCreateDivision}
+                          data-dialog-intent="division-new"
                         >
                           <FolderPlus />
                           Buat divisi
