@@ -35,7 +35,6 @@ export default async function SpklDetailPage({
       policy={{
         maxGpsAccuracyMeters: policy.maxGpsAccuracyMeters,
         docGraceMinutes: policy.docGraceMinutes,
-        roundingMinutes: policy.roundingMinutes,
       }}
     />
   );

@@ -149,11 +149,6 @@ export function isSameLocalDay(a: string, b: string, timeZone = APP_TIMEZONE) {
   );
 }
 
-export function roundDuration(minutes: number, roundingMinutes: number) {
-  if (!roundingMinutes || roundingMinutes <= 0) return Math.round(minutes);
-  return Math.round(minutes / roundingMinutes) * roundingMinutes;
-}
-
 export function durationLabel(minutes: number | null) {
   if (minutes === null || minutes === undefined) return "—";
   const safe = Math.max(0, Math.round(minutes));

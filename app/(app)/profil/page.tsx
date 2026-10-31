@@ -267,7 +267,6 @@ export default async function ProfilePage() {
             <div className="flex min-w-0 flex-col">
               <DataRow label="Batas harian" value={durationLabel(policy.dailyLimitMinutes)} />
               <DataRow label="Batas mingguan" value={durationLabel(policy.weeklyLimitMinutes)} />
-              <DataRow label="Pembulatan" value={`${policy.roundingMinutes} menit`} />
               <DataRow label="Akurasi GPS maksimal" value={`${policy.maxGpsAccuracyMeters} m`} />
               <DataRow label="Toleransi dokumentasi" value={`${policy.docGraceMinutes} menit`} />
               <DataRow label="Radius default titik" value={`${policy.defaultRadiusMeters} m`} />

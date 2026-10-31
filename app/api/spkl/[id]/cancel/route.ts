@@ -4,11 +4,7 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk } from "@/lib/http";
 import { notifySpkl } from "@/lib/notifications";
 import { mutateDb, pushAudit } from "@/lib/store";
-import {
-  attendanceMinutes,
-  roundDuration,
-  spklStatus,
-} from "@/lib/time";
+import { attendanceMinutes, spklStatus } from "@/lib/time";
 import type { Employee } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -59,22 +55,15 @@ export async function POST(
       for (const attendance of openSessions) {
         if (!attendance.checkInAt) continue;
         attendance.checkOutAt = now.toISOString();
-        attendance.durationMinutes = roundDuration(
-          attendanceMinutes({
-            checkInAt: attendance.checkInAt,
-            checkOutAt: attendance.checkOutAt,
-            spklStartAt: spkl.startAt,
-            spklEndAt: spkl.endAt,
-          }),
-          db.policy.roundingMinutes,
-        );
+        attendance.durationMinutes = attendanceMinutes({
+          checkInAt: attendance.checkInAt,
+          checkOutAt: attendance.checkOutAt,
+          spklStartAt: spkl.startAt,
+          spklEndAt: spkl.endAt,
+        });
         attendance.status = "ditutup_otomatis";
         attendance.updatedAt = now.toISOString();
         attendance.checkOutLocation = null;
-        // Pembatalan sudah merupakan keputusan atasan; sesi tidak perlu
-        // ditinjau lagi sebagai penutupan otomatis yang terlewat.
-        attendance.reviewedAt = now.toISOString();
-        attendance.reviewedBy = user.id;
       }
 
       const workers = db.employees.filter(

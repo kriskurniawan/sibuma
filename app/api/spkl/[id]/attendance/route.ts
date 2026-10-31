@@ -107,8 +107,6 @@ export async function POST(
         correctionReason: null,
         correctedBy: null,
         correctedAt: null,
-        reviewedAt: null,
-        reviewedBy: null,
         createdAt: capturedAt,
         updatedAt: capturedAt,
       };

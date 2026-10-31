@@ -1,23 +1,19 @@
-import { attendanceMinutes, roundDuration } from "./time";
+import { CHECKOUT_GRACE_MINUTES } from "./constants";
 import type { Attendance, Database, Spkl } from "./types";
 
-function closeAttendance(db: Database, attendance: Attendance, spkl: Spkl) {
-  const now = new Date();
-  const checkout = new Date(
-    Math.min(now.getTime(), new Date(spkl.endAt).getTime()),
-  );
-  const checkoutIso = checkout.toISOString();
-  const rawMinutes = attendanceMinutes({
-    checkInAt: attendance.checkInAt as string,
-    checkOutAt: checkoutIso,
-    spklStartAt: spkl.startAt,
-    spklEndAt: spkl.endAt,
-  });
-  attendance.checkOutAt = checkoutIso;
-  attendance.durationMinutes = roundDuration(
-    rawMinutes,
-    db.policy.roundingMinutes,
-  );
+/**
+ * Sesi yang tidak pernah absen pulang tidak diberi waktu pulang palsu.
+ * Durasi dibiarkan kosong agar rekap tidak menghitung lembur penuh; atasan
+ * dapat mengoreksi bila pekerja benar-benar menyelesaikan pekerjaan.
+ */
+function closeMissingCheckout(
+  db: Database,
+  attendance: Attendance,
+  spkl: Spkl,
+  now: Date,
+) {
+  attendance.checkOutAt = null;
+  attendance.durationMinutes = null;
   attendance.status = "ditutup_otomatis";
   attendance.updatedAt = now.toISOString();
   attendance.checkOutLocation = null;
@@ -25,15 +21,20 @@ function closeAttendance(db: Database, attendance: Attendance, spkl: Spkl) {
     id: crypto.randomUUID(),
     actorId: "system",
     actorName: "Sistem",
-    action: "sesi_ditutup_otomatis",
+    action: "sesi_tanpa_absen_pulang",
     objectType: "absensi",
     objectId: attendance.id,
-    summary: `Sesi ${attendance.employeeId} pada ${spkl.number} ditutup otomatis saat jam SPKL berakhir.`,
-    before: { status: "berjalan", checkOutAt: null },
+    summary: `Absen pulang ${attendance.employeeId} pada ${spkl.number} tidak tercatat. Durasi tidak dihitung dan menunggu koreksi atasan bila diperlukan.`,
+    before: {
+      status: "berjalan",
+      checkOutAt: null,
+      durationMinutes: null,
+    },
     after: {
       status: "ditutup_otomatis",
-      checkOutAt: checkoutIso,
-      durationMinutes: attendance.durationMinutes,
+      checkOutAt: null,
+      durationMinutes: null,
+      checkoutGraceMinutes: CHECKOUT_GRACE_MINUTES,
     },
     createdAt: now.toISOString(),
   });
@@ -41,8 +42,9 @@ function closeAttendance(db: Database, attendance: Attendance, spkl: Spkl) {
 
 /**
  * Menutup sesi yang masih berjalan dan mencatat ketidakhadiran setelah jam SPKL
- * berakhir. Dijalankan secara lazy pada setiap pembacaan agar tidak bergantung
- * pada satu proses cron (cocok untuk deployment serverless).
+ * berakhir. Sesi yang sudah absen masuk diberi tenggang absen pulang; bila
+ * tenggang terlewat, sesi ditutup tanpa mengisi waktu pulang. Dijalankan secara
+ * lazy pada setiap pembacaan agar tidak bergantung pada satu proses cron.
  */
 export function finalizeExpired(db: Database, targetId?: string) {
   const now = new Date();
@@ -56,6 +58,8 @@ export function finalizeExpired(db: Database, targetId?: string) {
     const workerIds = db.spklWorkers
       .filter((worker) => worker.spklId === spkl.id)
       .map((worker) => worker.employeeId);
+    const graceEnd =
+      new Date(spkl.endAt).getTime() + CHECKOUT_GRACE_MINUTES * 60_000;
 
     for (const employeeId of workerIds) {
       const attendance = db.attendances.find(
@@ -77,8 +81,6 @@ export function finalizeExpired(db: Database, targetId?: string) {
           correctionReason: null,
           correctedBy: null,
           correctedAt: null,
-          reviewedAt: null,
-          reviewedBy: null,
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
         };
@@ -99,8 +101,12 @@ export function finalizeExpired(db: Database, targetId?: string) {
         continue;
       }
 
-      if (attendance.status === "berjalan" && attendance.checkInAt) {
-        closeAttendance(db, attendance, spkl);
+      if (
+        attendance.status === "berjalan" &&
+        attendance.checkInAt &&
+        now.getTime() > graceEnd
+      ) {
+        closeMissingCheckout(db, attendance, spkl, now);
         changed = true;
       }
     }
@@ -108,4 +114,3 @@ export function finalizeExpired(db: Database, targetId?: string) {
 
   return changed;
 }
-

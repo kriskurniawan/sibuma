@@ -175,18 +175,25 @@ const ATTENDANCE_VARIANTS: Record<AttendanceStatus, BadgeVariant> = {
 
 export function AttendanceBadge({
   status,
+  checkOutAt,
   className,
 }: {
   status: AttendanceStatus;
+  /** `null` pada sesi ditutup otomatis berarti absen pulang tidak tercatat. */
+  checkOutAt?: string | null;
   className?: string;
 }) {
+  const missingCheckout =
+    status === "ditutup_otomatis" && checkOutAt === null;
   return (
     <Badge
-      variant={ATTENDANCE_VARIANTS[status]}
-      dot={status === "berjalan"}
+      variant={missingCheckout ? "warning-light" : ATTENDANCE_VARIANTS[status]}
+      dot={status === "berjalan" || missingCheckout}
       className={className}
     >
-      {ATTENDANCE_STATUS_LABEL[status]}
+      {missingCheckout
+        ? "Belum absen pulang"
+        : ATTENDANCE_STATUS_LABEL[status]}
     </Badge>
   );
 }

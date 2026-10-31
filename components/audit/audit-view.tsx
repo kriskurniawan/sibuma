@@ -124,6 +124,7 @@ const ACTION_LABEL: Record<string, string> = {
   lokasi_absen_diubah: "Titik absensi diubah",
   login_otp: "Login OTP",
   sesi_ditutup_otomatis: "Sesi ditutup otomatis",
+  sesi_tanpa_absen_pulang: "Sesi tanpa absen pulang",
   tidak_hadir_dicatat: "Tidak hadir dicatat",
   dokumentasi_diunggah: "Dokumentasi diunggah",
   checklist_lokasi_dibuat: "Lokasi checklist dibuat",

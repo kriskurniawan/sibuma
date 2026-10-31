@@ -2,11 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { mutateDb, pushAudit } from "@/lib/store";
-import {
-  attendanceMinutes,
-  localDateTimeToIso,
-  roundDuration,
-} from "@/lib/time";
+import { attendanceMinutes, localDateTimeToIso } from "@/lib/time";
 import { correctionSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -56,15 +52,12 @@ export async function PATCH(
         );
       }
 
-      const duration = roundDuration(
-        attendanceMinutes({
-          checkInAt,
-          checkOutAt,
-          spklStartAt: spkl.startAt,
-          spklEndAt: spkl.endAt,
-        }),
-        db.policy.roundingMinutes,
-      );
+      const duration = attendanceMinutes({
+        checkInAt,
+        checkOutAt,
+        spklStartAt: spkl.startAt,
+        spklEndAt: spkl.endAt,
+      });
 
       const before = {
         checkInAt: attendance.checkInAt,

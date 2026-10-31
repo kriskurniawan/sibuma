@@ -11,8 +11,30 @@ import {
   formatDateHuman,
   formatTime,
 } from "@/lib/time";
+import type { Attendance } from "@/lib/types";
 
 export const runtime = "nodejs";
+
+function attendanceStatusLabel(attendance: Attendance) {
+  if (
+    attendance.status === "ditutup_otomatis" &&
+    !attendance.checkOutAt
+  ) {
+    return "Belum absen pulang";
+  }
+  return ATTENDANCE_STATUS_LABEL[attendance.status];
+}
+
+function attendanceDurationLabel(attendance: Attendance) {
+  if (attendance.status === "tidak_hadir") return "0";
+  if (
+    attendance.status === "ditutup_otomatis" &&
+    !attendance.checkOutAt
+  ) {
+    return "Belum absen pulang";
+  }
+  return durationLabel(attendance.durationMinutes);
+}
 
 function csvCell(value: string | number | null | undefined) {
   const text = value === null || value === undefined ? "" : String(value);
@@ -94,7 +116,7 @@ export async function GET(request: Request) {
             row.spkl.title,
             row.employee.name,
             row.employee.nik,
-            ATTENDANCE_STATUS_LABEL[row.attendance.status],
+            attendanceStatusLabel(row.attendance),
             row.attendance.checkInAt
               ? formatTime(row.attendance.checkInAt)
               : "",
@@ -217,16 +239,14 @@ export async function GET(request: Request) {
             row.spkl.title,
             row.employee.name,
             row.employee.nik,
-            ATTENDANCE_STATUS_LABEL[row.attendance.status],
+            attendanceStatusLabel(row.attendance),
             row.attendance.checkInAt
               ? formatTime(row.attendance.checkInAt)
               : "-",
             row.attendance.checkOutAt
               ? formatTime(row.attendance.checkOutAt)
               : "-",
-            row.attendance.status === "tidak_hadir"
-              ? "0"
-              : durationLabel(row.attendance.durationMinutes),
+            attendanceDurationLabel(row.attendance),
             row.documentationCount,
             row.attendance.correctionReason || "-",
           ]),
@@ -293,16 +313,14 @@ export async function GET(request: Request) {
         row.spkl.title,
         row.employee.name,
         row.employee.nik,
-        ATTENDANCE_STATUS_LABEL[row.attendance.status],
+        attendanceStatusLabel(row.attendance),
         row.attendance.checkInAt
           ? formatTime(row.attendance.checkInAt)
           : "",
         row.attendance.checkOutAt
           ? formatTime(row.attendance.checkOutAt)
           : "",
-        row.attendance.status === "tidak_hadir"
-          ? "0"
-          : durationLabel(row.attendance.durationMinutes),
+        attendanceDurationLabel(row.attendance),
         row.documentationCount,
         row.attendance.correctionReason ?? "",
       ]

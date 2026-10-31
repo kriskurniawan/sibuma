@@ -1,4 +1,5 @@
 import "server-only";
+import { CHECKOUT_GRACE_MINUTES } from "./constants";
 import { decode } from "./db-model";
 import { getPolicyRow, query, select, transaction, type Connection } from "./db";
 import { emptyData, persistChanges } from "./unit-of-work";
@@ -8,7 +9,8 @@ import type { Database, SessionUser, Spkl } from "./types";
 /** Finalize a bounded relevant set with locks; repeat calls are idempotent. */
 export async function finalizeScope(where: string, values: unknown[]) {
   const pending = await query(`SELECT s.id FROM spkls s WHERE ${where} AND s.canceled_at IS NULL AND s.end_at<now()
-    AND (EXISTS(SELECT 1 FROM attendances a WHERE a.spkl_id=s.id AND a.status='berjalan')
+    AND (EXISTS(SELECT 1 FROM attendances a WHERE a.spkl_id=s.id AND a.status='berjalan'
+        AND s.end_at + (${CHECKOUT_GRACE_MINUTES} * interval '1 minute') < now())
       OR EXISTS(SELECT 1 FROM spkl_workers w WHERE w.spkl_id=s.id AND NOT EXISTS(SELECT 1 FROM attendances a WHERE a.spkl_id=w.spkl_id AND a.employee_id=w.employee_id)))
     ORDER BY s.end_at LIMIT 100`, values);
   for (const row of pending) await transaction(async (connection) => {
@@ -47,9 +49,11 @@ export async function overviewData(user: SessionUser) {
   return hydrateSpkls(rows.map((row) => decode("spkls", row)));
 }
 
-// Same rounding semantics as attendanceMinutes; fixed duration already includes policy rounding.
+// Sesi yang tidak pernah absen pulang tidak boleh dihitung penuh. Durasi hanya
+// memakai checkout aktual (dibatasi jadwal) atau durasi terkoreksi yang tersimpan.
 export const effectiveMinutesSql = `CASE WHEN a.duration_minutes IS NOT NULL THEN greatest(0,a.duration_minutes)
  WHEN a.check_in_at IS NULL OR a.status='tidak_hadir' THEN 0
+ WHEN a.check_out_at IS NULL AND now() > s.end_at THEN 0
  ELSE greatest(0,floor(extract(epoch FROM (least(coalesce(a.check_out_at,now()),s.end_at)-greatest(a.check_in_at,s.start_at)))/60+0.5))::integer END`;
 
 export async function overviewMetrics(user: SessionUser) {
@@ -58,7 +62,7 @@ export async function overviewMetrics(user: SessionUser) {
   const [stats] = await query(`SELECT
     coalesce(sum(${effectiveMinutesSql}) FILTER (WHERE s.date>=date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta')::date AND s.date<(date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta')+interval '1 month')::date),0)::integer monthly_minutes,
     count(*) FILTER(WHERE a.check_in_at IS NOT NULL AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer monthly_sessions,
-    count(*) FILTER(WHERE a.status IN ('selesai','ditutup_otomatis','dikoreksi') AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer completed_sessions
+    count(*) FILTER(WHERE (a.status IN ('selesai','dikoreksi') OR (a.status='ditutup_otomatis' AND a.check_out_at IS NOT NULL)) AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer completed_sessions
     FROM attendances a JOIN spkls s ON s.id=a.spkl_id WHERE ${owner} ${employee}`, [user.id]);
   const [documents] = await query(`SELECT count(*) FILTER(WHERE to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer monthly,
     count(*) FILTER(WHERE (d.taken_at AT TIME ZONE 'Asia/Jakarta')::date=(now() AT TIME ZONE 'Asia/Jakarta')::date)::integer today,

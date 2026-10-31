@@ -80,7 +80,10 @@ function HistoryRow({ item }: { item: SpklListItem }) {
             </span>
           </div>
           {myAttendance ? (
-            <AttendanceBadge status={myAttendance.status} />
+            <AttendanceBadge
+              status={myAttendance.status}
+              checkOutAt={myAttendance.checkOutAt}
+            />
           ) : (
             <SpklStatusBadge status={status} />
           )}
@@ -96,7 +99,10 @@ function HistoryRow({ item }: { item: SpklListItem }) {
           <span className="inline-flex items-center gap-1 tabular-nums">
             <TimerReset className="size-4 shrink-0" aria-hidden="true" />
             <span className="sr-only">Durasi </span>
-            {durationLabel(myAttendance?.durationMinutes ?? null)}
+            {myAttendance?.status === "ditutup_otomatis" &&
+            !myAttendance.checkOutAt
+              ? "Belum pulang"
+              : durationLabel(myAttendance?.durationMinutes ?? null)}
           </span>
           <span className="text-xs tabular-nums md:hidden">{spkl.number}</span>
         </div>

@@ -11,6 +11,8 @@ export const OTP_LOCK_MINUTES = 15;
 export const UPLOAD_MAX_BYTES = 1.5 * 1024 * 1024;
 export const MAX_WEEKLY_MINUTES = 40 * 60;
 export const MAX_DAILY_MINUTES = 8 * 60;
+/** Toleransi absen pulang setelah jam selesai SPKL. */
+export const CHECKOUT_GRACE_MINUTES = 60;
 
 export const DEFAULT_MAP_CENTER = {
   latitude: -6.2439,

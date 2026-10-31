@@ -44,7 +44,10 @@ import {
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { UPLOAD_MAX_BYTES } from "@/lib/constants";
+import {
+  CHECKOUT_GRACE_MINUTES,
+  UPLOAD_MAX_BYTES,
+} from "@/lib/constants";
 import { formatDistance } from "@/lib/geo";
 import {
   attendanceStartAt,
@@ -62,7 +65,6 @@ interface SpklDetailViewProps {
   policy: {
     maxGpsAccuracyMeters: number;
     docGraceMinutes: number;
-    roundingMinutes: number;
   };
   photoLimit: number;
   videoLimit: number;
@@ -177,14 +179,6 @@ export function SpklDetailView({
           {earlyCheckIn && (
             <Badge variant="info-light">Absen lebih awal</Badge>
           )}
-          {myAttendance?.status === "ditutup_otomatis" &&
-            (myAttendance.reviewedAt ? (
-              <Badge variant="success-light">Disetujui atasan</Badge>
-            ) : (
-              <Badge variant="warning-light" dot>
-                Menunggu persetujuan
-              </Badge>
-            ))}
         </div>
       </div>
 
@@ -447,7 +441,10 @@ export function SpklDetailView({
                     Absensiku pada SPKL ini
                   </FrameDescription>
                 </div>
-                <AttendanceBadge status={myAttendance.status} />
+                <AttendanceBadge
+                  status={myAttendance.status}
+                  checkOutAt={myAttendance.checkOutAt}
+                />
               </FrameHeader>
               <FramePanel className="flex flex-col gap-4">
                 <div className="relative flex flex-col gap-4 pl-5">
@@ -495,9 +492,9 @@ export function SpklDetailView({
                     </p>
                     {myAttendance.status === "ditutup_otomatis" && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {myAttendance.reviewedAt
-                          ? "Ditutup otomatis dan sudah disetujui atasan."
-                          : "Ditutup otomatis saat SPKL berakhir. Menunggu persetujuan atasan."}
+                        {myAttendance.checkOutAt
+                          ? "Sesi ditutup otomatis."
+                          : "Absen pulang tidak tercatat. Durasi tidak dihitung; hubungi atasan untuk koreksi bila perlu."}
                       </p>
                     )}
                   </div>
@@ -527,6 +524,9 @@ export function SpklDetailView({
                   <span className="text-sm font-semibold tabular-nums text-foreground">
                     {running && myAttendance.checkInAt ? (
                       <LiveDuration startAt={countedFrom} endAt={spkl.endAt} />
+                    ) : myAttendance.status === "ditutup_otomatis" &&
+                      !myAttendance.checkOutAt ? (
+                      "Belum absen pulang"
                     ) : (
                       durationLabel(myAttendance.durationMinutes)
                     )}
@@ -645,8 +645,9 @@ export function SpklDetailView({
                 </li>
                 <li>
                   Absen pulang wajib dilakukan di dalam radius{" "}
-                  {spkl.radiusMeters} m sebelum jam selesai. Jika terlewat, sesi
-                  ditutup otomatis dan menunggu persetujuan atasan.
+                  {spkl.radiusMeters} m. Checkout setelah jam selesai masih
+                  dapat dilakukan dalam toleransi {CHECKOUT_GRACE_MINUTES} menit;
+                  durasi tetap dibatasi sampai jam selesai.
                 </li>
                 <li>Waktu absensi memakai jam server, bukan jam perangkat.</li>
                 <li>
@@ -655,8 +656,10 @@ export function SpklDetailView({
                     : "Dokumentasi pekerjaan tetap disarankan sebagai bukti."}
                 </li>
                 <li>
-                  Pembulatan durasi {policy.roundingMinutes} menit · dokumentasi
-                  ditutup {policy.docGraceMinutes} menit setelah SPKL berakhir.
+                  Durasi dihitung per menit aktual. Jika absen pulang tidak
+                  tercatat, durasi tidak dihitung dan atasan dapat mengoreksi.
+                  Dokumentasi ditutup {policy.docGraceMinutes} menit setelah
+                  SPKL berakhir.
                 </li>
               </ul>
             </AlertDescription>

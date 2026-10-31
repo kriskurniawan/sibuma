@@ -3,7 +3,7 @@ import "server-only";
 import { addDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
-import { APP_TIMEZONE } from "./constants";
+import { APP_TIMEZONE, CHECKOUT_GRACE_MINUTES } from "./constants";
 import { getPolicyRow, query, select } from "./db";
 import { getTeamLoad, getTeamTotals } from "./team-queries";
 export { getTeamOverview, getTeamTotals } from "./team-queries";
@@ -404,7 +404,9 @@ export async function getSpklDetail(
       isCheckInOpen(spkl, now),
     canCheckOut:
       user.role === "pekerja" &&
-      myAttendance?.status === "berjalan",
+      myAttendance?.status === "berjalan" &&
+      now.getTime() <=
+        new Date(spkl.endAt).getTime() + CHECKOUT_GRACE_MINUTES * 60_000,
     canUpload:
       user.role === "pekerja" &&
       Boolean(myAttendance?.checkInAt) &&

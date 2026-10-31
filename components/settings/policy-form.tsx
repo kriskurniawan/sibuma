@@ -22,13 +22,6 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { MAX_DAILY_MINUTES, MAX_WEEKLY_MINUTES } from "@/lib/constants";
@@ -39,18 +32,9 @@ import {
   formatDateTime,
 } from "@/lib/time";
 
-const ROUNDING_LABELS: Record<number, string> = {
-  0: "Tanpa pembulatan",
-  5: "5 menit",
-  10: "10 menit",
-  15: "15 menit",
-  30: "30 menit",
-};
-
 export function PolicyForm({ policy }: { policy: Policy }) {
   const router = useRouter();
   const [values, setValues] = useState({
-    roundingMinutes: policy.roundingMinutes,
     dailyLimitMinutes: policy.dailyLimitMinutes,
     weeklyLimitMinutes: policy.weeklyLimitMinutes,
     docGraceMinutes: policy.docGraceMinutes,
@@ -181,54 +165,29 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="rounding">Pembulatan durasi</Label>
-              <Select
-                items={ROUNDING_LABELS}
-                value={values.roundingMinutes}
-                onValueChange={(value) => {
-                  if (value !== null) {
-                    numberValue("roundingMinutes", String(value));
-                  }
-                }}
-              >
-                <SelectTrigger id="rounding" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(ROUNDING_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={Number(value)}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="grace">Tenggang dokumentasi</Label>
-              <InputGroup>
-                <InputGroupInput
-                  id="grace"
-                  type="number"
-                  min={0}
-                  max={1_440}
-                  step={5}
-                  value={values.docGraceMinutes}
-                  onChange={(event) =>
-                    numberValue("docGraceMinutes", event.target.value)
-                  }
-                  className="tabular-nums"
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupText className="text-xs">mnt</InputGroupText>
-                </InputGroupAddon>
-              </InputGroup>
-              <p className="text-xs text-muted-foreground">
-                Setelah SPKL berakhir
-              </p>
-            </div>
+          <div className="flex flex-col gap-2 sm:max-w-xs">
+            <Label htmlFor="grace">Tenggang dokumentasi</Label>
+            <InputGroup>
+              <InputGroupInput
+                id="grace"
+                type="number"
+                min={0}
+                max={1_440}
+                step={5}
+                value={values.docGraceMinutes}
+                onChange={(event) =>
+                  numberValue("docGraceMinutes", event.target.value)
+                }
+                className="tabular-nums"
+              />
+              <InputGroupAddon align="inline-end">
+                <InputGroupText className="text-xs">mnt</InputGroupText>
+              </InputGroupAddon>
+            </InputGroup>
+            <p className="text-xs text-muted-foreground">
+              Setelah SPKL berakhir. Durasi lembur selalu dihitung per menit
+              aktual.
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

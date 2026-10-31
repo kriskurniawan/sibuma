@@ -105,9 +105,6 @@ export interface Attendance {
   correctionReason: string | null;
   correctedBy: string | null;
   correctedAt: string | null;
-  /** Diisi saat atasan menyetujui sesi yang ditutup otomatis. */
-  reviewedAt: string | null;
-  reviewedBy: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -136,7 +133,6 @@ export interface Documentation {
 
 export interface Policy {
   id: "policy";
-  roundingMinutes: number;
   dailyLimitMinutes: number;
   weeklyLimitMinutes: number;
   docGraceMinutes: number;

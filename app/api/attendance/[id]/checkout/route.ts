@@ -1,9 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
+import { CHECKOUT_GRACE_MINUTES } from "@/lib/constants";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { distanceMeters } from "@/lib/geo";
 import { mutateDb, pushAudit } from "@/lib/store";
-import { attendanceMinutes, roundDuration } from "@/lib/time";
+import { attendanceMinutes } from "@/lib/time";
 import { checkInSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -85,22 +86,22 @@ export async function POST(
       }
 
       const now = new Date();
-      if (now > new Date(spkl.endAt)) {
+      const graceEnd = new Date(
+        new Date(spkl.endAt).getTime() + CHECKOUT_GRACE_MINUTES * 60_000,
+      );
+      if (now > graceEnd) {
         throw new Error(
-          "Waktu SPKL sudah habis. Sesi ditutup otomatis oleh sistem.",
+          `Batas absen pulang sudah lewat ${CHECKOUT_GRACE_MINUTES} menit setelah jam selesai. Hubungi atasan untuk koreksi.`,
         );
       }
 
       const checkout = now.toISOString();
-      const duration = roundDuration(
-        attendanceMinutes({
-          checkInAt: attendance.checkInAt,
-          checkOutAt: checkout,
-          spklStartAt: spkl.startAt,
-          spklEndAt: spkl.endAt,
-        }),
-        db.policy.roundingMinutes,
-      );
+      const duration = attendanceMinutes({
+        checkInAt: attendance.checkInAt,
+        checkOutAt: checkout,
+        spklStartAt: spkl.startAt,
+        spklEndAt: spkl.endAt,
+      });
 
       attendance.checkOutAt = checkout;
       attendance.durationMinutes = duration;
@@ -124,6 +125,7 @@ export async function POST(
         after: {
           checkOutAt: checkout,
           durationMinutes: duration,
+          lateCheckout: now > new Date(spkl.endAt),
           distanceFromSite: distance,
           accuracy: parsed.data.accuracy,
         },

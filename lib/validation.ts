@@ -190,12 +190,6 @@ export const divisionUpdateSchema = z
 
 export const policySchema = z
   .object({
-    roundingMinutes: z
-      .number()
-      .int()
-      .refine((value) => [0, 5, 10, 15, 30].includes(value), {
-        message: "Pembulatan harus 0, 5, 10, 15, atau 30 menit.",
-      }),
     dailyLimitMinutes: z
       .number()
       .int()

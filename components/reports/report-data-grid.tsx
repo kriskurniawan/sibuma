@@ -22,6 +22,12 @@ import { useTable, type ColumnDef } from "@tanstack/react-table";
 
 function recordDuration(row: ReportRow) {
   if (row.attendance.status === "tidak_hadir") return "Tidak hadir";
+  if (
+    row.attendance.status === "ditutup_otomatis" &&
+    !row.attendance.checkOutAt
+  ) {
+    return "Belum absen pulang";
+  }
   if (row.attendance.durationMinutes !== null) {
     return durationLabel(row.attendance.durationMinutes);
   }
@@ -99,7 +105,10 @@ const columns: ColumnDef<DataGridFeatures, ReportRow>[] = [
     },
     cell: ({ row }) => (
       <div className="flex flex-col gap-1">
-        <AttendanceBadge status={row.original.attendance.status} />
+        <AttendanceBadge
+          status={row.original.attendance.status}
+          checkOutAt={row.original.attendance.checkOutAt}
+        />
         {row.original.attendance.correctionReason && (
           <p className="max-w-48 text-xs leading-snug text-muted-foreground">
             {row.original.attendance.correctionReason}
@@ -301,6 +310,7 @@ export function ReportDataGrid({ rows, total, pagination, printRows }: {
                     </div>
                     <AttendanceBadge
                       status={row.attendance.status}
+                      checkOutAt={row.attendance.checkOutAt}
                       className="shrink-0"
                     />
                   </div>
