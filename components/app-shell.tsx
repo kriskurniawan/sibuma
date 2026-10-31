@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
+import { EmailChangeNotice } from "@/components/email-change-notice";
 import { LogoMark } from "@/components/logo";
 import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,7 @@ import {
 import { avatarUrl } from "@/lib/avatar-url";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isReadOnly } from "@/lib/access";
+import { isCompanyEmail } from "@/lib/email";
 import { formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -348,6 +350,7 @@ export function AppShell({
   const router = useRouter();
   const { theme, setTheme } = useTheme();
   const readOnly = isReadOnly(user);
+  const needsEmailChange = isCompanyEmail(user.email);
   const nav = navigationFor(user.role, readOnly);
   const mobileNav: Array<NavItem | "scan"> = [...nav.mobile];
   if (user.role === "pekerja") {
@@ -623,6 +626,13 @@ export function AppShell({
         </header>
 
         <div className="mx-auto w-full max-w-[90rem] flex-1 px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-12">
+          {needsEmailChange && user.email && (
+            <EmailChangeNotice
+              email={user.email}
+              readOnly={readOnly}
+              className="mb-6"
+            />
+          )}
           {children}
         </div>
       </SidebarInset>

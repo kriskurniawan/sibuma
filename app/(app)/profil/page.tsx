@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { avatarUrl } from "@/lib/avatar-url";
+import { isCompanyEmail } from "@/lib/email";
 import {
   APP_TIMEZONE,
   OTP_TTL_SECONDS,
@@ -181,9 +182,12 @@ export default async function ProfilePage() {
               <MessageCircle className="size-4 shrink-0" aria-hidden="true" />
               <span className="break-all"><span className="sr-only">WhatsApp: </span>{phoneLabel(user.phone)}</span>
             </div>
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
               <Mail className="size-4 shrink-0" aria-hidden="true" />
               <span className="break-all"><span className="sr-only">Email: </span>{user.email ?? "Email belum diisi"}</span>
+              {isCompanyEmail(user.email) && (
+                <Badge variant="warning-light">Wajib diganti</Badge>
+              )}
             </div>
           </div>
 

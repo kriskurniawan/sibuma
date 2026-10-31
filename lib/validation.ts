@@ -127,6 +127,18 @@ export const supervisorUpdateSchema = z
     message: "Tidak ada perubahan yang dikirim.",
   });
 
+const optionalProfileEmail = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim() === "" ? undefined : value,
+  z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(254)
+    .email("Format email tidak valid.")
+    .optional(),
+);
+
 /** Profil sendiri; nomor WhatsApp hanya diterima untuk super admin. */
 export const profileUpdateSchema = z.object({
   name: z
@@ -140,6 +152,7 @@ export const profileUpdateSchema = z.object({
     .min(8, "Nomor HP minimal 8 digit.")
     .max(20, "Nomor HP terlalu panjang.")
     .optional(),
+  email: optionalProfileEmail,
 });
 
 export const divisionInputSchema = z.object({

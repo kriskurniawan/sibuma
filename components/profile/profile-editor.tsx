@@ -13,34 +13,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
+import { isCompanyEmail } from "@/lib/email";
 import { normalizePhone } from "@/lib/phone";
 import type { SessionUser } from "@/lib/types";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function ProfileEditor({ user }: { user: SessionUser }) {
   const router = useRouter();
   const isAdmin = user.role === "super_admin";
-  const [open, setOpen] = useState(false);
+  const requiresEmailChange = isCompanyEmail(user.email);
+  const [open, setOpen] = useState(requiresEmailChange);
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(editablePhone(user.phone));
+  const [email, setEmail] = useState(user.email ?? "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const editButtonRef = useRef<HTMLButtonElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const wasOpen = useRef(false);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const wasOpen = useRef(open);
 
   useEffect(() => {
-    if (open) nameInputRef.current?.focus();
-    else if (wasOpen.current) editButtonRef.current?.focus();
+    if (requiresEmailChange) setOpen(true);
+  }, [requiresEmailChange]);
+
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      if (requiresEmailChange) emailInputRef.current?.focus();
+      else nameInputRef.current?.focus();
+    } else if (!open && wasOpen.current) {
+      editButtonRef.current?.focus();
+    }
     wasOpen.current = open;
-  }, [open]);
+  }, [open, requiresEmailChange]);
 
   function openEditor() {
     setName(user.name);
     setPhone(editablePhone(user.phone));
+    setEmail(user.email ?? "");
     setNameError(null);
     setPhoneError(null);
+    setEmailError(null);
     setServerError(null);
     setOpen(true);
   }
@@ -50,6 +67,7 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
     setOpen(false);
     setNameError(null);
     setPhoneError(null);
+    setEmailError(null);
     setServerError(null);
   }
 
@@ -74,17 +92,38 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
       }
     }
 
+    const nextEmail = email.trim().toLowerCase();
+    if (!nextEmail && user.email) {
+      setEmailError("Email wajib diisi.");
+      return;
+    }
+    if (nextEmail && !EMAIL_PATTERN.test(nextEmail)) {
+      setEmailError("Format email tidak valid.");
+      return;
+    }
+    if (nextEmail && isCompanyEmail(nextEmail)) {
+      setEmailError(
+        "Email wajib memakai domain selain bmbi.my.id. Gunakan email pribadi.",
+      );
+      return;
+    }
+
     setSaving(true);
     setNameError(null);
     setPhoneError(null);
+    setEmailError(null);
     setServerError(null);
     try {
+      const payload: { name: string; email?: string; phone?: string } = {
+        name: nextName,
+      };
+      if (nextEmail) payload.email = nextEmail;
+      if (isAdmin) payload.phone = nextPhone;
+
       const response = await fetch("/api/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isAdmin ? { name: nextName, phone: nextPhone } : { name: nextName },
-        ),
+        body: JSON.stringify(payload),
       });
       const data = (await response.json()) as {
         ok: boolean;
@@ -160,6 +199,48 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
                 <FieldError id="profile-name-error">{nameError}</FieldError>
               </div>
 
+              <div
+                id="email"
+                className="flex scroll-mt-24 flex-col gap-2"
+              >
+                <Label htmlFor="profile-email">
+                  Email{" "}
+                  {user.email ? (
+                    <span className="text-destructive">*</span>
+                  ) : (
+                    <span className="font-normal text-muted-foreground">
+                      (opsional)
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  ref={emailInputRef}
+                  id="profile-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  aria-invalid={Boolean(emailError)}
+                  aria-describedby={
+                    emailError
+                      ? "profile-email-error profile-email-help"
+                      : "profile-email-help"
+                  }
+                  placeholder="nama@email.com"
+                  inputMode="email"
+                  autoComplete="email"
+                  className="scroll-mb-36"
+                />
+                <FieldError id="profile-email-error">{emailError}</FieldError>
+                <p
+                  id="profile-email-help"
+                  className="text-xs text-muted-foreground"
+                >
+                  {requiresEmailChange
+                    ? "Email ini masih memakai domain bmbi.my.id dan wajib diganti ke email pribadi yang aktif."
+                    : "Dipakai untuk login OTP dan pemberitahuan. Domain bmbi.my.id tidak diizinkan."}
+                </p>
+              </div>
+
               {isAdmin && (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="profile-phone">
@@ -185,10 +266,10 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
             </div>
             <p id="profile-phone-help" className="text-xs text-muted-foreground">
               {isAdmin
-                ? "Nomor WhatsApp dipakai untuk login OTP. Perubahan berlaku untuk login berikutnya. NIK tidak dapat diubah di sini."
+                ? "Email dan nomor WhatsApp dipakai untuk login OTP. Perubahan berlaku untuk login berikutnya. NIK tidak dapat diubah di sini."
                 : user.role === "pekerja"
-                  ? "WhatsApp adalah identitas login. NIK dan kontak dikelola atasan lewat menu Tim."
-                  : "WhatsApp adalah identitas login. NIK dan kontak tidak dapat diubah di sini."}
+                  ? "Email dapat kamu ubah di sini. NIK dan nomor WhatsApp dikelola atasan lewat menu Tim."
+                  : "Email dapat kamu ubah di sini. NIK dan nomor WhatsApp tidak dapat diubah di sini."}
             </p>
             <div className="flex items-center gap-2">
               <Button type="submit" size="sm" disabled={saving}>
@@ -201,15 +282,17 @@ export function ProfileEditor({ user }: { user: SessionUser }) {
                   "Simpan"
                 )}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={closeEditor}
-                disabled={saving}
-              >
-                Batal
-              </Button>
+              {!requiresEmailChange && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={closeEditor}
+                  disabled={saving}
+                >
+                  Batal
+                </Button>
+              )}
             </div>
           </form>
         </div>

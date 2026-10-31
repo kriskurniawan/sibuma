@@ -356,6 +356,7 @@ Ringkasan API utama:
 | `POST /api/auth/otp/request` | `{ identifier }`: email/WhatsApp terdaftar; respons `challengeId`, `channel`, `maskedDestination`, `fallback` |
 | `POST /api/auth/otp/verify` | `{ identifier, challengeId, code }`: verifikasi OTP & buat sesi |
 | `POST /api/auth/logout` | Hapus sesi |
+| `PATCH /api/profile` | Ubah nama/email sendiri; nomor WhatsApp hanya super admin. Email `@bmbi.my.id` ditolak dan email harus unik |
 | `GET/POST /api/spkl` | Daftar / buat SPKL |
 | `PATCH /api/spkl/:id` | Ubah SPKL |
 | `POST /api/spkl/:id/cancel` | Batalkan SPKL |
@@ -475,7 +476,8 @@ Google Sheets/Drive tidak dipakai. Jika suatu saat diperlukan arsip tambahan, sa
 ### Email pekerja dan OTP fallback (Resend)
 
 - Instalasi lama: jalankan `npm run db:migrate:email` sebelum memakai kode baru. Migrasi `003_employee_email_otp` hanya menambah kolom/index/check; memverifikasi semua nilai kolom lama tetap identik. `db:init` untuk database kosong juga memasang skema ini.
-- Pekerja baru wajib memiliki NIK, WhatsApp, email unik, dan divisi milik atasan. Email dinormalisasi lowercase. Akun lama tanpa email tetap ada; lengkapi melalui **Tim → Edit pekerja** agar login email/fallback tersedia. Kontak dikelola atasan, bukan pemohon OTP. Email yang sudah terdaftar tidak dapat dikosongkan melalui API.
+- Pekerja baru wajib memiliki NIK, WhatsApp, email unik, dan divisi milik atasan. Email dinormalisasi lowercase. Akun lama tanpa email tetap ada; lengkapi melalui **Tim → Edit pekerja** agar login email/fallback tersedia. NIK dan nomor WhatsApp dikelola atasan; email dapat diubah pemilik akun melalui **Profil → Ubah profil** (akun hanya-lihat meminta super admin). Email yang sudah terdaftar tidak dapat dikosongkan melalui API.
+- Email pada domain `bmbi.my.id` (termasuk subdomain) ditandai **Wajib diganti**. Peringatan tetap tampil di seluruh aplikasi sampai email diganti. Domain tersebut ditolak saat memperbarui profil, email harus unik, perubahan dicatat di audit, dan OTP yang belum terpakai dibatalkan.
 - Login email langsung ke email akun; login WhatsApp mencoba Chatery dahulu, lalu Resend bila WA tidak tersedia/gagal. Fallback hanya ke email tersimpan, tidak menerima alamat tujuan dari requester. Timeout provider 12 detik WA + 8 detik email; panggilan jaringan di luar transaksi database. API sukses berarti penyedia menerima pesan, bukan jaminan masuk inbox; bounce/delivery asinkron belum dipantau.
 - Konfigurasi `RESEND_API_KEY`, `RESEND_FROM_EMAIL` di environment server/Vercel. Verifikasi domain pengirim beserta DNS yang diminta Resend. Jangan kirim kunci lewat chat atau memasukkannya ke source.
 - OTP mulai berstatus `menunggu`; hanya `terkirim` yang dapat dipakai. Gagal dua kanal tidak membuat OTP valid. Challenge terikat akun, identifier, ID permintaan, serta snapshot kontak. Perubahan kontak/NIK/status akun membatalkan OTP yang belum digunakan.
