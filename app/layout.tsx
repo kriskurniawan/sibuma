@@ -61,6 +61,7 @@ export default function RootLayout({
     if (window.__sibumaHydrated) {
       delete window[INTENT];
       delete window[AT];
+      delete window.__sibumaDialogIntentElement;
       return;
     }
     var target = event.target;
@@ -70,6 +71,7 @@ export default function RootLayout({
     var intent = trigger.getAttribute("data-dialog-intent");
     if (!intent) return;
     window[INTENT] = intent;
+    window.__sibumaDialogIntentElement = trigger;
     // Waktu dicatat di event handler (bukan saat render) untuk TTL intent.
     window[AT] = Date.now();
   }, true);

@@ -6,6 +6,9 @@ declare global {
   interface Window {
     __sibumaDialogIntent?: string;
     __sibumaDialogIntentAt?: number;
+    __sibumaDialogIntentElement?: Element;
+    __sibumaDialogTriggerElement?: Element;
+    __sibumaDialogTriggerAt?: number;
     __sibumaHydrated?: boolean;
   }
 }
@@ -36,12 +39,18 @@ export function useDialogIntent(intent: string, onOpen: () => void) {
     if (Date.now() - at > MAX_INTENT_AGE_MS) {
       delete window.__sibumaDialogIntent;
       delete window.__sibumaDialogIntentAt;
+      delete window.__sibumaDialogIntentElement;
       return;
     }
     if (pending !== intent) return;
 
+    // Simpan elemen pemicu agar Modal dapat mengabaikan klik berulang di area
+    // tombol yang kini tertutup overlay.
+    window.__sibumaDialogTriggerElement = window.__sibumaDialogIntentElement;
+    window.__sibumaDialogTriggerAt = Date.now();
     delete window.__sibumaDialogIntent;
     delete window.__sibumaDialogIntentAt;
+    delete window.__sibumaDialogIntentElement;
     onOpenRef.current();
   }, [intent]);
 }

@@ -27,6 +27,18 @@ const SIZE_CLASSES = {
   xl: "sm:max-w-4xl",
 } as const;
 
+function eventPoint(event?: Event) {
+  if (!event) return null;
+  if (event instanceof MouseEvent) {
+    return { x: event.clientX, y: event.clientY };
+  }
+  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent) {
+    const touch = event.changedTouches[0] ?? event.touches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  return null;
+}
+
 export function Modal({
   open,
   onClose,
@@ -58,6 +70,58 @@ export function Modal({
   // baru muncul. Tahan dismissal pointer sebentar agar dialog tidak berkedip
   // terbuka lalu langsung tertutup.
   const [pointerDismissalReady, setPointerDismissalReady] = useState(false);
+  // Posisi tombol pemicu terakhir. Klik berulang di area tombol yang sekarang
+  // tertutup overlay tidak boleh menutup dialog yang baru terbuka.
+  const triggerRef = useRef<{ element: Element; at: number } | null>(null);
+  const openTriggerRef = useRef<Element | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      const record = triggerRef.current;
+      if (
+        record &&
+        Date.now() - record.at < 1500 &&
+        record.element.isConnected
+      ) {
+        openTriggerRef.current = record.element;
+        return;
+      }
+      // Dialog yang dibuka dari intent pra-hidrasi tidak sempat mencatat
+      // pointerdown lewat React; pakai elemen pemicu yang disimpan hook.
+      const pendingTrigger = window.__sibumaDialogTriggerElement;
+      const pendingAt = window.__sibumaDialogTriggerAt ?? 0;
+      delete window.__sibumaDialogTriggerElement;
+      delete window.__sibumaDialogTriggerAt;
+      if (
+        pendingTrigger &&
+        Date.now() - pendingAt < 1500 &&
+        pendingTrigger.isConnected
+      ) {
+        openTriggerRef.current = pendingTrigger;
+        return;
+      }
+      const active = document.activeElement;
+      openTriggerRef.current =
+        active instanceof Element && active !== document.body ? active : null;
+      return;
+    }
+    openTriggerRef.current = null;
+  }, [open]);
+
+  useEffect(() => {
+    if (open) return;
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const trigger =
+        target.closest("button, a, [role='button'], [data-dialog-intent]") ??
+        target;
+      triggerRef.current = { element: trigger, at: Date.now() };
+    }
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    return () =>
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -68,12 +132,26 @@ export function Modal({
     return () => window.clearTimeout(timer);
   }, [open]);
 
+  function isTriggerPoint(event?: Event) {
+    const trigger = openTriggerRef.current;
+    if (!trigger || !trigger.isConnected) return false;
+    const point = eventPoint(event);
+    if (!point) return false;
+    const rect = trigger.getBoundingClientRect();
+    return (
+      point.x >= rect.left &&
+      point.x <= rect.right &&
+      point.y >= rect.top &&
+      point.y <= rect.bottom
+    );
+  }
+
   function handleOpenChange(
     nextOpen: boolean,
     details: { reason: string; event?: Event },
   ) {
     if (nextOpen) return;
-    // Klik kedua dan seterusnya dari double-click bisa mendarat di backdrop
+    // Klik kedua dan seterusnya pada tombol pemicu bisa mendarat di backdrop
     // atau di tombol Close yang bergeser ke bawah kursor saat dialog
     // beranimasi. Abaikan selama masa pengaman atau selama masih rangkaian
     // klik berulang.
@@ -84,6 +162,11 @@ export function Modal({
         details.reason === "close-press") &&
       (!pointerDismissalReady || repeatedClick)
     ) {
+      return;
+    }
+    // Jangan tutup dialog ketika pengguna masih menekan area tombol pemicu
+    // yang kini berada di balik overlay. Klik di area lain tetap menutup.
+    if (details.reason === "outside-press" && isTriggerPoint(details.event)) {
       return;
     }
     if (!dismissible && details.reason !== "close-press") return;
