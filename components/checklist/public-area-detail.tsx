@@ -1,9 +1,11 @@
 import Link from "next/link";
 import {
+  CalendarDays,
   ClipboardCheck,
   ClipboardList,
   Clock3,
   FolderTree,
+  HardHat,
   History,
   ListChecks,
   MapPin,
@@ -27,6 +29,7 @@ import { PublicRefreshButton } from "@/components/checklist/public-refresh-butto
 import { PublicSecondarySection } from "@/components/checklist/public-secondary-section";
 import { PublicShell } from "@/components/checklist/public-shell";
 import { PublicStaffAccess, type PublicStaffState } from "@/components/checklist/public-staff-access";
+import { ManualWorkStatusBadge } from "@/components/pekerjaan/manual-work-badges";
 import type { ChecklistConditionOption, ChecklistPublicArea } from "@/lib/checklist-types";
 import { cn } from "@/lib/utils";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
@@ -49,6 +52,7 @@ export function PublicAreaDetail({
   loginNext: string;
 }) {
   const { location, latest, items, history, followUps, timeline, viewingHistory } = area;
+  const manualWorks = area.manualWorks;
   const numberedItems = items.map((item, index) => ({ item, number: index + 1 }));
   const itemBlocks: Array<{ groupPath: string; entries: typeof numberedItems }> = [];
   for (const entry of numberedItems) {
@@ -156,6 +160,64 @@ export function PublicAreaDetail({
           )}
         </FramePanel>
       </Frame>
+
+      {manualWorks.length > 0 && (
+        <Frame spacing="default">
+          <FrameHeader className="flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <FrameTitle><h2>Pekerjaan harian</h2></FrameTitle>
+              <FrameDescription className="wrap-anywhere text-xs">
+                Pekerjaan yang dibagikan pengelola area ini.
+              </FrameDescription>
+            </div>
+            <Badge variant="outline">{manualWorks.length} pekerjaan</Badge>
+          </FrameHeader>
+          <FramePanel>
+            <ul className="divide-y divide-border">
+              {manualWorks.map((work) => {
+                const schedule = work.targetDate
+                  ? `${formatDateHuman(`${work.startDate}T12:00:00`, "d MMM")} – ${formatDateHuman(`${work.targetDate}T12:00:00`, "d MMM")}`
+                  : `Mulai ${formatDateHuman(`${work.startDate}T12:00:00`, "d MMM")}`;
+                return (
+                  <li
+                    key={work.id}
+                    className="flex min-w-0 flex-col gap-2 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                      <p className="min-w-0 flex-1 wrap-anywhere text-sm font-medium text-foreground">
+                        {work.title}
+                      </p>
+                      <ManualWorkStatusBadge status={work.status} />
+                    </div>
+                    {work.description && (
+                      <p className="wrap-anywhere whitespace-pre-line text-sm text-muted-foreground">
+                        {work.description}
+                      </p>
+                    )}
+                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1 tabular-nums">
+                        <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
+                        {schedule}
+                      </span>
+                      {work.safetyName && (
+                        <span className="inline-flex min-w-0 items-center gap-1">
+                          <HardHat className="size-3.5 shrink-0" aria-hidden="true" />
+                          <span className="wrap-anywhere">Petugas safety {work.safetyName}</span>
+                        </span>
+                      )}
+                      {work.status === "selesai" && work.completedAt && (
+                        <span className="tabular-nums">
+                          Selesai {formatDateHuman(work.completedAt, "d MMM yyyy")}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </FramePanel>
+        </Frame>
+      )}
 
       <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
         <PublicSecondarySection title="Riwayat pemeriksaan" description={`${history.length} periode tersedia`}>

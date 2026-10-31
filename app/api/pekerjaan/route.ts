@@ -40,11 +40,15 @@ export async function POST(request: Request) {
   ).safeParse(raw);
   if (!parsed.success) return apiError(validationMessage(parsed.error));
   const input = parsed.data;
-  const managerInput = input as { followUpId?: string | null };
+  const managerInput = input as {
+    followUpId?: string | null;
+    publicVisible?: boolean;
+  };
   const requestedAssigneeIds = input.assigneeIds;
   const requestedFollowUpId = isWorker
     ? null
     : (managerInput.followUpId ?? null);
+  const publicVisible = isWorker ? false : (managerInput.publicVisible ?? false);
 
   try {
     const id = await transaction(async (connection) => {
@@ -107,9 +111,9 @@ export async function POST(request: Request) {
       await query(
         `INSERT INTO manual_works
           (id,owner_id,title,description,safety_name,location_id,location_name,
-           start_date,target_date,requires_documentation,status,
+           start_date,target_date,requires_documentation,public_visible,status,
            source_follow_up_id,result_note,created_by,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'terbuka',$11,'',$12,$13,$13)`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'terbuka',$12,'',$13,$14,$14)`,
         [
           workId,
           ownerId,
@@ -121,6 +125,7 @@ export async function POST(request: Request) {
           input.startDate,
           input.targetDate ?? null,
           input.requiresDocumentation,
+          publicVisible,
           requestedFollowUpId,
           user.id,
           now,
@@ -163,6 +168,7 @@ export async function POST(request: Request) {
           targetDate: input.targetDate ?? null,
           assignees: assignees.map((person) => person.id),
           requiresDocumentation: input.requiresDocumentation,
+          publicVisible,
           sourceFollowUpId: requestedFollowUpId,
           selfReported: isWorker,
         },

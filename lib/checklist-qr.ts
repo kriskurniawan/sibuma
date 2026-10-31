@@ -12,6 +12,7 @@ import type {
   ChecklistPublicItem,
   ChecklistPublicLatest,
   ChecklistPublicLocation,
+  ChecklistPublicManualWork,
   ChecklistPublicStaffTask,
   ChecklistPublicTimelineEntry,
   ChecklistQrCode,
@@ -233,7 +234,7 @@ export async function getChecklistPublicArea(
   const displayedInspectionId =
     (displayRow.inspection_id as string | null) ?? null;
 
-  const [itemRows, historyRows, followUpRow, eventRows] = await Promise.all([
+  const [itemRows, historyRows, followUpRow, eventRows, manualWorkRows] = await Promise.all([
     displayedInspectionId
       ? query(
           `SELECT a.prompt,a.group_path,a.condition,a.updated_at
@@ -269,6 +270,19 @@ export async function getChecklistPublicArea(
           [displayedInspectionId],
         )
       : Promise.resolve([]),
+    query(
+      `SELECT w.id,w.title,w.description,w.safety_name,w.status,
+              w.start_date,w.target_date,w.completed_at
+       FROM manual_works w
+       JOIN checklist_locations l ON l.id=w.location_id AND l.owner_id=w.owner_id
+       WHERE w.owner_id=$1 AND w.location_id=$2
+         AND w.public_visible AND w.status<>'dibatalkan'
+         AND l.active AND l.public_enabled
+       ORDER BY CASE w.status WHEN 'dikerjakan' THEN 0 WHEN 'terbuka' THEN 1 ELSE 2 END,
+                w.start_date DESC,w.id DESC
+       LIMIT 12`,
+      [ownerId, locationId],
+    ),
   ]);
 
   const items: ChecklistPublicItem[] = itemRows.map((item) => ({
@@ -286,6 +300,19 @@ export async function getChecklistPublicArea(
     periodLabel: item.period_label as string,
     templateName: item.template_name as string,
   }));
+
+  const manualWorks: ChecklistPublicManualWork[] = manualWorkRows.map(
+    (work) => ({
+      id: work.id as string,
+      title: work.title as string,
+      description: (work.description as string) ?? "",
+      safetyName: (work.safety_name as string) ?? "",
+      status: work.status as ChecklistPublicManualWork["status"],
+      startDate: toPlain(work.start_date) as string,
+      targetDate: (toPlain(work.target_date) as string | null) ?? null,
+      completedAt: (toPlain(work.completed_at) as string | null) ?? null,
+    }),
+  );
 
   const timeline: ChecklistPublicTimelineEntry[] = [];
   if (displayedInspectionId) {
@@ -327,6 +354,7 @@ export async function getChecklistPublicArea(
       open: Number(followUpRow[0]?.open ?? 0),
       done: Number(followUpRow[0]?.done ?? 0),
     },
+    manualWorks,
     timeline: timeline.slice(0, 20),
     lastUpdated: latestItemUpdate,
     viewingHistory: displayRow !== row,

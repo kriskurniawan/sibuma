@@ -47,11 +47,16 @@ export async function PATCH(
   ).safeParse(raw);
   if (!parsed.success) return apiError(validationMessage(parsed.error));
   const input = parsed.data;
-  const managerInput = input as { followUpId?: string | null };
+  const managerInput = input as {
+    followUpId?: string | null;
+    publicVisible?: boolean;
+  };
   const requestedAssigneeIds = input.assigneeIds;
   const requestedFollowUpId = isWorker
     ? null
     : (managerInput.followUpId ?? null);
+  /** `null` mempertahankan nilai lama, khususnya saat pelapor mengubah rincian. */
+  const publicVisible = isWorker ? null : (managerInput.publicVisible ?? null);
 
   try {
     const result = await transaction(async (connection) => {
@@ -126,7 +131,8 @@ export async function PATCH(
          SET title=$2,description=$3,location_id=$4,location_name=$5,
              start_date=$6::date,target_date=$7::date,
              requires_documentation=$8,source_follow_up_id=$9,
-             safety_name=$10,updated_at=$11
+             safety_name=$10,public_visible=COALESCE($11::boolean,public_visible),
+             updated_at=$12
          WHERE id=$1`,
         [
           id,
@@ -139,6 +145,7 @@ export async function PATCH(
           input.requiresDocumentation,
           sourceFollowUpId,
           input.safetyName,
+          publicVisible,
           now,
         ],
         connection,
@@ -183,6 +190,7 @@ export async function PATCH(
           targetDate: current.targetDate,
           requiresDocumentation: current.requiresDocumentation,
           sourceFollowUpId: current.sourceFollowUpId,
+          publicVisible: current.publicVisible,
           assignees: previousAssignees.map(
             (row) => row.employee_id as string,
           ),
@@ -197,6 +205,7 @@ export async function PATCH(
           targetDate: input.targetDate ?? null,
           requiresDocumentation: input.requiresDocumentation,
           sourceFollowUpId,
+          publicVisible: publicVisible ?? current.publicVisible,
           assignees: nextAssigneeIds,
         },
       });

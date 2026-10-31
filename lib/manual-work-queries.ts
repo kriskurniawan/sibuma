@@ -54,6 +54,7 @@ const WORK_FIELDS = [
   "start_date",
   "target_date",
   "requires_documentation",
+  "public_visible",
   "status",
   "source_follow_up_id",
   "result_note",

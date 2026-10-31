@@ -177,14 +177,16 @@ export function ManualWorkListView({
         }
         action={
           canManage ? (
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={<Link href="/pekerjaan/baru" />}
-            >
-              <Plus aria-hidden="true" />
-              {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-            </Button>
+            <div className="hidden md:block">
+              <Button
+                size="sm"
+                nativeButton={false}
+                render={<Link href="/pekerjaan/baru" />}
+              >
+                <Plus aria-hidden="true" />
+                {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+              </Button>
+            </div>
           ) : undefined
         }
       />
@@ -357,6 +359,20 @@ export function ManualWorkListView({
           </FrameFooter>
         )}
       </Frame>
+
+      {canManage && (
+        <div className="above-mobile-nav pointer-events-none fixed inset-x-0 z-30 flex justify-end px-4 md:hidden">
+          <Button
+            size="lg"
+            className="pointer-events-auto rounded-full"
+            nativeButton={false}
+            render={<Link href="/pekerjaan/baru" />}
+          >
+            <Plus aria-hidden="true" />
+            {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

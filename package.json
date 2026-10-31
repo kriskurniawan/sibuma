@@ -19,6 +19,7 @@
     "db:migrate:work-locations": "node scripts/migrate-work-locations.mjs",
     "db:migrate:manual-work-photos": "node scripts/migrate-manual-work-photos.mjs",
     "db:migrate:manual-work-safety": "node scripts/migrate-manual-work-safety.mjs",
+    "db:migrate:manual-work-public": "node scripts/migrate-manual-work-public.mjs",
     "db:migrate:follow-up-safety": "node scripts/migrate-follow-up-safety.mjs",
     "db:migrate:work-documents": "node scripts/migrate-work-documents.mjs",
     "db:migrate:photo-limits": "node scripts/migrate-photo-limits.mjs",

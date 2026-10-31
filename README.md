@@ -126,6 +126,8 @@ Nama petugas safety pada tindak lanjut dicatat manual di kolom terpisah. Terapka
 
 Nama petugas safety pada pekerjaan harian juga dicatat manual di kolom `manual_works.safety_name`. Terapkan `npm run db:migrate:manual-work-safety` (DDL `db/migrations/019_manual_work_safety.sql`). Database baru lewat `db:init` sudah memuat kolom ini.
 
+Publikasi pekerjaan harian ke pengunjung memakai `npm run db:migrate:manual-work-public` (DDL `db/migrations/025_manual_work_public.sql`). Migrasi menambah `manual_works.public_visible` (default `false`) dan indeks parsial untuk area publik. Pekerjaan hanya tampil di halaman area pengunjung bila sakelar pekerjaan aktif, area lokasinya aktif dan diaktifkan untuk pengunjung, serta statusnya bukan `dibatalkan`. Pengunjung hanya melihat judul, deskripsi, status, jadwal, dan nama petugas safety; foto, nama pekerja, dan catatan hasil tetap internal.
+
 Dokumen kerja memakai migrasi terpisah: `npm run db:migrate:work-documents` (DDL `db/migrations/020_work_documents.sql`). Migrasi ini menambah tabel `work_documents`, `work_document_shares`, dan singleton `work_document_settings`, serta memperluas tipe objek audit dengan `dokumen`. Baris audit lama tidak diubah. Migrasi tidak menyentuh tabel dokumentasi/bukti pekerjaan dan tidak memindahkan objek storage; bucket dokumen diinisialisasi terpisah lewat `npm run storage:init:documents`.
 
 Folder Dokumen Kerja dan video bukti pekerjaan memakai migrasi `npm run db:migrate:video-folders` (DDL `db/migrations/022_video_and_folders.sql`). Migrasi ini menambah `work_document_folders`, `work_document_folder_shares`, kolom `work_documents.folder_id` (`ON DELETE SET NULL`), kolom video pada `documentations`/`checklist_photos`/`manual_work_photos` (`kind`, `duration_seconds`, `storage_etag`, serta `poster_key` pada dokumentasi), dan kolom batas video pada `photo_limit_settings`. Migrasi idempoten dan aman dijalankan ulang.
@@ -341,6 +343,7 @@ scripts/
   migrate-employee-access-mode.mjs  Terapkan migrasi 011 (mode akses atasan)
   migrate-follow-up-safety.mjs  Terapkan migrasi 018 (Petugas safety tindak lanjut)
   migrate-manual-work-safety.mjs  Terapkan migrasi 019 (Petugas safety pekerjaan harian)
+  migrate-manual-work-public.mjs  Terapkan migrasi 025 (Publikasi pekerjaan harian ke pengunjung)
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB

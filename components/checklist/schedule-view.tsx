@@ -42,15 +42,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
 import {
   CHECKLIST_INTERVAL_UNIT_LABEL,
   CHECKLIST_MAX_ASSIGNEES,
   type ChecklistDistributionMode,
   type ChecklistIntervalUnit,
+  type ChecklistLocation,
   type ChecklistSetup,
   type ChecklistSetupEmployee,
   type ChecklistSetupSchedule,
+  type ChecklistSetupTemplate,
+  type ChecklistTemplateItem,
 } from "@/lib/checklist-types";
 import { checklistIntervalLabel } from "@/lib/checklist-schedule";
 import { formatDateHuman, todayLocal } from "@/lib/time";
@@ -95,6 +99,86 @@ function scheduleAssigneesLabel(assignees: ChecklistSetupEmployee[]) {
   return `${assignees.length} anggota · ${
     divisions.length > 1 ? "lintas divisi" : divisions[0]
   }`;
+}
+
+interface TemplateLeafLocation {
+  /** Lokasi efektif item: lokasi item, lalu lokasi grup induk. */
+  locationId: string | null;
+}
+
+function templateLeafLocations(
+  items: ChecklistTemplateItem[],
+): TemplateLeafLocation[] {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  return items
+    .filter((item) => item.itemType === "item")
+    .map((item) => {
+      const parent = item.parentItemId
+        ? byId.get(item.parentItemId)
+        : null;
+      return {
+        locationId: item.locationId ?? parent?.locationId ?? null,
+      };
+    });
+}
+
+function templateHasItemLocations(template: ChecklistSetupTemplate | null) {
+  const latest = template?.versions[0];
+  if (!latest) return false;
+  return templateLeafLocations(latest.items).some((leaf) =>
+    Boolean(leaf.locationId),
+  );
+}
+
+function defaultDistributionModeForTemplate(
+  template: ChecklistSetupTemplate | null,
+): ChecklistDistributionMode {
+  return templateHasItemLocations(template) ? "per_lokasi" : "tunggal";
+}
+
+function commonAncestorLocationId(
+  locationIds: string[],
+  locations: ChecklistLocation[],
+) {
+  if (locationIds.length === 0) return null;
+  const byId = new Map(locations.map((location) => [location.id, location]));
+  const chains = locationIds.map((id) => {
+    const chain: string[] = [];
+    const seen = new Set<string>();
+    let current = byId.get(id);
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      chain.unshift(current.id);
+      current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+    return chain;
+  });
+  const [first, ...rest] = chains;
+  if (!first || first.length === 0) return null;
+  let ancestor: string | null = null;
+  for (let index = 0; index < first.length; index += 1) {
+    if (!rest.every((chain) => chain[index] === first[index])) break;
+    ancestor = first[index];
+  }
+  return ancestor;
+}
+
+function fallbackLocationForTemplate(
+  locationIds: string[],
+  locations: ChecklistLocation[],
+  preferredId: string,
+) {
+  const activeIds = new Set(
+    locations
+      .filter((location) => location.active)
+      .map((location) => location.id),
+  );
+  const ancestor = commonAncestorLocationId(locationIds, locations);
+  if (ancestor && activeIds.has(ancestor)) return ancestor;
+  const firstLocated = locationIds.find((id) => activeIds.has(id));
+  if (firstLocated) return firstLocated;
+  if (preferredId && activeIds.has(preferredId)) return preferredId;
+  return locations.find((location) => location.active)?.id ?? "";
 }
 
 function initialDivisionFilter(
@@ -217,7 +301,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                         </Badge>
                         {schedule.distributionMode === "per_lokasi" && (
                           <Badge variant="info-light" className="text-xs">
-                            Per lokasi · {schedule.distribution.length}
+                            Per lokasi item · {schedule.distribution.length} lokasi
                           </Badge>
                         )}
                         {!schedule.active && (
@@ -228,7 +312,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {schedule.distributionMode === "per_lokasi"
-                          ? `Pemeriksaan per lokasi item · basis ${schedule.locationPath}`
+                          ? "Satu paket pemeriksaan per periode"
                           : schedule.locationPath}
                         <span className="hidden md:inline">
                           {" · mulai "}
@@ -354,9 +438,17 @@ function ScheduleDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTemplateId(schedule?.templateId ?? setup.templates[0]?.id ?? "");
+    const initialTemplateId =
+      schedule?.templateId ?? setup.templates[0]?.id ?? "";
+    const initialTemplate =
+      setup.templates.find((template) => template.id === initialTemplateId) ??
+      null;
+    setTemplateId(initialTemplateId);
     setLocationId(schedule?.locationId ?? setup.locations[0]?.id ?? "");
-    setDistributionMode(schedule?.distributionMode ?? "tunggal");
+    setDistributionMode(
+      schedule?.distributionMode ??
+        defaultDistributionModeForTemplate(initialTemplate),
+    );
     setIntervalUnit(schedule?.intervalUnit ?? "minggu");
     setIntervalCount(schedule?.intervalCount ?? 1);
     setAnchorDate(schedule?.anchorDate ?? todayLocal());
@@ -369,6 +461,70 @@ function ScheduleDialog({
     setGroupLimits({});
     setActive(schedule?.active ?? true);
   }, [open, schedule, setup]);
+
+  const selectedTemplate = useMemo(
+    () => setup.templates.find((template) => template.id === templateId) ?? null,
+    [setup.templates, templateId],
+  );
+  const leafLocations = useMemo(() => {
+    const latest = selectedTemplate?.versions[0];
+    return latest ? templateLeafLocations(latest.items) : [];
+  }, [selectedTemplate]);
+  const unlocatedItemCount = leafLocations.filter(
+    (leaf) => !leaf.locationId,
+  ).length;
+  const locatedItemCount = leafLocations.length - unlocatedItemCount;
+  const locatedLocationIds = useMemo(
+    () =>
+      leafLocations.flatMap((leaf) =>
+        leaf.locationId ? [leaf.locationId] : [],
+      ),
+    [leafLocations],
+  );
+  const distinctLocatedLocationIds = useMemo(
+    () => [...new Set(locatedLocationIds)],
+    [locatedLocationIds],
+  );
+  const singleLocatedLocationId =
+    distinctLocatedLocationIds.length === 1
+      ? distinctLocatedLocationIds[0]
+      : null;
+  const singleLocatedLocationActive = Boolean(
+    singleLocatedLocationId &&
+      setup.locations.find(
+        (location) => location.id === singleLocatedLocationId,
+      )?.active,
+  );
+  const fallbackLocationId = useMemo(
+    () =>
+      fallbackLocationForTemplate(
+        locatedLocationIds,
+        setup.locations,
+        locationId,
+      ),
+    [locatedLocationIds, locationId, setup.locations],
+  );
+  const hideBaseLocation =
+    leafLocations.length > 0 &&
+    unlocatedItemCount === 0 &&
+    (distributionMode === "per_lokasi" ||
+      (!schedule && singleLocatedLocationActive));
+  const effectiveLocationId = hideBaseLocation
+    ? fallbackLocationId
+    : locationId;
+  const fallbackLocationPath = useMemo(() => {
+    const location = setup.locations.find(
+      (item) => item.id === fallbackLocationId,
+    );
+    return location?.path ?? location?.name ?? null;
+  }, [fallbackLocationId, setup.locations]);
+
+  useEffect(() => {
+    if (!open || !hideBaseLocation || !fallbackLocationId) return;
+    setLocationId((current) =>
+      current === fallbackLocationId ? current : fallbackLocationId,
+    );
+  }, [fallbackLocationId, hideBaseLocation, open]);
 
   const templateItems = setup.templates
     .filter((template) => template.active)
@@ -397,17 +553,9 @@ function ScheduleDialog({
   ];
 
   const distributionPreview = useMemo(() => {
-    const template = setup.templates.find((item) => item.id === templateId);
-    const latest = template?.versions[0];
-    if (!latest) return [];
-    const itemById = new Map(latest.items.map((item) => [item.id, item]));
     const counts = new Map<string, number>();
-    for (const item of latest.items) {
-      if (item.itemType !== "item") continue;
-      const parent = item.parentItemId
-        ? itemById.get(item.parentItemId)
-        : null;
-      const targetId = item.locationId ?? parent?.locationId ?? locationId;
+    for (const leaf of leafLocations) {
+      const targetId = leaf.locationId ?? effectiveLocationId;
       if (!targetId) continue;
       counts.set(targetId, (counts.get(targetId) ?? 0) + 1);
     }
@@ -424,7 +572,7 @@ function ScheduleDialog({
         itemCount,
       }))
       .sort((left, right) => left.path.localeCompare(right.path, "id"));
-  }, [locationId, setup.locations, setup.templates, templateId]);
+  }, [effectiveLocationId, leafLocations, setup.locations]);
 
   const divisionGroups = useMemo(
     () => groupEmployeesByDivision(setup.employees),
@@ -525,8 +673,15 @@ function ScheduleDialog({
       toast.error("Pilih template.");
       return;
     }
-    if (!locationId) {
-      toast.error("Pilih lokasi.");
+    const locationIdToSave = hideBaseLocation
+      ? fallbackLocationId
+      : locationId;
+    if (!locationIdToSave) {
+      toast.error(
+        hideBaseLocation
+          ? "Belum ada lokasi aktif untuk dijadikan cadangan. Aktifkan lokasi terlebih dahulu."
+          : "Pilih lokasi.",
+      );
       return;
     }
     if (assigneeIds.length === 0) {
@@ -559,7 +714,7 @@ function ScheduleDialog({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             templateId,
-            locationId,
+            locationId: locationIdToSave,
             distributionMode,
             intervalUnit,
             intervalCount,
@@ -620,12 +775,30 @@ function ScheduleDialog({
       }
     >
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div
+          className={
+            hideBaseLocation
+              ? "grid grid-cols-1 gap-3"
+              : "grid grid-cols-1 gap-3 sm:grid-cols-2"
+          }
+        >
           <div className="flex flex-col gap-2">
             <Label htmlFor="schedule-template">Template</Label>
             <Select
               value={templateId}
-              onValueChange={(value) => setTemplateId(value as string)}
+              onValueChange={(value) => {
+                const nextTemplateId = value as string;
+                setTemplateId(nextTemplateId);
+                if (!schedule) {
+                  const nextTemplate =
+                    setup.templates.find(
+                      (template) => template.id === nextTemplateId,
+                    ) ?? null;
+                  setDistributionMode(
+                    defaultDistributionModeForTemplate(nextTemplate),
+                  );
+                }
+              }}
               items={templateItems}
             >
               <SelectTrigger id="schedule-template" className="w-full">
@@ -640,33 +813,73 @@ function ScheduleDialog({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="schedule-location">
-              {distributionMode === "per_lokasi" ? "Lokasi dasar" : "Lokasi"}
-            </Label>
-            <Select
-              value={locationId}
-              onValueChange={(value) => setLocationId(value as string)}
-              items={locationItems}
-            >
-              <SelectTrigger id="schedule-location" className="w-full">
-                <SelectValue placeholder="Pilih lokasi" />
-              </SelectTrigger>
-              <SelectContent>
-                {locationItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value}>
-                    {item.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {distributionMode === "per_lokasi" && (
-              <p className="text-xs text-muted-foreground">
-                Dipakai item yang tidak punya lokasi sendiri.
-              </p>
-            )}
-          </div>
+          {!hideBaseLocation && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="schedule-location">
+                {distributionMode === "per_lokasi"
+                  ? "Lokasi untuk item tanpa lokasi"
+                  : "Lokasi checklist"}
+              </Label>
+              <Select
+                value={locationId}
+                onValueChange={(value) => setLocationId(value as string)}
+                items={locationItems}
+              >
+                <SelectTrigger id="schedule-location" className="w-full">
+                  <SelectValue placeholder="Pilih lokasi" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locationItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {leafLocations.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Template belum punya item.
+                </p>
+              ) : distributionMode === "per_lokasi" ? (
+                <p className="text-xs text-muted-foreground">
+                  Wajib diisi: {unlocatedItemCount} item belum punya lokasi
+                  sendiri.
+                </p>
+              ) : locatedItemCount > 0 ? (
+                <p className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                  {locatedItemCount} dari {leafLocations.length} item punya
+                  lokasi sendiri; semuanya akan dicatat di lokasi ini. Pilih
+                  “Pisah per lokasi item” agar checklist mengikuti area item.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Semua item digabung ke satu pemeriksaan di lokasi ini.
+                </p>
+              )}
+            </div>
+          )}
         </div>
+
+        {hideBaseLocation && (
+          <p className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+            {distributionMode === "per_lokasi" ? (
+              <>
+                Semua item sudah punya lokasi sendiri, jadi pemeriksaan dibuat
+                per lokasi item.{" "}
+                {fallbackLocationPath
+                  ? `Lokasi cadangan otomatis: ${fallbackLocationPath} (dipakai bila ada item tanpa lokasi).`
+                  : "Belum ada lokasi aktif untuk cadangan; aktifkan lokasi terlebih dahulu."}
+              </>
+            ) : fallbackLocationPath ? (
+              <>
+                Semua item berada di lokasi yang sama, jadi lokasi checklist
+                diambil otomatis: {fallbackLocationPath}.
+              </>
+            ) : (
+              "Lokasi checklist akan diambil otomatis dari lokasi item."
+            )}
+          </p>
+        )}
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="schedule-distribution">Distribusi pemeriksaan</Label>
@@ -690,7 +903,7 @@ function ScheduleDialog({
           </Select>
           <p className="text-xs text-muted-foreground">
             {distributionMode === "tunggal"
-              ? "Satu pemeriksaan memuat semua item pada lokasi jadwal."
+              ? "Satu pemeriksaan memuat semua item; lokasi item tidak dipakai untuk memisahkan checklist."
               : "Item dikelompokkan menurut lokasi item atau grup. Setiap lokasi menjadi pemeriksaan terpisah dalam satu paket periode."}
             {schedule
               ? " Perubahan distribusi hanya berlaku untuk pemeriksaan baru; pemeriksaan yang sudah dibuat tidak diubah."
@@ -795,12 +1008,13 @@ function ScheduleDialog({
         </p>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="schedule-anchor">Tanggal mulai</Label>
-          <Input
+          <Label htmlFor="schedule-anchor">
+            Tanggal mulai <span className="text-destructive">*</span>
+          </Label>
+          <DatePicker
             id="schedule-anchor"
-            type="date"
             value={anchorDate}
-            onChange={(event) => setAnchorDate(event.target.value)}
+            onChange={setAnchorDate}
           />
         </div>
 

@@ -75,6 +75,8 @@ export const manualWorkInputSchema = z
     ...manualWorkFields,
     assigneeIds,
     followUpId: id.nullish(),
+    /** Hanya atasan yang dapat membagikan pekerjaan ke pengunjung. */
+    publicVisible: z.boolean().optional(),
   })
   .superRefine(checkDateRange);
 

@@ -132,6 +132,9 @@ export function ManualWorkForm({
   const [requiresDocumentation, setRequiresDocumentation] = useState(
     initial?.requiresDocumentation ?? true,
   );
+  const [publicVisible, setPublicVisible] = useState(
+    initial?.publicVisible ?? false,
+  );
   const [assigneeIds, setAssigneeIds] = useState<string[]>(
     initialAssigneeIds.length > 0
       ? initialAssigneeIds
@@ -341,7 +344,7 @@ export function ManualWorkForm({
           body: JSON.stringify({
             ...base,
             assigneeIds,
-            ...(canAssign ? { followUpId: followUpId || null } : {}),
+            ...(canAssign ? { followUpId: followUpId || null, publicVisible } : {}),
           }),
         },
       );
@@ -651,6 +654,27 @@ export function ManualWorkForm({
                   onCheckedChange={setRequiresDocumentation}
                 />
               </div>
+
+              {canAssign && (
+                <div className="flex items-start justify-between gap-4 border-t border-border/70 pt-4">
+                  <div className="flex min-w-0 flex-col gap-0.5">
+                    <Label htmlFor="manual-work-public">
+                      Tampilkan ke pengunjung
+                    </Label>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Judul, deskripsi, status, jadwal, dan nama petugas safety
+                      tampil di halaman area pengunjung. Foto, nama pekerja, dan
+                      catatan hasil tetap internal. Pekerjaan hanya muncul bila
+                      area lokasinya juga diaktifkan untuk pengunjung.
+                    </p>
+                  </div>
+                  <Switch
+                    id="manual-work-public"
+                    checked={publicVisible}
+                    onCheckedChange={setPublicVisible}
+                  />
+                </div>
+              )}
             </FramePanel>
           </Frame>
         </div>

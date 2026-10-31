@@ -35,6 +35,7 @@ import {
 } from "@/components/reui/frame";
 import {
   Avatar,
+  Badge,
   DataRow,
   InfoBanner,
   PageHeader,
@@ -233,6 +234,12 @@ export function ManualWorkDetailView({
               <ManualWorkStatusBadge status={work.status} />
               {detail.overdue && <ManualWorkOverdueBadge />}
               {detail.selfReported && <ManualWorkSelfReportedBadge />}
+              {work.publicVisible && (
+                <Badge variant="primary-light">
+                  <Eye aria-hidden="true" />
+                  Ditampilkan ke pengunjung
+                </Badge>
+              )}
               {work.locationName && (
                 <span className="inline-flex items-center gap-1">
                   <MapPin className="size-3.5" aria-hidden="true" />
@@ -267,6 +274,12 @@ export function ManualWorkDetailView({
               <ManualWorkStatusBadge status={work.status} />
               {detail.overdue && <ManualWorkOverdueBadge />}
               {detail.selfReported && <ManualWorkSelfReportedBadge />}
+              {work.publicVisible && (
+                <Badge variant="primary-light">
+                  <Eye aria-hidden="true" />
+                  Ditampilkan ke pengunjung
+                </Badge>
+              )}
               {work.locationName && (
                 <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                   <MapPin className="size-3.5" aria-hidden="true" />

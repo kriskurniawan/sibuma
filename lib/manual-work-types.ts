@@ -41,6 +41,8 @@ export interface ManualWork {
   startDate: string;
   targetDate: string | null;
   requiresDocumentation: boolean;
+  /** Tampilkan ringkasan pekerjaan ini di halaman area pengunjung. */
+  publicVisible: boolean;
   status: ManualWorkStatus;
   sourceFollowUpId: string | null;
   resultNote: string;

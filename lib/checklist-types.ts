@@ -1,4 +1,5 @@
 import type { ChecklistLocationOption } from "./checklist-location-path";
+import type { ManualWorkStatus } from "./manual-work-types";
 
 export type ChecklistIntervalUnit = "hari" | "minggu" | "bulan";
 export type ChecklistPhotoPolicy =
@@ -507,6 +508,17 @@ export interface ChecklistPublicStaffTask {
   occurrenceDate: string;
 }
 
+export interface ChecklistPublicManualWork {
+  id: string;
+  title: string;
+  description: string;
+  safetyName: string;
+  status: ManualWorkStatus;
+  startDate: string;
+  targetDate: string | null;
+  completedAt: string | null;
+}
+
 export interface ChecklistPublicArea {
   location: ChecklistPublicLocation;
   latest: ChecklistPublicLatest | null;
@@ -514,6 +526,7 @@ export interface ChecklistPublicArea {
   history: ChecklistPublicHistoryEntry[];
   followUps: { open: number; done: number };
   timeline: ChecklistPublicTimelineEntry[];
+  manualWorks: ChecklistPublicManualWork[];
   lastUpdated: string | null;
   viewingHistory: boolean;
   staffTasks: ChecklistPublicStaffTask[];
