@@ -77,6 +77,8 @@ export const checklistTemplateItemSchema = z.object({
   publicVisible: z.boolean().optional().default(false),
   itemType: z.enum(["grup", "item"]).optional().default("item"),
   parentIndex: z.number().int().min(0).nullable().optional().default(null),
+  /** Grup memakai ini sebagai default sub-item; item memakainya sebagai override. */
+  locationId: id.nullable().optional().default(null),
 });
 
 /**
@@ -203,6 +205,7 @@ export const checklistVersionSchema = z.object({
 export const checklistScheduleSchema = z.object({
   templateId: id,
   locationId: id,
+  distributionMode: z.enum(["tunggal", "per_lokasi"]).optional().default("tunggal"),
   intervalUnit: z.enum(["hari", "minggu", "bulan"]),
   intervalCount: z
     .number()
@@ -231,6 +234,7 @@ export const checklistScheduleUpdateSchema = checklistScheduleSchema
   .extend({
     templateId: id.optional(),
     locationId: id.optional(),
+    distributionMode: z.enum(["tunggal", "per_lokasi"]).optional(),
     active: z.boolean().optional(),
   });
 

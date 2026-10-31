@@ -38,7 +38,7 @@ export default function ChecklistDetailLoading() {
 
       <Skeleton className="hidden h-8 w-24 rounded-md md:block" />
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Skeleton className="h-3 w-40" />
           <Skeleton className="h-7 w-72 max-w-full" />
@@ -50,14 +50,31 @@ export default function ChecklistDetailLoading() {
         </div>
       </div>
 
-      <Frame>
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-52 max-w-full" />
+      <Frame className="md:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <Skeleton className="h-3 w-40 max-w-full" />
+          <Skeleton className="h-6 w-3/4 max-w-full" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-28" />
           </div>
-          <Skeleton className="h-3 w-8" />
-        </FrameHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-9 w-28 rounded-md" />
+          </div>
+        </FramePanel>
+      </Frame>
+
+      <Frame>
+        <div className="hidden md:block">
+          <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-52 max-w-full" />
+            </div>
+            <Skeleton className="h-3 w-8" />
+          </FrameHeader>
+        </div>
         <FramePanel className="flex flex-col gap-4">
           <Skeleton className="h-2 w-full" />
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 xl:grid-cols-4">

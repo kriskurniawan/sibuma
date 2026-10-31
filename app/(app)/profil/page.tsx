@@ -153,7 +153,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader title="Profil" />
+      <PageHeader mobileCompact title="Profil" />
 
       <Frame spacing="default">
         <FramePanel className="flex min-w-0 flex-col gap-4">

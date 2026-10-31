@@ -122,38 +122,162 @@ export function ManualWorkDetailView({
     await runAction("mulai");
   }
 
+  const statusLine = (
+    <div className="flex flex-wrap items-center gap-2">
+      <ManualWorkStatusBadge status={work.status} />
+      {detail.overdue && <ManualWorkOverdueBadge />}
+      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+        <Clock3 className="size-3.5" aria-hidden="true" />
+        {formatDateHuman(dateIso(work.startDate), "d MMM")}
+        {work.targetDate
+          ? ` – ${formatDateHuman(dateIso(work.targetDate), "d MMM")}`
+          : ""}
+      </span>
+    </div>
+  );
+
+  const actionControls = (
+    <>
+      {detail.canStart && (
+        <Button
+          type="button"
+          className="w-full"
+          onClick={start}
+          disabled={busy !== null}
+        >
+          {busy === "mulai" ? <Spinner /> : <Play aria-hidden="true" />}
+          Mulai pekerjaan
+        </Button>
+      )}
+
+      {detail.canComplete && (
+        <>
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => setCompleteOpen(true)}
+            disabled={busy !== null || uploading}
+          >
+            <CheckCircle2 aria-hidden="true" />
+            Selesaikan
+          </Button>
+          {work.requiresDocumentation && photoCount === 0 && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Unggah minimal satu foto dokumentasi sebelum menyelesaikan.
+            </p>
+          )}
+        </>
+      )}
+
+      {detail.canCancel && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => setCancelOpen(true)}
+          disabled={busy !== null}
+        >
+          <XCircle aria-hidden="true" />
+          Batalkan pekerjaan
+        </Button>
+      )}
+
+      {detail.canReopen && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          onClick={() => setReopenOpen(true)}
+          disabled={busy !== null}
+        >
+          <RotateCcw aria-hidden="true" />
+          Buka kembali
+        </Button>
+      )}
+
+      {!detail.canStart &&
+        !detail.canComplete &&
+        !detail.canCancel &&
+        !detail.canReopen &&
+        !detail.canEdit && (
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {detail.readOnly
+              ? "Akun hanya-lihat tidak dapat mengubah pekerjaan."
+              : "Tidak ada tindakan yang tersedia untuk status ini."}
+          </p>
+        )}
+
+      {detail.canEdit && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          nativeButton={false}
+          render={<Link href={`/pekerjaan/${work.id}/ubah`} />}
+        >
+          <Pencil aria-hidden="true" />
+          Ubah rincian
+        </Button>
+      )}
+    </>
+  );
+
   return (
     <div className="flex flex-col gap-5 pb-8">
-      <PageHeader
-        eyebrow="Pekerjaan harian"
-        title={work.title}
-        description={
-          <span className="flex flex-wrap items-center gap-2">
-            <ManualWorkStatusBadge status={work.status} />
-            {detail.overdue && <ManualWorkOverdueBadge />}
-            {detail.selfReported && <ManualWorkSelfReportedBadge />}
-            {work.locationName && (
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="size-3.5" aria-hidden="true" />
-                {work.locationName}
-              </span>
-            )}
-          </span>
-        }
-        action={
-          detail.canEdit ? (
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link href={`/pekerjaan/${work.id}/ubah`} />}
-            >
-              <Pencil aria-hidden="true" />
-              Ubah
-            </Button>
-          ) : undefined
-        }
-      />
+      <div className="hidden md:block">
+        <PageHeader
+          eyebrow="Pekerjaan harian"
+          title={work.title}
+          description={
+            <span className="flex flex-wrap items-center gap-2">
+              <ManualWorkStatusBadge status={work.status} />
+              {detail.overdue && <ManualWorkOverdueBadge />}
+              {detail.selfReported && <ManualWorkSelfReportedBadge />}
+              {work.locationName && (
+                <span className="inline-flex items-center gap-1">
+                  <MapPin className="size-3.5" aria-hidden="true" />
+                  {work.locationName}
+                </span>
+              )}
+            </span>
+          }
+          action={
+            detail.canEdit ? (
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`/pekerjaan/${work.id}/ubah`} />}
+              >
+                <Pencil aria-hidden="true" />
+                Ubah
+              </Button>
+            ) : undefined
+          }
+        />
+      </div>
+
+      <Frame className="md:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <h1 className="wrap-anywhere text-xl font-semibold tracking-tight text-foreground">
+              {work.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <ManualWorkStatusBadge status={work.status} />
+              {detail.overdue && <ManualWorkOverdueBadge />}
+              {detail.selfReported && <ManualWorkSelfReportedBadge />}
+              {work.locationName && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="size-3.5" aria-hidden="true" />
+                  {work.locationName}
+                </span>
+              )}
+            </div>
+          </div>
+          {actionControls}
+        </FramePanel>
+      </Frame>
 
       {detail.readOnly && (
         <InfoBanner tone="info" icon={Eye}>
@@ -195,12 +319,14 @@ export function ManualWorkDetailView({
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-5">
           <Frame>
-            <FrameHeader>
-              <FrameTitle>Rincian pekerjaan</FrameTitle>
-              <FrameDescription>
-                Rincian pekerjaan dan dokumentasi.
-              </FrameDescription>
-            </FrameHeader>
+            <div className="hidden md:block">
+              <FrameHeader>
+                <FrameTitle>Rincian pekerjaan</FrameTitle>
+                <FrameDescription>
+                  Rincian pekerjaan dan dokumentasi.
+                </FrameDescription>
+              </FrameHeader>
+            </div>
             <FramePanel className="flex flex-col gap-4">
               <p className="text-sm leading-relaxed whitespace-pre-line text-foreground">
                 {work.description}
@@ -253,23 +379,25 @@ export function ManualWorkDetailView({
             </FramePanel>
           </Frame>
 
-          <Frame>
-            <FrameHeader className="flex-row items-start justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <FrameTitle>Dokumentasi</FrameTitle>
-                <FrameDescription>
-                  Bukti foto dan video privat. Hanya pemilik pekerjaan, pelapor,
-                  dan pekerja yang ditugaskan dapat mengakses.
-                </FrameDescription>
-              </div>
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
-                <Camera className="size-3.5" aria-hidden="true" />
-                {photoCount}/{photoLimit} foto
-                {videoEnabled && videoLimit > 0
-                  ? ` · ${videoCount}/${videoLimit} video`
-                  : ""}
-              </span>
-            </FrameHeader>
+          <Frame role="region" aria-label="Dokumentasi">
+            <div className="hidden md:block">
+              <FrameHeader className="flex-row items-start justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <FrameTitle>Dokumentasi</FrameTitle>
+                  <FrameDescription>
+                    Bukti foto dan video privat. Hanya pemilik pekerjaan, pelapor,
+                    dan pekerja yang ditugaskan dapat mengakses.
+                  </FrameDescription>
+                </div>
+                <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                  <Camera className="size-3.5" aria-hidden="true" />
+                  {photoCount}/{photoLimit} foto
+                  {videoEnabled && videoLimit > 0
+                    ? ` · ${videoCount}/${videoLimit} video`
+                    : ""}
+                </span>
+              </FrameHeader>
+            </div>
             <FramePanel className="flex flex-col gap-3">
               {!work.requiresDocumentation && detail.photos.length === 0 && (
                 <p className="text-xs text-muted-foreground">
@@ -355,119 +483,26 @@ export function ManualWorkDetailView({
         </div>
 
         <aside className="flex min-w-0 flex-col gap-5 xl:sticky xl:top-20 xl:self-start">
-          <Frame spacing="sm">
-            <FrameHeader>
-              <FrameTitle>Status & tindakan</FrameTitle>
-              <FrameDescription>
-                {work.status === "terbuka"
-                  ? "Pekerjaan belum dimulai."
-                  : work.status === "dikerjakan"
-                    ? "Pekerjaan sedang dikerjakan."
-                    : work.status === "selesai"
-                      ? "Pekerjaan sudah selesai."
-                      : "Pekerjaan dibatalkan."}
-              </FrameDescription>
-            </FrameHeader>
-            <FramePanel className="flex flex-col gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <ManualWorkStatusBadge status={work.status} />
-                {detail.overdue && <ManualWorkOverdueBadge />}
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock3 className="size-3.5" aria-hidden="true" />
-                  {formatDateHuman(dateIso(work.startDate), "d MMM")}
-                  {work.targetDate
-                    ? ` – ${formatDateHuman(dateIso(work.targetDate), "d MMM")}`
-                    : ""}
-                </span>
-              </div>
-
-              {detail.canStart && (
-                <Button
-                  type="button"
-                  className="w-full"
-                  onClick={start}
-                  disabled={busy !== null}
-                >
-                  {busy === "mulai" ? (
-                    <Spinner />
-                  ) : (
-                    <Play aria-hidden="true" />
-                  )}
-                  Mulai pekerjaan
-                </Button>
-              )}
-
-              {detail.canComplete && (
-                <>
-                  <Button
-                    type="button"
-                    className="w-full"
-                    onClick={() => setCompleteOpen(true)}
-                    disabled={busy !== null || uploading}
-                  >
-                    <CheckCircle2 aria-hidden="true" />
-                    Selesaikan
-                  </Button>
-                  {work.requiresDocumentation && photoCount === 0 && (
-                    <p className="text-xs leading-relaxed text-muted-foreground">
-                      Unggah minimal satu foto dokumentasi sebelum menyelesaikan.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {detail.canCancel && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setCancelOpen(true)}
-                  disabled={busy !== null}
-                >
-                  <XCircle aria-hidden="true" />
-                  Batalkan pekerjaan
-                </Button>
-              )}
-
-              {detail.canReopen && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => setReopenOpen(true)}
-                  disabled={busy !== null}
-                >
-                  <RotateCcw aria-hidden="true" />
-                  Buka kembali
-                </Button>
-              )}
-
-              {!detail.canStart &&
-                !detail.canComplete &&
-                !detail.canCancel &&
-                !detail.canReopen &&
-                !detail.canEdit && (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {detail.readOnly
-                      ? "Akun hanya-lihat tidak dapat mengubah pekerjaan."
-                      : "Tidak ada tindakan yang tersedia untuk status ini."}
-                  </p>
-                )}
-
-              {detail.canEdit && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  nativeButton={false}
-                  render={<Link href={`/pekerjaan/${work.id}/ubah`} />}
-                >
-                  <Pencil aria-hidden="true" />
-                  Ubah rincian
-                </Button>
-              )}
-            </FramePanel>
-          </Frame>
+          <div className="hidden md:block">
+            <Frame spacing="sm">
+              <FrameHeader>
+                <FrameTitle>Status & tindakan</FrameTitle>
+                <FrameDescription>
+                  {work.status === "terbuka"
+                    ? "Pekerjaan belum dimulai."
+                    : work.status === "dikerjakan"
+                      ? "Pekerjaan sedang dikerjakan."
+                      : work.status === "selesai"
+                        ? "Pekerjaan sudah selesai."
+                        : "Pekerjaan dibatalkan."}
+                </FrameDescription>
+              </FrameHeader>
+              <FramePanel className="flex flex-col gap-3">
+                {statusLine}
+                {actionControls}
+              </FramePanel>
+            </Frame>
+          </div>
 
           <Frame spacing="sm">
             <FrameHeader className="flex-row items-start justify-between gap-3">

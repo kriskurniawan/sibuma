@@ -14,7 +14,7 @@ import { DataGridPagination } from "@/components/reui/data-grid/data-grid-pagina
 import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
 import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import { useServerGridPagination } from "@/components/server-grid-pagination";
-import { Avatar, ProgressBar } from "@/components/ui";
+import { Avatar, Badge, ProgressBar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -104,12 +104,19 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
     meta: { headerClassName: "whitespace-nowrap", cellClassName: "max-w-72" },
     cell: ({ row }) => (
       <div className="flex min-w-0 flex-col gap-0.5">
-        <Link
-          href={`/checklist/${row.original.inspection.id}`}
-          className="block max-w-64 truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
-        >
-          {row.original.inspection.templateName}
-        </Link>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Link
+            href={`/checklist/${row.original.inspection.id}`}
+            className="block max-w-64 truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
+          >
+            {row.original.inspection.templateName}
+          </Link>
+          {row.original.inspection.packageId && (
+            <Badge variant="outline" className="shrink-0 text-xs">
+              Paket
+            </Badge>
+          )}
+        </div>
         <span className="truncate text-xs text-muted-foreground">
           {row.original.inspection.category} · {row.original.inspection.periodLabel}
         </span>
@@ -280,9 +287,16 @@ export function ChecklistGrid({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 flex-col gap-0.5">
-                    <span className="line-clamp-2 text-sm font-medium text-foreground">
-                      {row.inspection.templateName}
-                    </span>
+                    <div className="flex min-w-0 items-start gap-1.5">
+                      <span className="line-clamp-2 text-sm font-medium text-foreground">
+                        {row.inspection.templateName}
+                      </span>
+                      {row.inspection.packageId && (
+                        <Badge variant="outline" className="shrink-0 text-xs">
+                          Paket
+                        </Badge>
+                      )}
+                    </div>
                     <span
                       className="flex min-w-0 items-start gap-1 text-xs text-muted-foreground"
                       title={row.locationPath ?? row.inspection.locationName}

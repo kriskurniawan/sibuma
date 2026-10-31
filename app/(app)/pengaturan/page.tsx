@@ -55,6 +55,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        mobileCompact
         eyebrow="Kelola"
         title="Pengaturan."
         description="Kebijakan, lokasi, checklist, dan batas dokumentasi."

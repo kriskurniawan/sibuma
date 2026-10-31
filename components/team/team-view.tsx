@@ -526,6 +526,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
+        mobileCompact
         className="no-print"
         eyebrow={readOnly ? "Lihat tim" : "Kelola tim"}
         title="Tim."
@@ -657,7 +658,9 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
             <FrameHeader className="gap-3 print:hidden">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <FrameTitle>{tab === "pekerja" ? "Pekerja" : "Divisi"}</FrameTitle>
+                <FrameTitle className="max-md:sr-only">
+                  {tab === "pekerja" ? "Pekerja" : "Divisi"}
+                </FrameTitle>
                 <FrameDescription className="text-xs">
                   {tab === "pekerja"
                     ? `${total} pekerja ditampilkan`

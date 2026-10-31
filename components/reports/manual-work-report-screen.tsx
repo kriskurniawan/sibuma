@@ -133,6 +133,7 @@ export async function ManualWorkReportScreen({
     <div className="flex flex-col gap-6">
       <div className="no-print">
         <PageHeader
+          mobileCompact
           eyebrow={isSuperAdmin(user) ? "Rekap organisasi" : "Rekap pekerjaan"}
           title="Laporan pekerjaan harian."
           description={
@@ -190,7 +191,9 @@ export async function ManualWorkReportScreen({
       <Frame className="no-print">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Periode &amp; filter</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Periode &amp; filter
+            </FrameTitle>
             <FrameDescription className="text-xs">
               Berdasarkan tanggal mulai pekerjaan. Default bulan berjalan.
             </FrameDescription>
@@ -303,7 +306,9 @@ export async function ManualWorkReportScreen({
       <Frame>
         <FrameHeader className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Rincian pekerjaan harian</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Rincian pekerjaan harian
+            </FrameTitle>
             <FrameDescription className="text-xs">
               {data.totals.total} baris data berdasarkan tanggal mulai.
             </FrameDescription>

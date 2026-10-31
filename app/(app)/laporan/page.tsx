@@ -144,6 +144,7 @@ export default async function ReportPage({
     <div className="flex flex-col gap-6">
       <div className="no-print">
         <PageHeader
+          mobileCompact
           eyebrow={isSuperAdmin(user) ? "Rekap organisasi" : "Rekap tim"}
           title="Laporan lembur."
           description={
@@ -201,7 +202,9 @@ export default async function ReportPage({
       <Frame className="no-print">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Periode &amp; filter</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Periode &amp; filter
+            </FrameTitle>
             <FrameDescription className="text-xs">
               Default bulan berjalan. Semua tanggal dalam WIB.
             </FrameDescription>

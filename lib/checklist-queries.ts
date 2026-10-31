@@ -25,12 +25,14 @@ import type {
   ChecklistFollowUpTotals,
   ChecklistInspection,
   ChecklistInspectionDetail,
+  ChecklistInspectionPackage,
   ChecklistInspectionRef,
   ChecklistInspectionRow,
   ChecklistLocation,
   ChecklistPerson,
   ChecklistPhoto,
   ChecklistSchedule,
+  ChecklistScheduleDistribution,
   ChecklistSetup,
   ChecklistSetupEmployee,
   ChecklistSetupSchedule,
@@ -328,29 +330,83 @@ export async function getChecklistInspectionDetail(
   if (!row) return null;
 
   const inspection = mapRow<ChecklistInspection>(row);
-  const [answers, photos, assignees, scheduleRow, followUps, team] = await Promise.all([
-    query(`SELECT * FROM checklist_answers WHERE inspection_id=$1 ORDER BY position,id`, [id]),
-    query(`SELECT * FROM checklist_photos WHERE inspection_id=$1 ORDER BY created_at,id`, [id]),
-    query(
-      `SELECT e.id,e.name,e.nik FROM checklist_inspection_assignees ia
-       JOIN employees e ON e.id=ia.employee_id WHERE ia.inspection_id=$1 ORDER BY e.name,e.id`,
-      [id],
-    ),
-    inspection.scheduleId
-      ? query(`SELECT * FROM checklist_schedules WHERE id=$1`, [inspection.scheduleId])
-      : Promise.resolve([]),
-    followUpRows(`WHERE f.inspection_id=$1`, [id]),
-    query(
-      `SELECT id,name,nik FROM employees
-       WHERE supervisor_id=$1 AND active AND access_mode='full' ORDER BY name,id`,
-      [inspection.ownerId],
-    ),
-  ]);
+  const packageDataPromise = inspection.packageId
+    ? Promise.all([
+        query(`SELECT * FROM checklist_inspection_packages WHERE id=$1`, [
+          inspection.packageId,
+        ]),
+        query(
+          `SELECT i.id,i.location_id,i.location_name,i.status,
+             coalesce(c.answered,0)::integer answered_count,
+             coalesce(c.total,0)::integer total_items
+           FROM checklist_inspections i
+           LEFT JOIN LATERAL (
+             SELECT count(*) FILTER (WHERE a.condition IS NOT NULL)::integer answered,
+               count(*)::integer total
+             FROM checklist_answers a WHERE a.inspection_id=i.id
+           ) c ON true
+           WHERE i.package_id=$1
+           ORDER BY i.location_name,i.id`,
+          [inspection.packageId],
+        ),
+        getChecklistLocationPathMap(inspection.ownerId),
+      ])
+    : Promise.resolve(null);
+  const [answers, photos, assignees, scheduleRow, followUps, team, packageData] =
+    await Promise.all([
+      query(`SELECT * FROM checklist_answers WHERE inspection_id=$1 ORDER BY position,id`, [id]),
+      query(`SELECT * FROM checklist_photos WHERE inspection_id=$1 ORDER BY created_at,id`, [id]),
+      query(
+        `SELECT e.id,e.name,e.nik FROM checklist_inspection_assignees ia
+         JOIN employees e ON e.id=ia.employee_id WHERE ia.inspection_id=$1 ORDER BY e.name,e.id`,
+        [id],
+      ),
+      inspection.scheduleId
+        ? query(`SELECT * FROM checklist_schedules WHERE id=$1`, [inspection.scheduleId])
+        : Promise.resolve([]),
+      followUpRows(`WHERE f.inspection_id=$1`, [id]),
+      query(
+        `SELECT id,name,nik FROM employees
+         WHERE supervisor_id=$1 AND active AND access_mode='full' ORDER BY name,id`,
+        [inspection.ownerId],
+      ),
+      packageDataPromise,
+    ]);
 
   const mappedPhotos = photos.map((photo) => mapRow<ChecklistPhoto>(photo));
   const mappedAnswers: ChecklistAnswer[] = answers.map((answer) =>
     mapRow<ChecklistAnswer>(answer),
   );
+
+  let packageInfo: ChecklistInspectionPackage | null = null;
+  if (packageData) {
+    const [packageRows, siblingRows, locationPaths] = packageData;
+    const packageRow = packageRows[0];
+    if (packageRow) {
+      const locations = siblingRows.map((sibling) => ({
+        inspectionId: sibling.id as string,
+        locationId: sibling.location_id as string,
+        locationName: sibling.location_name as string,
+        locationPath: locationPaths.get(sibling.location_id as string),
+        status: sibling.status as ChecklistInspectionPackage["locations"][number]["status"],
+        answeredCount: Number(sibling.answered_count),
+        totalItems: Number(sibling.total_items),
+        current: sibling.id === inspection.id,
+      }));
+      packageInfo = {
+        id: inspection.packageId as string,
+        templateName: packageRow.template_name as string,
+        periodLabel: packageRow.period_label as string,
+        occurrenceDate: String(packageRow.occurrence_date).slice(0, 10),
+        dueAt: toPlain(packageRow.due_at) as string,
+        completedLocations: locations.filter((location) =>
+          ["selesai", "dilewati"].includes(location.status),
+        ).length,
+        totalLocations: locations.length,
+        locations,
+      };
+    }
+  }
   const assigned = assignees.some((item) => item.id === user.id);
   const owner = inspection.ownerId === user.id;
   const readOnly = user.accessMode === "read_only";
@@ -360,6 +416,7 @@ export async function getChecklistInspectionDetail(
 
   return {
     inspection,
+    package: packageInfo,
     overdue:
       open &&
       new Date(inspection.dueAt).getTime() < Date.now(),
@@ -523,10 +580,40 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
     items = itemRows.map((row) => mapRow<ChecklistTemplateItem>(row));
   }
 
+  const itemById = new Map(items.map((item) => [item.id, item]));
   const today = todayLocal();
   const mappedSchedules = schedules.map((row) => {
     const schedule = mapRow<ChecklistSchedule>(row);
     const occurrences = scheduleOccurrences(schedule, today, shiftDate(today, 400));
+    const latest = versions.find(
+      (version) => version.templateId === schedule.templateId,
+    );
+    const counts = new Map<string, number>();
+    if (latest) {
+      for (const item of items) {
+        if (item.versionId !== latest.id || item.itemType !== "item") continue;
+        const parent = item.parentItemId
+          ? itemById.get(item.parentItemId)
+          : null;
+        const locationId =
+          item.locationId ?? parent?.locationId ?? schedule.locationId;
+        counts.set(locationId, (counts.get(locationId) ?? 0) + 1);
+      }
+    }
+    const distribution: ChecklistScheduleDistribution[] = [...counts.entries()]
+      .map(([locationId, itemCount]) => ({
+        locationId,
+        locationName:
+          locationPaths.get(locationId)?.split(" / ").at(-1) ??
+          locationPaths.get(locationId) ??
+          row.location_name as string,
+        locationPath:
+          locationPaths.get(locationId) ?? (row.location_name as string),
+        itemCount,
+      }))
+      .sort((left, right) =>
+        left.locationPath.localeCompare(right.locationPath, "id"),
+      );
     const result: ChecklistSetupSchedule = {
       ...schedule,
       templateName: row.template_name as string,
@@ -534,6 +621,7 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
       locationPath:
         locationPaths.get(schedule.locationId) ??
         (row.location_name as string),
+      distribution,
       assignees: (row.assignees as ChecklistSetupEmployee[]) ?? [],
       nextOccurrence: occurrences[0] ?? null,
     };
@@ -566,7 +654,7 @@ export async function getChecklistTemplateDetail(userId: string, templateId: str
   );
   if (!templateRow) return null;
   const template = mapRow<ChecklistTemplate>(templateRow);
-  const [usageRows, versionRows, itemRows] = await Promise.all([
+  const [usageRows, versionRows, itemRows, locationRows] = await Promise.all([
     query<{ schedules: number; inspections: number }>(
       `SELECT
          (SELECT count(*)::integer FROM checklist_schedules WHERE template_id=$1) schedules,
@@ -583,6 +671,10 @@ export async function getChecklistTemplateDetail(userId: string, templateId: str
        WHERE v.template_id=$1 ORDER BY v.version DESC,ti.position,ti.id`,
       [templateId],
     ),
+    query(
+      `SELECT * FROM checklist_locations WHERE owner_id=$1 ORDER BY name,id`,
+      [userId],
+    ),
   ]);
   const items = itemRows.map((row) => mapRow<ChecklistTemplateItem>(row));
   return {
@@ -595,6 +687,9 @@ export async function getChecklistTemplateDetail(userId: string, templateId: str
       const version = mapRow<ChecklistTemplateVersion>(row);
       return { ...version, items: items.filter((item) => item.versionId === version.id) };
     }),
+    locations: buildChecklistLocationOptions(
+      locationRows.map((row) => mapRow<ChecklistLocation>(row)),
+    ),
   };
 }
 

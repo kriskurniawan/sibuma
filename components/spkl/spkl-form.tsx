@@ -403,6 +403,7 @@ export function SpklForm({
     return (
       <div className="flex flex-col gap-5">
         <PageHeader
+          mobileCompact
           title={mode === "create" ? "Buat SPKL baru." : "Ubah SPKL."}
           description="Buat divisi aktif terlebih dahulu agar pekerja bisa dikelompokkan."
         />
@@ -437,6 +438,7 @@ export function SpklForm({
     return (
       <div className="flex flex-col gap-5">
         <PageHeader
+          mobileCompact
           title={
             mode === "create" ? "Buat SPKL baru." : "Ubah SPKL."
           }
@@ -475,13 +477,13 @@ export function SpklForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5 pb-24 xl:pb-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
         <Link
-          href={initial ? `/spkl/${initial.id}` : "/"}
+          href={initial ? `/spkl/${initial.id}` : "/lembur"}
           className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
         >
           <ArrowLeft className="size-3.5" />
-          {initial ? "Kembali ke detail SPKL" : "Kembali ke beranda"}
+          {initial ? "Kembali ke detail SPKL" : "Kembali ke lembur"}
         </Link>
         <StateBadge variant="primary-light" dot className="ml-auto">
           {mode === "create" ? "SPKL baru" : "Ubah SPKL"}
@@ -489,6 +491,7 @@ export function SpklForm({
       </div>
 
       <PageHeader
+        mobileCompact
         title={mode === "create" ? "Buat SPKL" : "Ubah SPKL"}
         description="Tentukan pekerjaan, jadwal, lokasi, dan pekerja."
         descriptionClassName="hidden md:block"
@@ -1187,7 +1190,7 @@ export function SpklForm({
           <Button
             variant="outline"
             nativeButton={false}
-            render={<Link href={initial ? `/spkl/${initial.id}` : "/"} />}
+            render={<Link href={initial ? `/spkl/${initial.id}` : "/lembur"} />}
             className="flex-1"
           >
             Batal

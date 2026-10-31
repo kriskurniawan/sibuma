@@ -182,6 +182,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
       <PageHeader
+        mobileCompact
         eyebrow="Administrasi organisasi"
         title="Akun atasan."
         description="Kelola akun dan hak akses atasan."
@@ -231,7 +232,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
       <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Daftar atasan</FrameTitle>
+            <FrameTitle className="max-md:sr-only">Daftar atasan</FrameTitle>
             <FrameDescription className="text-xs">
               {filtered.length} dari {totals.supervisors} akun ditampilkan.
             </FrameDescription>

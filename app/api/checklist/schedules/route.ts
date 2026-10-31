@@ -58,13 +58,14 @@ export async function POST(request: Request) {
       const id = `cs_${crypto.randomUUID()}`;
       await query(
         `INSERT INTO checklist_schedules
-          (id,owner_id,template_id,location_id,interval_unit,interval_count,anchor_date,due_days,active,created_by,created_at,updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          (id,owner_id,template_id,location_id,distribution_mode,interval_unit,interval_count,anchor_date,due_days,active,created_by,created_at,updated_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
         [
           id,
           user.id,
           parsed.data.templateId,
           parsed.data.locationId,
+          parsed.data.distributionMode,
           parsed.data.intervalUnit,
           parsed.data.intervalCount,
           parsed.data.anchorDate,
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
         action: "checklist_jadwal_dibuat",
         objectType: "checklist",
         objectId: id,
-        summary: `${user.name} membuat jadwal ${checklistIntervalLabel(parsed.data.intervalUnit, parsed.data.intervalCount)} untuk ${target.template_name as string} di ${target.location_name as string}.`,
+        summary: `${user.name} membuat jadwal ${checklistIntervalLabel(parsed.data.intervalUnit, parsed.data.intervalCount)} untuk ${target.template_name as string}${parsed.data.distributionMode === "per_lokasi" ? " dengan pemeriksaan terpisah per lokasi item" : ` di ${target.location_name as string}`}.`,
         after: { ...parsed.data, assigneeIds },
       });
       return {

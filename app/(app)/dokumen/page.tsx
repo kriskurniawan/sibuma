@@ -219,6 +219,7 @@ export default async function DocumentsPage({
   return (
     <div className="flex flex-col gap-5 pb-8">
       <PageHeader
+        mobileCompact
         eyebrow="Dokumen kerja"
         title="Dokumen Kerja"
         description="Dokumen pendukung pekerjaanmu. Privat secara default, dapat dibagikan hanya-baca ke divisi atau atasan yang dipilih, dan aksesnya dapat ditutup kapan saja."
@@ -243,11 +244,11 @@ export default async function DocumentsPage({
         <Frame
           stacked
           spacing="sm"
-          className="order-2 min-w-0 xl:order-1"
+          className="order-2 min-w-0 max-md:order-1 xl:order-1"
         >
           <FrameHeader className="flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <FrameTitle>Daftar dokumen</FrameTitle>
+              <FrameTitle className="max-md:sr-only">Daftar dokumen</FrameTitle>
               <FrameDescription className="text-xs">
                 {data.total} dokumen pada tampilan ini.
               </FrameDescription>
@@ -301,7 +302,7 @@ export default async function DocumentsPage({
           )}
         </Frame>
 
-        <div className="order-1 flex min-w-0 flex-col gap-4 xl:order-2">
+        <div className="order-1 flex min-w-0 flex-col gap-4 max-md:order-2 xl:order-2">
           {tab === "saya" && (
             <DocumentFolders
               folders={folders}

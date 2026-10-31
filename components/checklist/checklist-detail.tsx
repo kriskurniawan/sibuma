@@ -13,6 +13,7 @@ import {
   FolderTree,
   ListChecks,
   MapPin,
+  Package,
   RotateCcw,
   UsersRound,
 } from "lucide-react";
@@ -70,6 +71,7 @@ import {
   type ChecklistInspectionDetail,
 } from "@/lib/checklist-types";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 function occurrenceIso(date: string) {
   return `${date}T00:00:00+07:00`;
@@ -354,6 +356,56 @@ export function ChecklistDetail({
     }
   });
 
+  const headerActions = (
+    <div className="flex flex-wrap items-center gap-2">
+      <ChecklistStatusBadge status={inspection.status} />
+      {overdue && <ChecklistOverdueBadge />}
+      {detail.canReopen && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setReopenOpen(true)}
+        >
+          <RotateCcw aria-hidden="true" />
+          Buka kembali
+        </Button>
+      )}
+      {detail.canComplete && (
+        <Button
+          size="sm"
+          onClick={() => setCompleteOpen(true)}
+          disabled={!completionReady || completing}
+          title={
+            completionBlocker ?? "Semua syarat penyelesaian sudah terpenuhi."
+          }
+        >
+          <CheckCircle2 aria-hidden="true" />
+          Selesaikan
+        </Button>
+      )}
+    </div>
+  );
+
+  const contextLine = (
+    <>
+      <span className="inline-flex items-center gap-1">
+        <MapPin className="size-3.5" aria-hidden="true" />
+        {inspection.locationName}
+      </span>
+      <span className="inline-flex items-center gap-1">
+        <CalendarClock className="size-3.5" aria-hidden="true" />
+        {formatDateHuman(
+          occurrenceIso(inspection.occurrenceDate),
+          "d MMMM yyyy",
+        )}
+      </span>
+      <span className="inline-flex items-center gap-1 tabular-nums">
+        <Clock3 className="size-3.5" aria-hidden="true" />
+        Deadline {formatDateTime(inspection.dueAt, "d MMM, HH:mm")}
+      </span>
+    </>
+  );
+
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
       <div className="hidden md:block">
@@ -368,60 +420,36 @@ export function ChecklistDetail({
         </Button>
       </div>
 
-      <PageHeader
-        eyebrow={`${inspection.category} · ${inspection.periodLabel}`}
-        title={inspection.templateName}
-        descriptionClassName="hidden md:block"
-        description={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="size-3.5" aria-hidden="true" />
-              {inspection.locationName}
+      <div className="hidden md:block">
+        <PageHeader
+          eyebrow={`${inspection.category} · ${inspection.periodLabel}`}
+          title={inspection.templateName}
+          descriptionClassName="hidden md:block"
+          description={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              {contextLine}
             </span>
-            <span className="inline-flex items-center gap-1">
-              <CalendarClock className="size-3.5" aria-hidden="true" />
-              {formatDateHuman(
-                occurrenceIso(inspection.occurrenceDate),
-                "d MMMM yyyy",
-              )}
-            </span>
-            <span className="inline-flex items-center gap-1 tabular-nums">
-              <Clock3 className="size-3.5" aria-hidden="true" />
-              Deadline {formatDateTime(inspection.dueAt, "d MMM, HH:mm")}
-            </span>
-          </span>
-        }
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <ChecklistStatusBadge status={inspection.status} />
-            {overdue && <ChecklistOverdueBadge />}
-            {detail.canReopen && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setReopenOpen(true)}
-              >
-                <RotateCcw aria-hidden="true" />
-                Buka kembali
-              </Button>
-            )}
-            {detail.canComplete && (
-              <Button
-                size="sm"
-                onClick={() => setCompleteOpen(true)}
-                disabled={!completionReady || completing}
-                title={
-                  completionBlocker ??
-                  "Semua syarat penyelesaian sudah terpenuhi."
-                }
-              >
-                <CheckCircle2 aria-hidden="true" />
-                Selesaikan
-              </Button>
-            )}
+          }
+          action={headerActions}
+        />
+      </div>
+
+      <Frame className="md:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">
+              {inspection.category} · {inspection.periodLabel}
+            </p>
+            <h1 className="wrap-anywhere text-xl font-semibold tracking-tight text-foreground">
+              {inspection.templateName}
+            </h1>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              {contextLine}
+            </div>
           </div>
-        }
-      />
+          {headerActions}
+        </FramePanel>
+      </Frame>
 
       {detail.readOnly && (
         <InfoBanner tone="info" icon={Eye}>
@@ -458,10 +486,84 @@ export function ChecklistDetail({
         </InfoBanner>
       )}
 
+      {detail.package && (
+        <Frame>
+          <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <FrameTitle className="inline-flex items-center gap-2">
+                <Package
+                  className="size-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                Paket pemeriksaan
+              </FrameTitle>
+              <FrameDescription className="text-xs">
+                {detail.package.periodLabel} ·{" "}
+                {formatDateHuman(
+                  occurrenceIso(detail.package.occurrenceDate),
+                  "d MMMM yyyy",
+                )}
+                . Setiap lokasi diselesaikan terpisah.
+              </FrameDescription>
+            </div>
+            <Badge
+              variant={
+                detail.package.completedLocations ===
+                detail.package.totalLocations
+                  ? "success-light"
+                  : "info-light"
+              }
+              className="tabular-nums"
+            >
+              {detail.package.completedLocations}/
+              {detail.package.totalLocations} lokasi selesai
+            </Badge>
+          </FrameHeader>
+          <FramePanel className="p-0">
+            <ul className="divide-y divide-border/70">
+              {detail.package.locations.map((location) => (
+                <li key={location.inspectionId}>
+                  <Link
+                    href={`/checklist/${location.inspectionId}`}
+                    aria-current={location.current ? "page" : undefined}
+                    className={cn(
+                      "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none sm:px-5",
+                      location.current && "bg-muted/20",
+                    )}
+                  >
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <span className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
+                        <MapPin
+                          className="size-3.5 shrink-0 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                        <span className="truncate">
+                          {location.locationPath ?? location.locationName}
+                        </span>
+                        {location.current && (
+                          <Badge variant="info-light" className="text-xs">
+                            Dibuka
+                          </Badge>
+                        )}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {location.answeredCount}/{location.totalItems} item
+                        terisi
+                      </span>
+                    </div>
+                    <ChecklistStatusBadge status={location.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </FramePanel>
+        </Frame>
+      )}
+
       <Frame>
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Ringkasan</FrameTitle>
+            <FrameTitle className="max-md:sr-only">Ringkasan</FrameTitle>
             <FrameDescription className="text-xs">
               {answered} dari {total} item sudah diisi
               {detail.schedule

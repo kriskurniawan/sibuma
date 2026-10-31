@@ -116,6 +116,7 @@ export async function FollowUpReportScreen({
     <div className="flex flex-col gap-6">
       <div className="no-print">
         <PageHeader
+          mobileCompact
           eyebrow="Tindak lanjut"
           title="Laporan tindak lanjut."
           description="Pantau temuan yang belum selesai, deadline, dan PIC berdasarkan periode pemeriksaan. Unduh Excel untuk analisis, CSV untuk integrasi, atau PDF untuk arsip."
@@ -169,7 +170,9 @@ export async function FollowUpReportScreen({
       <Frame className="no-print">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Periode &amp; filter</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Periode &amp; filter
+            </FrameTitle>
             <FrameDescription className="text-xs">
               Mengikuti periode pemeriksaan sumber. Default bulan berjalan.
             </FrameDescription>
@@ -272,7 +275,9 @@ export async function FollowUpReportScreen({
       <Frame>
         <FrameHeader className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Rincian tindak lanjut</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Rincian tindak lanjut
+            </FrameTitle>
             <FrameDescription className="text-xs">
               {data.totals.total} baris data dari pemeriksaan pada periode ini.
             </FrameDescription>

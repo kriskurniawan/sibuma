@@ -159,9 +159,150 @@ export function SpklDetailView({
         ? { href: "/lembur", label: "Kembali ke lembur" }
         : { href: "/riwayat", label: "Kembali ke lembur" };
 
+  // Absensi pribadi tampil lebih dulu di mobile, lalu kembali ke kolom samping
+  // pada layar lebar tanpa mengubah urutan desktop.
+  function myAttendanceFrame() {
+    if (!isWorker || !myAttendance) return null;
+    return (
+      <Frame spacing="sm">
+        <FrameHeader className="flex-row items-center justify-between gap-3">
+          <div className="flex flex-col gap-1">
+            <FrameTitle>Status kehadiran</FrameTitle>
+            <FrameDescription className="text-xs">
+              Absensiku pada SPKL ini
+            </FrameDescription>
+          </div>
+          <AttendanceBadge
+            status={myAttendance.status}
+            checkOutAt={myAttendance.checkOutAt}
+          />
+        </FrameHeader>
+        <FramePanel className="flex flex-col gap-4">
+          <div className="relative flex flex-col gap-4 pl-5">
+            <span className="absolute bottom-2 left-[5px] top-2 w-px bg-border" />
+            <div className="relative">
+              <span
+                className={cn(
+                  "absolute -left-5 top-1 size-2.5 rounded-full ring-4 ring-card",
+                  myAttendance.checkInAt ? "bg-success" : "bg-border",
+                )}
+              />
+              <p className="text-xs text-muted-foreground">Masuk</p>
+              <p className="mt-0.5 text-sm font-semibold text-foreground">
+                {myAttendance.checkInAt
+                  ? `${formatTime(myAttendance.checkInAt)} WIB`
+                  : "Belum absen"}
+              </p>
+              {myAttendance.checkInLocation && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="size-3" />
+                  {myAttendance.checkInLocation.distanceFromSite} m dari titik ·
+                  ±
+                  {Math.round(myAttendance.checkInLocation.accuracy)} m
+                </p>
+              )}
+            </div>
+            <div className="relative">
+              <span
+                className={cn(
+                  "absolute -left-5 top-1 size-2.5 rounded-full ring-4 ring-card",
+                  myAttendance.checkOutAt
+                    ? "bg-success"
+                    : running
+                      ? "bg-warning"
+                      : "bg-border",
+                )}
+              />
+              <p className="text-xs text-muted-foreground">Pulang</p>
+              <p className="mt-0.5 text-sm font-semibold text-foreground">
+                {myAttendance.checkOutAt
+                  ? `${formatTime(myAttendance.checkOutAt)} WIB`
+                  : running
+                    ? "Sesi masih berjalan"
+                    : "—"}
+              </p>
+              {myAttendance.status === "ditutup_otomatis" && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {myAttendance.checkOutAt
+                    ? "Sesi ditutup otomatis."
+                    : "Absen pulang tidak tercatat. Durasi tidak dihitung; hubungi atasan untuk koreksi bila perlu."}
+                </p>
+              )}
+            </div>
+            <div className="relative">
+              <span
+                className={cn(
+                  "absolute -left-5 top-1 size-2.5 rounded-full ring-4 ring-card",
+                  myDocCount > 0 ? "bg-success" : "bg-border",
+                )}
+              />
+              <p className="text-xs text-muted-foreground">Dokumentasi</p>
+              <p className="mt-0.5 text-sm font-semibold text-foreground">
+                {myDocCount} / {photoLimit} foto
+              </p>
+              {videoEnabled && videoLimit > 0 && (
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {myVideoCount} / {videoLimit} video
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3 rounded-md bg-muted/60 px-3 py-2.5">
+            <span className="text-xs text-muted-foreground">
+              Durasi tercatat
+            </span>
+            <span className="text-sm font-semibold tabular-nums text-foreground">
+              {running && myAttendance.checkInAt ? (
+                <LiveDuration startAt={countedFrom} endAt={spkl.endAt} />
+              ) : myAttendance.status === "ditutup_otomatis" &&
+                !myAttendance.checkOutAt ? (
+                "Belum absen pulang"
+              ) : (
+                durationLabel(myAttendance.durationMinutes)
+              )}
+            </span>
+          </div>
+
+          {checkedInEarly && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Kamu absen lebih awal. Durasi lembur dihitung sejak{" "}
+              {formatTime(spkl.startAt)} WIB.
+            </p>
+          )}
+
+          {myAttendance.status === "dikoreksi" &&
+            myAttendance.correctionReason && (
+              <Alert variant="info">
+                <AlertDescription>
+                  <span className="font-medium text-foreground">
+                    Koreksi atasan:
+                  </span>{" "}
+                  {myAttendance.correctionReason}
+                </AlertDescription>
+              </Alert>
+            )}
+
+          {detail.canUpload && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-fit"
+              nativeButton={false}
+              render={<a href="#dokumentasi" />}
+            >
+              Tambah dokumentasi
+              <ArrowRight />
+            </Button>
+          )}
+        </FramePanel>
+      </Frame>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
         <Link
           href={backTarget.href}
           className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
@@ -207,6 +348,17 @@ export function SpklDetailView({
           <h1 className="max-w-3xl text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
             {spkl.title}
           </h1>
+          <div className="flex flex-wrap items-center gap-2 md:hidden">
+            <SpklStatusBadge status={status} />
+            {running && (
+              <Badge variant="warning-light" dot>
+                Sesi aktif
+              </Badge>
+            )}
+            {earlyCheckIn && (
+              <Badge variant="info-light">Absen lebih awal</Badge>
+            )}
+          </div>
           <FrameDescription className="max-w-2xl text-sm">
             {spkl.description}
           </FrameDescription>
@@ -344,6 +496,10 @@ export function SpklDetailView({
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_0.6fr]">
         <div className="flex min-w-0 flex-col gap-5">
+          {isWorker && myAttendance && (
+            <div className="md:hidden">{myAttendanceFrame()}</div>
+          )}
+
           <Frame>
             <FrameHeader className="flex-row flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-1">
@@ -433,139 +589,7 @@ export function SpklDetailView({
 
         <aside className="flex min-w-0 flex-col gap-4">
           {isWorker && myAttendance && (
-            <Frame spacing="sm">
-              <FrameHeader className="flex-row items-center justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <FrameTitle>Status kehadiran</FrameTitle>
-                  <FrameDescription className="text-xs">
-                    Absensiku pada SPKL ini
-                  </FrameDescription>
-                </div>
-                <AttendanceBadge
-                  status={myAttendance.status}
-                  checkOutAt={myAttendance.checkOutAt}
-                />
-              </FrameHeader>
-              <FramePanel className="flex flex-col gap-4">
-                <div className="relative flex flex-col gap-4 pl-5">
-                  <span className="absolute bottom-2 left-[5px] top-2 w-px bg-border" />
-                  <div className="relative">
-                    <span
-                      className={cn(
-                        "absolute -left-5 top-1 size-2.5 rounded-full ring-4 ring-card",
-                        myAttendance.checkInAt ? "bg-success" : "bg-border",
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground">Masuk</p>
-                    <p className="mt-0.5 text-sm font-semibold text-foreground">
-                      {myAttendance.checkInAt
-                        ? `${formatTime(myAttendance.checkInAt)} WIB`
-                        : "Belum absen"}
-                    </p>
-                    {myAttendance.checkInLocation && (
-                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="size-3" />
-                        {myAttendance.checkInLocation.distanceFromSite} m dari
-                        titik · ±
-                        {Math.round(myAttendance.checkInLocation.accuracy)} m
-                      </p>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <span
-                      className={cn(
-                        "absolute -left-5 top-1 size-2.5 rounded-full ring-4 ring-card",
-                        myAttendance.checkOutAt
-                          ? "bg-success"
-                          : running
-                            ? "bg-warning"
-                            : "bg-border",
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground">Pulang</p>
-                    <p className="mt-0.5 text-sm font-semibold text-foreground">
-                      {myAttendance.checkOutAt
-                        ? `${formatTime(myAttendance.checkOutAt)} WIB`
-                        : running
-                          ? "Sesi masih berjalan"
-                          : "—"}
-                    </p>
-                    {myAttendance.status === "ditutup_otomatis" && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {myAttendance.checkOutAt
-                          ? "Sesi ditutup otomatis."
-                          : "Absen pulang tidak tercatat. Durasi tidak dihitung; hubungi atasan untuk koreksi bila perlu."}
-                      </p>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <span
-                      className={cn(
-                        "absolute -left-5 top-1 size-2.5 rounded-full ring-4 ring-card",
-                        myDocCount > 0 ? "bg-success" : "bg-border",
-                      )}
-                    />
-                    <p className="text-xs text-muted-foreground">Dokumentasi</p>
-                    <p className="mt-0.5 text-sm font-semibold text-foreground">
-                      {myDocCount} / {photoLimit} foto
-                    </p>
-                    {videoEnabled && videoLimit > 0 && (
-                      <p className="text-xs text-muted-foreground tabular-nums">
-                        {myVideoCount} / {videoLimit} video
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 rounded-md bg-muted/60 px-3 py-2.5">
-                  <span className="text-xs text-muted-foreground">
-                    Durasi tercatat
-                  </span>
-                  <span className="text-sm font-semibold tabular-nums text-foreground">
-                    {running && myAttendance.checkInAt ? (
-                      <LiveDuration startAt={countedFrom} endAt={spkl.endAt} />
-                    ) : myAttendance.status === "ditutup_otomatis" &&
-                      !myAttendance.checkOutAt ? (
-                      "Belum absen pulang"
-                    ) : (
-                      durationLabel(myAttendance.durationMinutes)
-                    )}
-                  </span>
-                </div>
-
-                {checkedInEarly && (
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    Kamu absen lebih awal. Durasi lembur dihitung sejak{" "}
-                    {formatTime(spkl.startAt)} WIB.
-                  </p>
-                )}
-
-                {myAttendance.status === "dikoreksi" &&
-                  myAttendance.correctionReason && (
-                    <Alert variant="info">
-                      <AlertDescription>
-                        <span className="font-medium text-foreground">
-                          Koreksi atasan:
-                        </span>{" "}
-                        {myAttendance.correctionReason}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                {detail.canUpload && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-fit"
-                    nativeButton={false}
-                    render={<a href="#dokumentasi" />}
-                  >
-                    Tambah dokumentasi
-                    <ArrowRight />
-                  </Button>
-                )}
-              </FramePanel>
-            </Frame>
+            <div className="hidden md:block">{myAttendanceFrame()}</div>
           )}
 
           <Frame spacing="sm">

@@ -224,7 +224,9 @@ const CHECKLIST_ROOT_PATHS = new Set([
 
 /** Halaman daftar SPKL bergantung pada peran yang membuka detail. */
 function spklBackTarget(role: SessionUser["role"]) {
-  if (role === "super_admin") return { href: "/laporan", label: "Laporan" };
+  if (role === "super_admin") {
+    return { href: "/laporan?tab=lembur", label: "Laporan lembur" };
+  }
   if (role === "atasan") return { href: "/lembur", label: "Lembur" };
   return { href: "/riwayat", label: "Lembur" };
 }
@@ -247,6 +249,20 @@ function mobileBackLink(pathname: string, role: SessionUser["role"]) {
   if (edit) return { href: `/spkl/${edit[1]}`, label: "Detail SPKL" };
   if (pathname.startsWith("/spkl/")) {
     return spklBackTarget(role);
+  }
+  if (pathname === "/pengaturan") {
+    return { href: "/menu", label: "Menu" };
+  }
+  if (pathname === "/profil") {
+    return role === "pekerja"
+      ? { href: "/", label: "Beranda" }
+      : { href: "/menu", label: "Menu" };
+  }
+  if (
+    role === "atasan" &&
+    ["/tim", "/laporan", "/audit"].includes(pathname)
+  ) {
+    return { href: "/menu", label: "Menu" };
   }
   if (/^\/checklist\/template\/[^/]+$/.test(pathname)) {
     return { href: "/checklist/template", label: "Template checklist" };
@@ -272,6 +288,7 @@ function currentSectionLabel(
   if (pathname.startsWith("/dokumen/")) return "Detail dokumen";
   if (pathname === "/dokumen") return "Dokumen kerja";
   if (pathname.startsWith("/spkl/baru")) return "Buat SPKL";
+  if (/^\/spkl\/[^/]+\/edit$/.test(pathname)) return "Ubah SPKL";
   if (pathname.startsWith("/spkl/")) return "Detail SPKL";
   if (pathname.startsWith("/checklist/tindak-lanjut")) return "Tindak lanjut";
   if (pathname === "/checklist/qr") return "QR area";

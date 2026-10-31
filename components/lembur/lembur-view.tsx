@@ -76,6 +76,7 @@ export function LemburView({
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
+        mobileCompact
         eyebrow="Operasional"
         title="Lembur"
         description={
@@ -107,8 +108,8 @@ export function LemburView({
       <Frame>
         <FrameHeader className="gap-3">
           <div className="flex flex-col gap-1">
-            <FrameTitle>Daftar SPKL</FrameTitle>
-            <FrameDescription className="text-xs">
+            <FrameTitle className="max-md:sr-only">Daftar SPKL</FrameTitle>
+            <FrameDescription className="max-md:hidden text-xs">
               {items.length} SPKL · {counts.berlangsung ?? 0} berlangsung ·{" "}
               {counts.terjadwal ?? 0} terjadwal
             </FrameDescription>

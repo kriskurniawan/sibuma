@@ -135,7 +135,9 @@ export function ChecklistFollowUpView({
       <Frame>
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Daftar tindak lanjut</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Daftar tindak lanjut
+            </FrameTitle>
             <FrameDescription className="text-xs">
               {total} temuan sesuai filter.
             </FrameDescription>

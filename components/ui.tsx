@@ -207,6 +207,7 @@ export function PageHeader({
   action,
   className,
   descriptionClassName,
+  mobileCompact = false,
 }: {
   eyebrow?: string;
   title: ReactNode;
@@ -214,6 +215,11 @@ export function PageHeader({
   action?: ReactNode;
   className?: string;
   descriptionClassName?: string;
+  /**
+   * Mobile only: keep the page's accessible h1, but let the shell header carry
+   * the route identity. Actions stay visible.
+   */
+  mobileCompact?: boolean;
 }) {
   return (
     <div
@@ -224,9 +230,21 @@ export function PageHeader({
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         {eyebrow && (
-          <p className="text-xs font-medium text-muted-foreground">{eyebrow}</p>
+          <p
+            className={cn(
+              "text-xs font-medium text-muted-foreground",
+              mobileCompact && "max-md:hidden",
+            )}
+          >
+            {eyebrow}
+          </p>
         )}
-        <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+        <h1
+          className={cn(
+            "text-xl font-semibold tracking-tight text-foreground sm:text-2xl",
+            mobileCompact && "max-md:sr-only",
+          )}
+        >
           {title}
         </h1>
         {description && (
@@ -234,6 +252,7 @@ export function PageHeader({
             className={cn(
               "max-w-2xl text-sm leading-relaxed text-muted-foreground",
               descriptionClassName,
+              mobileCompact && "max-md:hidden",
             )}
           >
             {description}

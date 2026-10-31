@@ -353,6 +353,7 @@ export function AuditView({
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
+        mobileCompact
         eyebrow="Transparansi & jejak"
         title="Log audit."
         description="Riwayat perubahan dan pengiriman notifikasi WhatsApp."
@@ -430,7 +431,7 @@ export function AuditView({
           <Frame spacing="default" className="min-w-0">
             <FrameHeader className="gap-3">
               <div className="flex flex-col gap-1">
-                <FrameTitle>Log audit</FrameTitle>
+                <FrameTitle className="max-md:sr-only">Log audit</FrameTitle>
                 <FrameDescription className="text-xs">
                   {filteredLogs.length} peristiwa
                 </FrameDescription>
@@ -630,7 +631,9 @@ export function AuditView({
           <Frame spacing="default" className="min-w-0">
             <FrameHeader className="gap-3">
               <div className="flex flex-col gap-1">
-                <FrameTitle>Outbox WhatsApp</FrameTitle>
+                <FrameTitle className="max-md:sr-only">
+                  Outbox WhatsApp
+                </FrameTitle>
                 <FrameDescription className="text-xs">
                   {filteredNotifications.length} pesan
                 </FrameDescription>

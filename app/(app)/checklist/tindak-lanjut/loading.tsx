@@ -97,7 +97,7 @@ export default function ChecklistFollowUpLoading() {
       <Frame>
         <FrameHeader>
           <div className="flex flex-col gap-0.5">
-            <Skeleton className="h-4 w-40" />
+            <Skeleton className="hidden h-4 w-40 md:block" />
             <Skeleton className="h-3 w-36" />
           </div>
         </FrameHeader>

@@ -19,7 +19,7 @@ export default function DokumenDetailLoading() {
     >
       <span className="sr-only">Memuat detail dokumen kerja…</span>
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Skeleton className="h-3 w-28" />
           <Skeleton className="h-7 w-64 max-w-full" />
@@ -35,11 +35,26 @@ export default function DokumenDetailLoading() {
         </div>
       </div>
 
+      <Frame className="md:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <Skeleton className="h-6 w-3/4 max-w-full" />
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-5 w-14 rounded-full" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Skeleton className="h-9 w-24 rounded-md" />
+            <Skeleton className="h-9 w-20 rounded-md" />
+          </div>
+        </FramePanel>
+      </Frame>
+
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-4">
           <Frame spacing="sm">
             <FrameHeader className="flex-row items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
+              <div className="hidden flex-col gap-1 md:flex">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-48 max-w-full" />
               </div>

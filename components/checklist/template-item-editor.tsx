@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderTree, ListChecks, Plus, Trash2 } from "lucide-react";
+import { FolderTree, ListChecks, MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,14 @@ import {
 } from "@/lib/checklist-types";
 import { cn } from "@/lib/utils";
 
+export interface TemplateLocationOption {
+  id: string;
+  name: string;
+  parentId: string | null;
+  path?: string;
+  active?: boolean;
+}
+
 export interface TemplateItemDraft {
   itemType: ChecklistItemType;
   parentIndex: number | null;
@@ -31,6 +39,7 @@ export interface TemplateItemDraft {
   photoPolicy: ChecklistPhotoPolicy;
   requireNoteOnIssue: boolean;
   publicVisible: boolean;
+  locationId: string | null;
 }
 
 export const PHOTO_POLICIES: ChecklistPhotoPolicy[] = [
@@ -38,6 +47,8 @@ export const PHOTO_POLICIES: ChecklistPhotoPolicy[] = [
   "wajib",
   "wajib_saat_masalah",
 ];
+
+const LOCATION_INHERIT = "__jadwal__";
 
 export function emptyTemplateItem(): TemplateItemDraft {
   return {
@@ -49,6 +60,7 @@ export function emptyTemplateItem(): TemplateItemDraft {
     photoPolicy: "opsional",
     requireNoteOnIssue: true,
     publicVisible: false,
+    locationId: null,
   };
 }
 
@@ -74,6 +86,7 @@ export function toTemplateDraft(items: ChecklistTemplateItem[]): TemplateItemDra
     photoPolicy: item.photoPolicy,
     requireNoteOnIssue: item.requireNoteOnIssue,
     publicVisible: item.publicVisible,
+    locationId: item.locationId ?? null,
   }));
 }
 
@@ -143,12 +156,20 @@ function removeNode(
 export function TemplateItemEditor({
   items,
   onChange,
+  locations,
   disabled,
 }: {
   items: TemplateItemDraft[];
   onChange: (items: TemplateItemDraft[]) => void;
+  locations: TemplateLocationOption[];
   disabled?: boolean;
 }) {
+  const locationPathById = new Map(
+    locations.map((location) => [
+      location.id,
+      location.path ?? location.name,
+    ]),
+  );
   function update(index: number, patch: Partial<TemplateItemDraft>) {
     onChange(
       items.map((item, itemIndex) =>
@@ -220,6 +241,7 @@ export function TemplateItemEditor({
               key={index}
               item={item}
               index={index}
+              locations={locations}
               disabled={disabled}
               canRemove={canRemoveNode(index)}
               onPatch={(patch) => update(index, patch)}
@@ -279,6 +301,17 @@ export function TemplateItemEditor({
                   disabled={disabled}
                 />
               </div>
+              <TemplateLocationField
+                id={`group-location-${index}`}
+                label="Lokasi grup (default sub-item)"
+                value={item.locationId}
+                locations={locations}
+                disabled={disabled}
+                helper="Dipakai saat jadwal mendistribusikan pemeriksaan per lokasi. Sub-item tanpa lokasi sendiri mengikuti lokasi grup ini; bila kosong, mengikuti lokasi jadwal."
+                onChange={(locationId) =>
+                  update(index, { locationId })
+                }
+              />
             </div>
 
             {children.length === 0 ? (
@@ -293,6 +326,12 @@ export function TemplateItemEditor({
                     item={child.item}
                     index={child.index}
                     nested
+                    locations={locations}
+                    inheritedLocationName={
+                      item.locationId
+                        ? locationPathById.get(item.locationId)
+                        : undefined
+                    }
                     disabled={disabled}
                     canRemove={canRemoveNode(child.index)}
                     onPatch={(patch) => update(child.index, patch)}
@@ -347,6 +386,8 @@ function LeafBlock({
   item,
   index,
   nested,
+  locations,
+  inheritedLocationName,
   disabled,
   canRemove,
   onPatch,
@@ -355,6 +396,8 @@ function LeafBlock({
   item: TemplateItemDraft;
   index: number;
   nested?: boolean;
+  locations: TemplateLocationOption[];
+  inheritedLocationName?: string;
   disabled?: boolean;
   canRemove: boolean;
   onPatch: (patch: Partial<TemplateItemDraft>) => void;
@@ -409,6 +452,22 @@ function LeafBlock({
           disabled={disabled}
         />
       </div>
+
+      <TemplateLocationField
+        id={`item-location-${index}`}
+        label="Lokasi item (opsional)"
+        value={item.locationId}
+        locations={locations}
+        disabled={disabled}
+        helper={
+          item.locationId
+            ? "Dipakai saat jadwal didistribusikan per lokasi."
+            : inheritedLocationName
+              ? `Mengikuti lokasi grup saat distribusi per lokasi: ${inheritedLocationName}.`
+              : "Mengikuti lokasi jadwal saat distribusi per lokasi."
+        }
+        onChange={(locationId) => onPatch({ locationId })}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -474,6 +533,63 @@ function LeafBlock({
           </Label>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TemplateLocationField({
+  id,
+  label,
+  value,
+  locations,
+  helper,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string | null;
+  locations: TemplateLocationOption[];
+  helper: string;
+  disabled?: boolean;
+  onChange: (locationId: string | null) => void;
+}) {
+  const items = [
+    { value: LOCATION_INHERIT, label: "Ikut lokasi grup / jadwal" },
+    ...locations.map((location) => ({
+      value: location.id,
+      label: `${location.path ?? location.name}${
+        location.active === false ? " (nonaktif)" : ""
+      }`,
+    })),
+  ];
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id} className="inline-flex items-center gap-1.5">
+        <MapPin className="size-3.5 text-muted-foreground" aria-hidden="true" />
+        {label}
+      </Label>
+      <Select
+        value={value ?? LOCATION_INHERIT}
+        onValueChange={(next) =>
+          onChange(next === LOCATION_INHERIT ? null : (next as string))
+        }
+        items={items}
+        disabled={disabled}
+      >
+        <SelectTrigger id={id} size="sm" className="w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {items.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <p className="text-xs text-muted-foreground">{helper}</p>
     </div>
   );
 }

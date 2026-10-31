@@ -9,6 +9,7 @@ import {
   FolderTree,
   History,
   ImageIcon,
+  MapPin,
   Pencil,
   PlusCircle,
   Trash2,
@@ -56,6 +57,7 @@ import {
 } from "@/components/checklist/template-item-editor";
 import {
   CHECKLIST_PHOTO_POLICY_LABEL,
+  type ChecklistLocation,
   type ChecklistTemplate,
   type ChecklistTemplateItem,
   type ChecklistTemplateVersion,
@@ -75,10 +77,12 @@ export function ChecklistTemplateDetailView({
   template,
   usage,
   versions,
+  locations,
 }: {
   template: ChecklistTemplate;
   usage: { schedules: number; inspections: number };
   versions: VersionWithItems[];
+  locations: ChecklistLocation[];
 }) {
   const router = useRouter();
   const [selectedVersionId, setSelectedVersionId] = useState(
@@ -101,11 +105,27 @@ export function ChecklistTemplateDetailView({
     label: `Versi ${version.version} — ${leafCount(version.items)} item`,
   }));
 
+  const locationPaths = new Map(
+    locations.map((location) => [
+      location.id,
+      location.path ?? location.name,
+    ]),
+  );
+  const selectedItemsById = new Map(
+    (selected?.items ?? []).map((item) => [item.id, item]),
+  );
+
   let leafNumber = 0;
-  const selectedRows = (selected?.items ?? []).map((item) => ({
-    item,
-    number: item.itemType === "item" ? ++leafNumber : null,
-  }));
+  const selectedRows = (selected?.items ?? []).map((item) => {
+    const parentLocationId = item.parentItemId
+      ? (selectedItemsById.get(item.parentItemId)?.locationId ?? null)
+      : null;
+    return {
+      item,
+      number: item.itemType === "item" ? ++leafNumber : null,
+      inheritedLocationId: item.locationId ? null : parentLocationId,
+    };
+  });
 
   function viewVersion(versionId: string) {
     setSelectedVersionId(versionId);
@@ -119,6 +139,47 @@ export function ChecklistTemplateDetailView({
       });
     });
   }
+
+  const headerActions = (
+    <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
+      <Badge
+        variant="info-light"
+        className="hidden tabular-nums md:inline-flex"
+      >
+        Versi {template.currentVersion}
+      </Badge>
+      {!template.active && <Badge variant="warning-light">Nonaktif</Badge>}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => setEditOpen(true)}
+      >
+        <Pencil aria-hidden="true" />
+        Ubah
+      </Button>
+      {canDelete && (
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 aria-hidden="true" />
+          Hapus
+        </Button>
+      )}
+      <Button
+        type="button"
+        size="sm"
+        onClick={() => setVersionOpen(true)}
+        disabled={!latest}
+      >
+        <PlusCircle aria-hidden="true" />
+        Terbitkan versi
+      </Button>
+    </div>
+  );
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
@@ -134,49 +195,32 @@ export function ChecklistTemplateDetailView({
         </Button>
       </div>
 
-      <PageHeader
-        eyebrow={template.category}
-        title={template.name}
-        description={template.description || undefined}
-        descriptionClassName="hidden md:block"
-        action={
-          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
-            <Badge variant="info-light" className="hidden tabular-nums md:inline-flex">
-              Versi {template.currentVersion}
-            </Badge>
-            {!template.active && <Badge variant="warning-light">Nonaktif</Badge>}
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => setEditOpen(true)}
-            >
-              <Pencil aria-hidden="true" />
-              Ubah
-            </Button>
-            {canDelete && (
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 aria-hidden="true" />
-                Hapus
-              </Button>
+      <div className="hidden md:block">
+        <PageHeader
+          eyebrow={template.category}
+          title={template.name}
+          description={template.description || undefined}
+          descriptionClassName="hidden md:block"
+          action={headerActions}
+        />
+      </div>
+
+      <Frame className="md:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">{template.category}</p>
+            <h1 className="wrap-anywhere text-xl font-semibold tracking-tight text-foreground">
+              {template.name}
+            </h1>
+            {template.description && (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {template.description}
+              </p>
             )}
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setVersionOpen(true)}
-              disabled={!latest}
-            >
-              <PlusCircle aria-hidden="true" />
-              Terbitkan versi
-            </Button>
           </div>
-        }
-      />
+          {headerActions}
+        </FramePanel>
+      </Frame>
 
       <Frame
         ref={itemsFrameRef}
@@ -185,7 +229,7 @@ export function ChecklistTemplateDetailView({
       >
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Item checklist</FrameTitle>
+            <FrameTitle className="max-md:sr-only">Item checklist</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
               Versi terbit dan checklist lama tidak berubah.
             </FrameDescription>
@@ -220,9 +264,14 @@ export function ChecklistTemplateDetailView({
             </div>
           ) : (
             <ul className="divide-y divide-border/70">
-              {selectedRows.map(({ item, number }) => {
-                const isGroup = item.itemType === "grup";
-                return (
+              {selectedRows.map(
+                ({ item, number, inheritedLocationId }) => {
+                  const isGroup = item.itemType === "grup";
+                  const locationId = item.locationId ?? inheritedLocationId;
+                  const locationLabel = locationId
+                    ? (locationPaths.get(locationId) ?? locationId)
+                    : null;
+                  return (
                   <li
                     key={item.id}
                     className={cn(
@@ -272,6 +321,21 @@ export function ChecklistTemplateDetailView({
                       {!isGroup && item.publicVisible && (
                         <Badge variant="success-light" className="text-xs">
                           Publik
+                        </Badge>
+                      )}
+                      {locationLabel && (
+                        <Badge
+                          variant={item.locationId ? "info-light" : "outline"}
+                          className="min-w-0 max-w-full text-xs"
+                        >
+                          <MapPin aria-hidden="true" />
+                          <span className="truncate">
+                            {item.locationId
+                              ? isGroup
+                                ? `Grup · ${locationLabel}`
+                                : locationLabel
+                              : `Ikut grup · ${locationLabel}`}
+                          </span>
                         </Badge>
                       )}
                     </div>
@@ -385,6 +449,7 @@ export function ChecklistTemplateDetailView({
         onClose={() => setVersionOpen(false)}
         template={template}
         source={latest}
+        locations={locations}
         onPublished={() => {
           setSelectedVersionId("");
           router.refresh();
@@ -626,12 +691,14 @@ function PublishVersionDialog({
   onClose,
   template,
   source,
+  locations,
   onPublished,
 }: {
   open: boolean;
   onClose: () => void;
   template: ChecklistTemplate;
   source: VersionWithItems | null;
+  locations: ChecklistLocation[];
   onPublished: () => void;
 }) {
   const [notes, setNotes] = useState("");
@@ -727,6 +794,7 @@ function PublishVersionDialog({
           <TemplateItemEditor
             items={items}
             onChange={setItems}
+            locations={locations}
             disabled={saving}
           />
         </div>

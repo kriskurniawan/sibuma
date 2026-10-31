@@ -167,6 +167,7 @@ export function ManualWorkListView({
   return (
     <div className="flex flex-col gap-5 pb-8">
       <PageHeader
+        mobileCompact
         eyebrow="Pekerjaan harian"
         title="Pekerjaan Harian"
         description={
@@ -261,7 +262,7 @@ export function ManualWorkListView({
       <Frame>
         <FrameHeader className="flex flex-row flex-wrap items-end justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <FrameTitle>Daftar pekerjaan</FrameTitle>
+            <FrameTitle className="max-md:sr-only">Daftar pekerjaan</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
               {total} pekerjaan sesuai filter.
             </FrameDescription>

@@ -26,6 +26,7 @@ export type ChecklistConditionTone =
 export type ChecklistPriority = "rendah" | "sedang" | "tinggi" | "mendesak";
 export type ChecklistPhotoStage = "temuan" | "perbaikan";
 export type ChecklistItemType = "grup" | "item";
+export type ChecklistDistributionMode = "tunggal" | "per_lokasi";
 
 export const CHECKLIST_CONDITION_TONE_LABEL: Record<
   ChecklistConditionTone,
@@ -169,13 +170,17 @@ export interface ChecklistTemplateItem {
   photoPolicy: ChecklistPhotoPolicy;
   requireNoteOnIssue: boolean;
   publicVisible: boolean;
+  /** Default lokasi grup atau lokasi fisik item; kosong berarti ikut jadwal. */
+  locationId: string | null;
 }
 
 export interface ChecklistSchedule {
   id: string;
   ownerId: string;
   templateId: string;
+  /** Lokasi pemeriksaan tunggal atau lokasi default untuk item tanpa lokasi. */
   locationId: string;
+  distributionMode: ChecklistDistributionMode;
   intervalUnit: ChecklistIntervalUnit;
   intervalCount: number;
   anchorDate: string;
@@ -201,6 +206,7 @@ export interface ChecklistSetupEmployee extends ChecklistPerson {
 export interface ChecklistInspection {
   id: string;
   scheduleId: string | null;
+  packageId: string | null;
   ownerId: string;
   templateId: string;
   templateVersionId: string;
@@ -305,8 +311,32 @@ export interface ChecklistInspectionRow {
   locationPath?: string;
 }
 
+export interface ChecklistPackageLocation {
+  inspectionId: string;
+  locationId: string;
+  locationName: string;
+  locationPath?: string;
+  status: ChecklistInspectionStatus;
+  answeredCount: number;
+  totalItems: number;
+  /** Pemeriksaan yang sedang dibuka. */
+  current: boolean;
+}
+
+export interface ChecklistInspectionPackage {
+  id: string;
+  templateName: string;
+  periodLabel: string;
+  occurrenceDate: string;
+  dueAt: string;
+  completedLocations: number;
+  totalLocations: number;
+  locations: ChecklistPackageLocation[];
+}
+
 export interface ChecklistInspectionDetail {
   inspection: ChecklistInspection;
+  package: ChecklistInspectionPackage | null;
   overdue: boolean;
   assignees: ChecklistPerson[];
   answers: Array<{ answer: ChecklistAnswer; photos: ChecklistPhoto[] }>;
@@ -371,10 +401,18 @@ export interface ChecklistSetupTemplate extends ChecklistTemplate {
   usedBySchedules: number;
 }
 
+export interface ChecklistScheduleDistribution {
+  locationId: string;
+  locationName: string;
+  locationPath: string;
+  itemCount: number;
+}
+
 export interface ChecklistSetupSchedule extends ChecklistSchedule {
   templateName: string;
   locationName: string;
   locationPath: string;
+  distribution: ChecklistScheduleDistribution[];
   assignees: ChecklistSetupEmployee[];
   nextOccurrence: string | null;
 }

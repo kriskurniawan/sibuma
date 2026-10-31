@@ -8,6 +8,7 @@ import {
   CalendarClock,
   CalendarDays,
   Clock3,
+  MapPin,
   Pencil,
   Plus,
   Search,
@@ -45,6 +46,7 @@ import { Modal } from "@/components/modal";
 import {
   CHECKLIST_INTERVAL_UNIT_LABEL,
   CHECKLIST_MAX_ASSIGNEES,
+  type ChecklistDistributionMode,
   type ChecklistIntervalUnit,
   type ChecklistSetup,
   type ChecklistSetupEmployee,
@@ -141,6 +143,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
       </div>
 
       <PageHeader
+        mobileCompact
         eyebrow="Pengaturan checklist"
         title="Jadwal"
         description="Checklist otomatis sesuai kalender dan penugasan tim."
@@ -154,17 +157,19 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
       />
 
       <Frame spacing="default" className="min-w-0">
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <FrameTitle>Jadwal checklist</FrameTitle>
-            <FrameDescription className="hidden text-xs md:block">
-              Template, lokasi, dan anggota yang ditugaskan.
-            </FrameDescription>
-          </div>
-          <Badge variant="outline" className="tabular-nums">
-            {setup.schedules.length}
-          </Badge>
-        </FrameHeader>
+        <div className="hidden md:block">
+          <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <FrameTitle>Jadwal checklist</FrameTitle>
+              <FrameDescription className="text-xs">
+                Template, lokasi, dan anggota yang ditugaskan.
+              </FrameDescription>
+            </div>
+            <Badge variant="outline" className="tabular-nums">
+              {setup.schedules.length}
+            </Badge>
+          </FrameHeader>
+        </div>
 
         <FramePanel className="p-0">
           {setup.schedules.length === 0 ? (
@@ -210,6 +215,11 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                             schedule.intervalCount,
                           )}
                         </Badge>
+                        {schedule.distributionMode === "per_lokasi" && (
+                          <Badge variant="info-light" className="text-xs">
+                            Per lokasi · {schedule.distribution.length}
+                          </Badge>
+                        )}
                         {!schedule.active && (
                           <Badge variant="warning-light">
                             Nonaktif
@@ -217,7 +227,9 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        {schedule.locationPath}
+                        {schedule.distributionMode === "per_lokasi"
+                          ? `Pemeriksaan per lokasi item · basis ${schedule.locationPath}`
+                          : schedule.locationPath}
                         <span className="hidden md:inline">
                           {" · mulai "}
                           {formatDateHuman(dateIso(schedule.anchorDate), "d MMM yyyy")}
@@ -326,6 +338,8 @@ function ScheduleDialog({
 }) {
   const [templateId, setTemplateId] = useState("");
   const [locationId, setLocationId] = useState("");
+  const [distributionMode, setDistributionMode] =
+    useState<ChecklistDistributionMode>("tunggal");
   const [intervalUnit, setIntervalUnit] =
     useState<ChecklistIntervalUnit>("minggu");
   const [intervalCount, setIntervalCount] = useState(1);
@@ -342,6 +356,7 @@ function ScheduleDialog({
     if (!open) return;
     setTemplateId(schedule?.templateId ?? setup.templates[0]?.id ?? "");
     setLocationId(schedule?.locationId ?? setup.locations[0]?.id ?? "");
+    setDistributionMode(schedule?.distributionMode ?? "tunggal");
     setIntervalUnit(schedule?.intervalUnit ?? "minggu");
     setIntervalCount(schedule?.intervalCount ?? 1);
     setAnchorDate(schedule?.anchorDate ?? todayLocal());
@@ -373,6 +388,43 @@ function ScheduleDialog({
     value: unit,
     label: CHECKLIST_INTERVAL_UNIT_LABEL[unit],
   }));
+  const distributionItems: Array<{
+    value: ChecklistDistributionMode;
+    label: string;
+  }> = [
+    { value: "tunggal", label: "Satu pemeriksaan" },
+    { value: "per_lokasi", label: "Pisah per lokasi item" },
+  ];
+
+  const distributionPreview = useMemo(() => {
+    const template = setup.templates.find((item) => item.id === templateId);
+    const latest = template?.versions[0];
+    if (!latest) return [];
+    const itemById = new Map(latest.items.map((item) => [item.id, item]));
+    const counts = new Map<string, number>();
+    for (const item of latest.items) {
+      if (item.itemType !== "item") continue;
+      const parent = item.parentItemId
+        ? itemById.get(item.parentItemId)
+        : null;
+      const targetId = item.locationId ?? parent?.locationId ?? locationId;
+      if (!targetId) continue;
+      counts.set(targetId, (counts.get(targetId) ?? 0) + 1);
+    }
+    const paths = new Map(
+      setup.locations.map((location) => [
+        location.id,
+        location.path ?? location.name,
+      ]),
+    );
+    return [...counts.entries()]
+      .map(([id, itemCount]) => ({
+        id,
+        path: paths.get(id) ?? "Lokasi jadwal",
+        itemCount,
+      }))
+      .sort((left, right) => left.path.localeCompare(right.path, "id"));
+  }, [locationId, setup.locations, setup.templates, templateId]);
 
   const divisionGroups = useMemo(
     () => groupEmployeesByDivision(setup.employees),
@@ -508,6 +560,7 @@ function ScheduleDialog({
           body: JSON.stringify({
             templateId,
             locationId,
+            distributionMode,
             intervalUnit,
             intervalCount,
             anchorDate,
@@ -588,7 +641,9 @@ function ScheduleDialog({
             </Select>
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="schedule-location">Lokasi</Label>
+            <Label htmlFor="schedule-location">
+              {distributionMode === "per_lokasi" ? "Lokasi dasar" : "Lokasi"}
+            </Label>
             <Select
               value={locationId}
               onValueChange={(value) => setLocationId(value as string)}
@@ -605,7 +660,81 @@ function ScheduleDialog({
                 ))}
               </SelectContent>
             </Select>
+            {distributionMode === "per_lokasi" && (
+              <p className="text-xs text-muted-foreground">
+                Dipakai item yang tidak punya lokasi sendiri.
+              </p>
+            )}
           </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="schedule-distribution">Distribusi pemeriksaan</Label>
+          <Select
+            value={distributionMode}
+            onValueChange={(value) =>
+              setDistributionMode(value as ChecklistDistributionMode)
+            }
+            items={distributionItems}
+          >
+            <SelectTrigger id="schedule-distribution" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {distributionItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            {distributionMode === "tunggal"
+              ? "Satu pemeriksaan memuat semua item pada lokasi jadwal."
+              : "Item dikelompokkan menurut lokasi item atau grup. Setiap lokasi menjadi pemeriksaan terpisah dalam satu paket periode."}
+            {schedule
+              ? " Perubahan distribusi hanya berlaku untuk pemeriksaan baru; pemeriksaan yang sudah dibuat tidak diubah."
+              : ""}
+          </p>
+          {distributionMode === "per_lokasi" && (
+            <div className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-3">
+              {distributionPreview.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Template belum memiliki item yang dapat didistribusikan.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-foreground">
+                      Pratinjau per periode
+                    </p>
+                    <Badge variant="outline" className="tabular-nums">
+                      {distributionPreview.length} lokasi
+                    </Badge>
+                  </div>
+                  <ul className="flex flex-col gap-1.5">
+                    {distributionPreview.map((row) => (
+                      <li
+                        key={row.id}
+                        className="flex items-center justify-between gap-3 text-xs"
+                      >
+                        <span className="inline-flex min-w-0 items-center gap-1.5 text-foreground">
+                          <MapPin
+                            className="size-3.5 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                          />
+                          <span className="truncate">{row.path}</span>
+                        </span>
+                        <span className="shrink-0 text-muted-foreground tabular-nums">
+                          {row.itemCount} item
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

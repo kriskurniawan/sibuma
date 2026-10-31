@@ -220,7 +220,9 @@ export default async function MenuPage() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Menu</h1>
+      <h1 className="text-xl font-semibold tracking-tight max-md:sr-only sm:text-2xl">
+        Menu
+      </h1>
       <Frame spacing="default">
         <FramePanel>
           <Link

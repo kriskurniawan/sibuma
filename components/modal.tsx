@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { DialogRootChangeEventDetails } from "@base-ui/react/dialog";
 import {
   Dialog,
   DialogContent,
@@ -148,7 +149,7 @@ export function Modal({
 
   function handleOpenChange(
     nextOpen: boolean,
-    details: { reason: string; event?: Event },
+    details: DialogRootChangeEventDetails,
   ) {
     if (nextOpen) return;
     // Klik kedua dan seterusnya pada tombol pemicu bisa mendarat di backdrop
@@ -157,19 +158,28 @@ export function Modal({
     // klik berulang.
     const repeatedClick =
       details.event instanceof MouseEvent && details.event.detail > 1;
+    // Base UI menerapkan penutupan kecuali event di-cancel. Tanpa cancel,
+    // state internal dialog tertutup sementara prop `open` tetap true; klik
+    // berikutnya hanya meng-set true ke true sehingga dialog tidak muncul lagi.
+    // Karena itu setiap penolakan penutupan harus memanggil details.cancel().
     if (
       (details.reason === "outside-press" ||
         details.reason === "close-press") &&
       (!pointerDismissalReady || repeatedClick)
     ) {
+      details.cancel();
       return;
     }
     // Jangan tutup dialog ketika pengguna masih menekan area tombol pemicu
     // yang kini berada di balik overlay. Klik di area lain tetap menutup.
     if (details.reason === "outside-press" && isTriggerPoint(details.event)) {
+      details.cancel();
       return;
     }
-    if (!dismissible && details.reason !== "close-press") return;
+    if (!dismissible && details.reason !== "close-press") {
+      details.cancel();
+      return;
+    }
     onClose();
   }
 

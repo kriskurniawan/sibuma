@@ -392,6 +392,7 @@ export function ManualWorkForm({
       noValidate
     >
       <PageHeader
+        mobileCompact
         eyebrow="Pekerjaan harian"
         title={
           mode === "create"
@@ -411,6 +412,7 @@ export function ManualWorkForm({
           <Button
             variant="outline"
             size="sm"
+            className="hidden md:inline-flex"
             nativeButton={false}
             render={<Link href={backHref} />}
           >

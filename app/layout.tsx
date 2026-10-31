@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import { ThemeProvider } from "next-themes";
 import { HydrationMarker } from "@/components/hydration-marker";
 import { PwaRegister } from "@/components/pwa-register";
@@ -53,30 +52,29 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning data-scroll-behavior="smooth">
       {/* Browser extensions can add attributes to <body> before hydration. */}
       <body suppressHydrationWarning>
-        <Script id="dialog-intent" strategy="beforeInteractive">
+        {/* Inline sengaja: beforeInteractive baru dieksekusi setelah bootstrap
+            Next diunduh. Capture harus aktif sebelum tombol SSR terlihat. */}
+        <script id="dialog-intent">
           {`(function () {
   var INTENT = "__sibumaDialogIntent";
   var AT = "__sibumaDialogIntentAt";
   document.addEventListener("click", function (event) {
-    if (window.__sibumaHydrated) {
-      delete window[INTENT];
-      delete window[AT];
-      delete window.__sibumaDialogIntentElement;
-      return;
-    }
     var target = event.target;
     if (!target || typeof target.closest !== "function") return;
     var trigger = target.closest("[data-dialog-intent]");
-    if (!trigger) return;
+    if (!trigger || trigger.matches(":disabled, [aria-disabled='true']") || trigger.closest("[inert]")) return;
     var intent = trigger.getAttribute("data-dialog-intent");
     if (!intent) return;
     window[INTENT] = intent;
     window.__sibumaDialogIntentElement = trigger;
-    // Waktu dicatat di event handler (bukan saat render) untuk TTL intent.
+    window.__sibumaDialogIntentPath = window.location.pathname;
+    // Waktu interaksi hanya untuk mengenali pemicu dialog, bukan TTL intent.
     window[AT] = Date.now();
+    // Listener halaman menerima klik yang sama; jika belum siap, intent
+    // tetap tersimpan sampai handler halaman tersebut terpasang.
   }, true);
 })();`}
-        </Script>
+        </script>
         <HydrationMarker />
         <ThemeProvider
           attribute="class"

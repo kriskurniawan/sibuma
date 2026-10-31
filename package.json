@@ -11,6 +11,7 @@
     "db:migrate:relational": "tsx scripts/migrate-relational.mjs",
     "db:migrate:email": "node scripts/migrate-email-otp.mjs",
     "db:migrate:checklists": "node scripts/migrate-checklists.mjs",
+    "db:migrate:checklist-item-locations": "node scripts/migrate-checklist-item-locations.mjs",
     "db:migrate:remove-demo": "node scripts/migrate-remove-demo.mjs",
     "db:migrate:super-admin": "node scripts/migrate-super-admin.mjs",
     "db:migrate:avatar": "node scripts/migrate-employee-avatar.mjs",

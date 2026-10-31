@@ -129,6 +129,7 @@ export async function ChecklistReportScreen({
     <div className="flex flex-col gap-6">
       <div className="no-print">
         <PageHeader
+          mobileCompact
           eyebrow="Rekap checklist"
           title="Laporan checklist."
           description="Tinjau pemeriksaan berdasarkan periode jatuh tempo, termasuk checklist yang belum selesai. Unduh Excel berisi rekap dan rincian item, CSV untuk integrasi, atau PDF untuk arsip."
@@ -195,7 +196,9 @@ export async function ChecklistReportScreen({
       <Frame className="no-print">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Periode &amp; filter</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Periode &amp; filter
+            </FrameTitle>
             <FrameDescription className="text-xs">
               Berdasarkan tanggal jatuh tempo (occurrence), bukan hanya waktu
               selesai. Default bulan berjalan.
@@ -308,7 +311,9 @@ export async function ChecklistReportScreen({
       <Frame>
         <FrameHeader className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Rincian pemeriksaan</FrameTitle>
+            <FrameTitle className="max-md:sr-only">
+              Rincian pemeriksaan
+            </FrameTitle>
             <FrameDescription className="text-xs">
               {data.totals.total} baris data berdasarkan periode jatuh tempo.
             </FrameDescription>

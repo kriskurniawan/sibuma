@@ -68,6 +68,9 @@ export async function PATCH(
       const next = {
         templateId,
         locationId,
+        distributionMode:
+          parsed.data.distributionMode ??
+          (current.distribution_mode as string),
         intervalUnit: parsed.data.intervalUnit ?? (current.interval_unit as string),
         intervalCount: parsed.data.intervalCount ?? (current.interval_count as number),
         anchorDate: parsed.data.anchorDate ?? (current.anchor_date as string),
@@ -76,14 +79,15 @@ export async function PATCH(
       };
       const now = new Date().toISOString();
       await query(
-        `UPDATE checklist_schedules SET template_id=$3,location_id=$4,interval_unit=$5,
-           interval_count=$6,anchor_date=$7,due_days=$8,active=$9,updated_at=$10
+        `UPDATE checklist_schedules SET template_id=$3,location_id=$4,distribution_mode=$5,
+           interval_unit=$6,interval_count=$7,anchor_date=$8,due_days=$9,active=$10,updated_at=$11
          WHERE id=$1 AND owner_id=$2`,
         [
           id,
           user.id,
           next.templateId,
           next.locationId,
+          next.distributionMode,
           next.intervalUnit,
           next.intervalCount,
           next.anchorDate,

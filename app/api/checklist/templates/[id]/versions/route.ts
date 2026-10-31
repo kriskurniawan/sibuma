@@ -2,7 +2,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
-import { createTemplateVersion } from "@/lib/checklist-template-write";
+import {
+  assertTemplateItemLocations,
+  createTemplateVersion,
+} from "@/lib/checklist-template-write";
 import { checklistVersionSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
@@ -35,6 +38,7 @@ export async function POST(
         connection,
       );
       if (!template) throw new Error("Template tidak ditemukan.");
+      await assertTemplateItemLocations(connection, user.id, parsed.data.items);
       const nextVersion = (template.current_version as number) + 1;
       const versionId = `ctv_${crypto.randomUUID()}`;
       const items = await createTemplateVersion(connection, {

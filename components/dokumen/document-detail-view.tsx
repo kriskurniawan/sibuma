@@ -269,24 +269,48 @@ export function DocumentDetailView({
 
   return (
     <div className="flex flex-col gap-5 pb-8">
-      <PageHeader
-        eyebrow="Dokumen kerja"
-        title={document.title}
-        description={
-          <span className="flex flex-wrap items-center gap-2">
-            <DocumentTypeBadge extension={document.extension} />
-            <span className="tabular-nums">
-              {formatDocumentBytes(document.sizeBytes)}
+      <div className="hidden md:block">
+        <PageHeader
+          eyebrow="Dokumen kerja"
+          title={document.title}
+          description={
+            <span className="flex flex-wrap items-center gap-2">
+              <DocumentTypeBadge extension={document.extension} />
+              <span className="tabular-nums">
+                {formatDocumentBytes(document.sizeBytes)}
+              </span>
+              {document.deletedAt ? (
+                <Badge variant="warning-light">Di sampah</Badge>
+              ) : (
+                <DocumentShareBadges shares={document.shares} />
+              )}
             </span>
-            {document.deletedAt ? (
-              <Badge variant="warning-light">Di sampah</Badge>
-            ) : (
-              <DocumentShareBadges shares={document.shares} />
-            )}
-          </span>
-        }
-        action={actionButtons}
-      />
+          }
+          action={actionButtons}
+        />
+      </div>
+
+      <Frame className="md:hidden">
+        <FramePanel className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
+            <h1 className="wrap-anywhere text-xl font-semibold tracking-tight text-foreground">
+              {document.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <DocumentTypeBadge extension={document.extension} />
+              <span className="tabular-nums">
+                {formatDocumentBytes(document.sizeBytes)}
+              </span>
+              {document.deletedAt ? (
+                <Badge variant="warning-light">Di sampah</Badge>
+              ) : (
+                <DocumentShareBadges shares={document.shares} />
+              )}
+            </div>
+          </div>
+          {actionButtons}
+        </FramePanel>
+      </Frame>
 
       {document.deletedAt ? (
         <InfoBanner tone="warning" icon={Trash2}>
@@ -315,8 +339,8 @@ export function DocumentDetailView({
           <Frame stacked spacing="sm">
             <FrameHeader className="flex-row flex-wrap items-center justify-between gap-2">
               <div className="flex min-w-0 flex-col gap-0.5">
-                <FrameTitle>Pratinjau</FrameTitle>
-                <FrameDescription className="text-xs">
+                <FrameTitle className="max-md:sr-only">Pratinjau</FrameTitle>
+                <FrameDescription className="max-md:hidden text-xs">
                   {canPreview
                     ? "Pratinjau langsung dari penyimpanan privat."
                     : "Berkas Office hanya dapat diunduh pada tahap ini."}
@@ -711,7 +735,7 @@ export function DocumentDetailView({
         </AlertDialogContent>
       </AlertDialog>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="hidden text-xs text-muted-foreground md:block">
         <Link
           href="/dokumen"
           className="transition-colors hover:text-foreground"

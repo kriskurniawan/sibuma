@@ -2,7 +2,10 @@ import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
-import { createTemplateVersion } from "@/lib/checklist-template-write";
+import {
+  assertTemplateItemLocations,
+  createTemplateVersion,
+} from "@/lib/checklist-template-write";
 import { checklistTemplateSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
@@ -30,6 +33,7 @@ export async function POST(request: Request) {
       const now = new Date().toISOString();
       const templateId = `ct_${crypto.randomUUID()}`;
       const versionId = `ctv_${crypto.randomUUID()}`;
+      await assertTemplateItemLocations(connection, user.id, parsed.data.items);
       await query(
         `INSERT INTO checklist_templates
           (id,owner_id,name,category,description,active,current_version,created_by,created_at,updated_at)

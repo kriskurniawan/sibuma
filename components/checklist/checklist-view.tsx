@@ -113,6 +113,8 @@ export function ChecklistView({
         />
       </div>
 
+      <h1 className="sr-only md:hidden">Checklist</h1>
+
       <MobileSummary
         className="md:hidden"
         items={[
@@ -187,7 +189,7 @@ export function ChecklistView({
       <Frame>
         <FrameHeader className="flex flex-row flex-wrap items-end justify-between gap-2">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <FrameTitle>Daftar checklist</FrameTitle>
+            <FrameTitle className="max-md:sr-only">Daftar checklist</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
               {total} checklist sesuai filter.
             </FrameDescription>

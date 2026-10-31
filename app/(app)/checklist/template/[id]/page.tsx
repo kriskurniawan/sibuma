@@ -27,6 +27,7 @@ export default async function ChecklistTemplateDetailPage({
       template={detail.template}
       usage={detail.usage}
       versions={detail.versions}
+      locations={detail.locations}
     />
   );
 }

@@ -29,7 +29,7 @@ export default function DokumenLoading() {
       <span className="sr-only">Memuat dokumen kerja…</span>
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
           <Skeleton className="h-3 w-28" />
           <Skeleton className="h-7 w-52" />
           <Skeleton className="hidden h-4 w-full max-w-xl sm:block" />
@@ -38,9 +38,9 @@ export default function DokumenLoading() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
-        <Frame className="order-2 min-w-0 xl:order-1">
+        <Frame className="order-2 min-w-0 max-md:order-1 xl:order-1">
           <FrameHeader className="flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-1">
+            <div className="hidden flex-col gap-1 md:flex">
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-44" />
             </div>
@@ -56,7 +56,7 @@ export default function DokumenLoading() {
           </FramePanel>
         </Frame>
 
-        <div className="order-1 flex min-w-0 flex-col gap-4 xl:order-2">
+        <div className="order-1 flex min-w-0 flex-col gap-4 max-md:order-2 xl:order-2">
           <Frame spacing="sm">
             <FrameHeader className="gap-1">
               <Skeleton className="h-4 w-28" />

@@ -2,55 +2,73 @@
 
 import { useEffect, useRef } from "react";
 
+// Dicatat saat interaksi, tidak pernah dibaca untuk menghasilkan markup render.
 declare global {
   interface Window {
     __sibumaDialogIntent?: string;
     __sibumaDialogIntentAt?: number;
     __sibumaDialogIntentElement?: Element;
+    __sibumaDialogIntentPath?: string;
     __sibumaDialogTriggerElement?: Element;
     __sibumaDialogTriggerAt?: number;
     __sibumaHydrated?: boolean;
   }
 }
 
-const MAX_INTENT_AGE_MS = 5000;
-
 /**
- * Menjalankan dialog yang dipilih sebelum React selesai hidrasi.
- *
- * Klik pertama pada halaman yang masih memuat tidak memiliki handler React.
- * Script beforeInteractive mencatat niatnya, lalu hook ini memutarnya setelah
- * komponen siap. Intent yang terlalu lama dibuang agar tidak membuka dialog
- * yang tidak diinginkan setelah navigasi.
+ * Menerima intent saat handler halaman siap, termasuk klik sebelum hidrasi.
+ * Marker root tidak menentukan kesiapan boundary halaman atau navigasi berikutnya.
  */
 export function useDialogIntent(intent: string, onOpen: () => void) {
   const onOpenRef = useRef(onOpen);
   onOpenRef.current = onOpen;
 
   useEffect(() => {
-    // Handler React sudah aktif; klik berikutnya tidak perlu dicatat lagi.
-    window.__sibumaHydrated = true;
+    function consumeIntent() {
+      // Bandingkan dengan path saat ini, bukan path saat effect dipasang:
+      // komponen bisa bertahan melewati navigasi klien.
+      const pathname = window.location.pathname;
+      if (window.__sibumaDialogIntentPath !== pathname) return;
+      if (window.__sibumaDialogIntent !== intent) return;
 
-    const pending = window.__sibumaDialogIntent;
-    if (!pending) return;
-
-    const at = window.__sibumaDialogIntentAt ?? 0;
-    // Date.now() hanya dibaca di effect untuk membuang intent kedaluwarsa.
-    if (Date.now() - at > MAX_INTENT_AGE_MS) {
+      const trigger = window.__sibumaDialogIntentElement;
+      const at = window.__sibumaDialogIntentAt ?? 0;
       delete window.__sibumaDialogIntent;
       delete window.__sibumaDialogIntentAt;
       delete window.__sibumaDialogIntentElement;
-      return;
-    }
-    if (pending !== intent) return;
+      delete window.__sibumaDialogIntentPath;
+      // Koneksi elemen + pathname membatasi intent pada instance halaman ini.
+      // Tidak memakai TTL: JavaScript lambat tidak boleh membuang klik pengguna.
+      if (!trigger?.isConnected) return;
 
-    // Simpan elemen pemicu agar Modal dapat mengabaikan klik berulang di area
-    // tombol yang kini tertutup overlay.
-    window.__sibumaDialogTriggerElement = window.__sibumaDialogIntentElement;
-    window.__sibumaDialogTriggerAt = Date.now();
-    delete window.__sibumaDialogIntent;
-    delete window.__sibumaDialogIntentAt;
-    delete window.__sibumaDialogIntentElement;
-    onOpenRef.current();
+      window.__sibumaDialogTriggerElement = trigger;
+      window.__sibumaDialogTriggerAt = at;
+      onOpenRef.current();
+    }
+
+    function handleClick(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const trigger = target.closest<HTMLElement>("[data-dialog-intent]");
+      if (!trigger || trigger.dataset.dialogIntent !== intent) return;
+      if (
+        trigger.matches(":disabled, [aria-disabled='true']") ||
+        trigger.closest("[inert]")
+      ) {
+        return;
+      }
+      window.__sibumaDialogIntent = intent;
+      // Laju waktu dicatat hanya saat event, tidak dipakai dalam markup (C4).
+      window.__sibumaDialogIntentAt = Date.now();
+      window.__sibumaDialogIntentElement = trigger;
+      window.__sibumaDialogIntentPath = window.location.pathname;
+      consumeIntent();
+    }
+
+    document.addEventListener("click", handleClick, true);
+    consumeIntent();
+    return () => {
+      document.removeEventListener("click", handleClick, true);
+    };
   }, [intent]);
 }

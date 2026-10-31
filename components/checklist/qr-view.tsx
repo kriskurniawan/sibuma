@@ -103,6 +103,7 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
       </div>
 
       <PageHeader
+        mobileCompact
         eyebrow="Akses pengunjung"
         title="QR area."
         description="Kelola tautan QR untuk pengunjung dan petugas."
@@ -158,17 +159,19 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
       </div>
 
       <Frame spacing="default" className="min-w-0">
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <FrameTitle>Daftar QR</FrameTitle>
-            <FrameDescription className="hidden text-xs md:block">
-              Tautan tetap; nonaktifkan QR yang tidak dipakai.
-            </FrameDescription>
-          </div>
-          <Badge variant="outline" className="tabular-nums">
-            {setup.codes.length}
-          </Badge>
-        </FrameHeader>
+        <div className="hidden md:block">
+          <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <FrameTitle>Daftar QR</FrameTitle>
+              <FrameDescription className="text-xs">
+                Tautan tetap; nonaktifkan QR yang tidak dipakai.
+              </FrameDescription>
+            </div>
+            <Badge variant="outline" className="tabular-nums">
+              {setup.codes.length}
+            </Badge>
+          </FrameHeader>
+        </div>
 
         <FramePanel className="p-0">
           {setup.codes.length === 0 ? (
