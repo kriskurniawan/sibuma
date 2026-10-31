@@ -27,6 +27,7 @@
     "db:migrate:document-shares": "node scripts/migrate-document-share-targets.mjs",
     "db:migrate:policy-timezone": "node scripts/migrate-policy-timezone.mjs",
     "db:migrate:overtime-period": "node scripts/migrate-overtime-period.mjs",
+    "db:migrate:checklist-windows": "node scripts/migrate-checklist-schedule-windows.mjs",
     "db:promote:super-admin": "tsx scripts/promote-super-admin.mjs",
     "auth:test": "node --conditions=react-server --import tsx scripts/test-email-otp.mjs",
     "db:verify": "tsx scripts/verify-relational.mjs",

@@ -3,9 +3,15 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import { generateChecklistInspections } from "@/lib/checklist-generate";
+import {
+  resolvedScheduleDays,
+  weekdayOf,
+} from "@/lib/checklist-schedule";
+import { reconcileChecklistSchedule } from "@/lib/checklist-schedule-reconcile";
 import { checklistScheduleUpdateSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
+import type { ChecklistScheduleDay } from "@/lib/checklist-types";
 
 export async function PATCH(
   request: Request,
@@ -40,6 +46,30 @@ export async function PATCH(
         connection,
       );
       if (!current) throw new Error("Jadwal tidak ditemukan.");
+
+      const currentDayRows = await query<{
+        weekday: number;
+        enabled: boolean;
+        start_time: string;
+        end_time: string;
+      }>(
+        `SELECT weekday,enabled,start_time::text start_time,end_time::text end_time
+         FROM checklist_schedule_days WHERE schedule_id=$1 ORDER BY weekday`,
+        [id],
+        connection,
+      );
+      const currentDays: ChecklistScheduleDay[] = resolvedScheduleDays(
+        currentDayRows.map((row) => ({
+          weekday: row.weekday as ChecklistScheduleDay["weekday"],
+          enabled: row.enabled,
+          startTime: row.start_time.slice(0, 5),
+          endTime: row.end_time.slice(0, 5),
+        })),
+      );
+      const days =
+        parsed.data.days === undefined
+          ? currentDays
+          : resolvedScheduleDays(parsed.data.days);
 
       const templateId = parsed.data.templateId ?? (current.template_id as string);
       const locationId = parsed.data.locationId ?? (current.location_id as string);
@@ -77,6 +107,14 @@ export async function PATCH(
         dueDays: parsed.data.dueDays ?? (current.due_days as number),
         active: parsed.data.active ?? (current.active as boolean),
       };
+      if (
+        next.intervalUnit === "minggu" &&
+        !days[weekdayOf(next.anchorDate) - 1]?.enabled
+      ) {
+        throw new Error(
+          "Tanggal mulai mingguan jatuh pada hari yang tidak aktif. Aktifkan hari tersebut atau ubah tanggal mulai.",
+        );
+      }
       const now = new Date().toISOString();
       await query(
         `UPDATE checklist_schedules SET template_id=$3,location_id=$4,distribution_mode=$5,
@@ -97,6 +135,27 @@ export async function PATCH(
         ],
         connection,
       );
+
+      await query(
+        `INSERT INTO checklist_schedule_days
+          (schedule_id,weekday,enabled,start_time,end_time)
+         SELECT $1,day.weekday,day.enabled,day.start_time::time,day.end_time::time
+         FROM unnest($2::smallint[],$3::boolean[],$4::text[],$5::text[])
+           AS day(weekday,enabled,start_time,end_time)
+         ON CONFLICT (schedule_id,weekday) DO UPDATE
+         SET enabled=EXCLUDED.enabled,start_time=EXCLUDED.start_time,
+             end_time=EXCLUDED.end_time`,
+        [
+          id,
+          days.map((day) => day.weekday),
+          days.map((day) => day.enabled),
+          days.map((day) => day.startTime),
+          days.map((day) => day.endTime),
+        ],
+        connection,
+      );
+
+      const reconciled = await reconcileChecklistSchedule(connection, id, user.id);
 
       if (assigneeIds) {
         await query(`DELETE FROM checklist_schedule_assignees WHERE schedule_id=$1`, [id], connection);
@@ -134,9 +193,16 @@ export async function PATCH(
         objectId: id,
         summary: `${user.name} mengubah jadwal checklist.`,
         before: current,
-        after: { ...next, assigneeIds: assigneeIds ?? null },
+        after: { ...next, days, assigneeIds: assigneeIds ?? null },
       });
-      return { id, ...next, assigneeIds: assigneeIds ?? null, updatedAt: now };
+      return {
+        id,
+        ...next,
+        days,
+        assigneeIds: assigneeIds ?? null,
+        reconciled,
+        updatedAt: now,
+      };
     });
 
     const generated = await generateChecklistInspections(user.id).catch(() => ({ created: 0 }));

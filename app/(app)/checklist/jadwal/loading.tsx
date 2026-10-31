@@ -19,6 +19,7 @@ function ScheduleRowSkeleton() {
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Skeleton className="h-3 w-32" />
         <Skeleton className="h-3 w-40 max-w-full" />
+        <Skeleton className="h-3 w-36" />
         <Skeleton className="h-3 w-24" />
       </div>
 

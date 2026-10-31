@@ -6,14 +6,18 @@ import {
   CHECKLIST_GENERATION_DAYS_BACK,
   checklistDueAt,
   checklistIntervalLabel,
+  checklistOpensAt,
+  resolvedScheduleDays,
   scheduledDates,
   shiftDate,
+  weekdayOf,
 } from "./checklist-schedule";
 import { todayLocal } from "./time";
 import { sqlTimeZone } from "./sql-time-zone";
 import type {
   ChecklistDistributionMode,
   ChecklistIntervalUnit,
+  ChecklistScheduleDay,
 } from "./checklist-types";
 
 interface ScheduleRow extends QueryResultRow {
@@ -48,6 +52,14 @@ interface LocationRow extends QueryResultRow {
   name: string;
 }
 
+interface ScheduleDayRow extends QueryResultRow {
+  schedule_id: string;
+  weekday: number;
+  enabled: boolean;
+  start_time: string;
+  end_time: string;
+}
+
 interface PackageSeedRow extends QueryResultRow {
   id: string;
   schedule_id: string;
@@ -62,6 +74,7 @@ interface InspectionPlan {
   versionId: string;
   locationId: string;
   occurrenceDate: string;
+  opensAt: string;
   dueAt: string;
   templateName: string;
   category: string;
@@ -128,7 +141,7 @@ export async function generateChecklistInspections(ownerId: string) {
     ),
   ];
 
-  const [leafRows, existingRows, locationRows] = await Promise.all([
+  const [leafRows, existingRows, locationRows, dayRows] = await Promise.all([
     versionIds.length === 0
       ? Promise.resolve([] as TemplateLeafRow[])
       : (query(
@@ -148,6 +161,11 @@ export async function generateChecklistInspections(ownerId: string) {
     query(`SELECT id,name FROM checklist_locations WHERE owner_id=$1`, [
       ownerId,
     ]) as Promise<LocationRow[]>,
+    query(
+      `SELECT schedule_id,weekday,enabled,start_time::text start_time,end_time::text end_time
+       FROM checklist_schedule_days WHERE schedule_id=ANY($1::text[])`,
+      [scheduleIds],
+    ) as Promise<ScheduleDayRow[]>,
   ]);
 
   const leavesByVersion = new Map<string, TemplateLeafRow[]>();
@@ -155,6 +173,18 @@ export async function generateChecklistInspections(ownerId: string) {
     const list = leavesByVersion.get(leaf.version_id) ?? [];
     list.push(leaf);
     leavesByVersion.set(leaf.version_id, list);
+  }
+
+  const daysBySchedule = new Map<string, ChecklistScheduleDay[]>();
+  for (const row of dayRows) {
+    const list = daysBySchedule.get(row.schedule_id) ?? [];
+    list.push({
+      weekday: row.weekday as ChecklistScheduleDay["weekday"],
+      enabled: row.enabled,
+      startTime: row.start_time.slice(0, 5),
+      endTime: row.end_time.slice(0, 5),
+    });
+    daysBySchedule.set(row.schedule_id, list);
   }
 
   const existingByOccurrence = new Set(
@@ -182,19 +212,26 @@ export async function generateChecklistInspections(ownerId: string) {
       from,
       to: windowTo,
     });
+    const scheduleDays = resolvedScheduleDays(
+      daysBySchedule.get(schedule.id),
+    );
     const periodLabel = checklistIntervalLabel(schedule.interval_unit, schedule.interval_count);
 
     for (const date of dates) {
       // A generated occurrence is atomic. Existing rows are never rewritten or
       // extended with a newer template version.
       if (existingByOccurrence.has(`${schedule.id}|${date}`)) continue;
+      const day = scheduleDays[weekdayOf(date) - 1];
+      if (!day?.enabled) continue;
 
-      const dueAt = checklistDueAt(date, schedule.due_days);
+      const opensAt = checklistOpensAt(date, day.startTime);
+      const dueAt = checklistDueAt(date, schedule.due_days, day.endTime);
       const base = {
         scheduleId: schedule.id,
         templateId: schedule.template_id,
         versionId: schedule.latest_version_id,
         occurrenceDate: date,
+        opensAt,
         dueAt,
         templateName: schedule.template_name,
         category: schedule.category,
@@ -287,6 +324,32 @@ export async function generateChecklistInspections(ownerId: string) {
     const scheduleState = new Map(
       currentSchedules.map((schedule) => [schedule.id, schedule]),
     );
+    const currentDayRows = await query<{
+      schedule_id: string;
+      weekday: number;
+      enabled: boolean;
+    }>(
+      `SELECT schedule_id,weekday,enabled
+       FROM checklist_schedule_days WHERE schedule_id=ANY($1::text[])`,
+      [plannedScheduleIds],
+      connection,
+    );
+    const currentDays = new Map<string, Set<number>>();
+    for (const row of currentDayRows) {
+      const set = currentDays.get(row.schedule_id) ?? new Set<number>();
+      if (row.enabled) set.add(row.weekday);
+      currentDays.set(row.schedule_id, set);
+    }
+    const isCurrentDay = (plan: {
+      scheduleId: string;
+      occurrenceDate: string;
+    }) => {
+      const days = currentDays.get(plan.scheduleId);
+      // Missing rows mean a schedule created before migration 028; the
+      // migration backfills all seven days, so absence stays permissive.
+      if (!days) return true;
+      return days.has(weekdayOf(plan.occurrenceDate));
+    };
     const isCurrent = (
       plan: {
         scheduleId: string;
@@ -315,11 +378,15 @@ export async function generateChecklistInspections(ownerId: string) {
       occurrenceDate: string;
     }) => `${plan.scheduleId}|${plan.occurrenceDate.slice(0, 10)}`;
     const remainingPackages = packagePlans.filter(
-      (plan) => isCurrent(plan, true) && !existsNow.has(occurrenceKey(plan)),
+      (plan) =>
+        isCurrent(plan, true) &&
+        isCurrentDay(plan) &&
+        !existsNow.has(occurrenceKey(plan)),
     );
     const remainingInspections = inspectionPlans.filter(
       (plan) =>
         isCurrent(plan, plan.packageId !== null) &&
+        isCurrentDay(plan) &&
         !existsNow.has(occurrenceKey(plan)),
     );
     if (remainingInspections.length === 0) return { created: 0 };
@@ -384,6 +451,7 @@ export async function generateChecklistInspections(ownerId: string) {
           row.versionId,
           row.locationId,
           row.occurrenceDate,
+          row.opensAt,
           row.dueAt,
           row.templateName,
           row.category,
@@ -392,12 +460,12 @@ export async function generateChecklistInspections(ownerId: string) {
           now,
           now,
         );
-        return `(${Array.from({ length: 15 }, (_, index) => `$${offset + index + 1}`).join(",")})`;
+        return `(${Array.from({ length: 16 }, (_, index) => `$${offset + index + 1}`).join(",")})`;
       });
       const inserted = await query<QueryResultRow>(
         `INSERT INTO checklist_inspections
           (id,schedule_id,package_id,owner_id,template_id,template_version_id,location_id,
-           occurrence_date,due_at,template_name,category,location_name,period_label,created_at,updated_at)
+           occurrence_date,opens_at,due_at,template_name,category,location_name,period_label,created_at,updated_at)
          VALUES ${placeholders.join(",")}
          ON CONFLICT DO NOTHING
          RETURNING id`,

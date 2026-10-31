@@ -52,7 +52,7 @@ import type {
 import type { WorkerOverview } from "@/lib/queries";
 import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
-import { checklistHasStarted } from "@/lib/checklist-schedule";
+import { checklistHasOpened } from "@/lib/checklist-schedule";
 import {
   currentTimeZoneLabel,
   formatDateHuman,
@@ -95,7 +95,7 @@ export function WorkerDashboard({
       ? Math.round((focus.answeredCount / focus.totalItems) * 100)
       : 0;
   const focusStarted = focus
-    ? checklistHasStarted(focus.inspection.occurrenceDate)
+    ? checklistHasOpened(focus.inspection.opensAt)
     : false;
   const overtime = overview.activeItem ?? overview.nextItem;
 

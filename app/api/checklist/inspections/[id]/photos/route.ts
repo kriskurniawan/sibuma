@@ -9,8 +9,8 @@ import {
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
-  checklistHasStarted,
-  checklistNotStartedMessage,
+  checklistHasOpened,
+  checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import type { ChecklistFollowUp } from "@/lib/checklist-types";
@@ -125,8 +125,8 @@ export async function POST(
     } else {
       const allowed = await canAccessInspection(pool(), user, inspection);
       if (!allowed) return apiError("Kamu tidak ditugaskan pada checklist ini.", 403);
-      if (!checklistHasStarted(inspection.occurrenceDate)) {
-        return apiError(checklistNotStartedMessage(inspection.occurrenceDate));
+      if (!checklistHasOpened(inspection.opensAt)) {
+        return apiError(checklistNotOpenedMessage(inspection.opensAt));
       }
       if (["selesai", "dilewati"].includes(inspection.status)) {
         return apiError(
@@ -182,10 +182,8 @@ export async function POST(
           ownerId: current.owner_id as string,
         });
         if (!allowed) throw new Error("Kamu tidak ditugaskan pada checklist ini.");
-        if (!checklistHasStarted(current.occurrence_date as string)) {
-          throw new Error(
-            checklistNotStartedMessage(current.occurrence_date as string),
-          );
+        if (!checklistHasOpened(current.opens_at as Date)) {
+          throw new Error(checklistNotOpenedMessage(current.opens_at as Date));
         }
         if (["selesai", "dilewati"].includes(current.status as string)) {
           throw new Error(

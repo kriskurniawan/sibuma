@@ -43,7 +43,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, 
 - Form jadwal SPKL, koreksi absensi, dan filter laporan memakai pemilih tanggal/jam ReUI (bukan input native).
 - Ekspor **Excel (`.xlsx`)** dan **CSV**, serta cetak **PDF** melalui dialog cetak browser.
 - Mengelola tim (tambah, ubah, nonaktifkan pekerja) terpisah dari kebijakan lembur, yang diatur di halaman **Pengaturan**, termasuk zona waktu dan **tanggal mulai periode akumulasi lembur** (mis. tanggal 26).
-- Mengelola **checklist operasional**: lokasi/area bertingkat (mis. **Lantai 2 → Ruang Hydrant**), template berversi dengan grup + sub-item (maksimal 2 tingkat, 100 item dan 30 grup per template; grup wajib punya minimal satu sub-item), panduan, wajib isi, kebijakan foto, dan catatan wajib, serta jadwal fleksibel—harian, mingguan, 2 mingguan, bulanan, 3 bulanan, atau kustom setiap N hari/minggu/bulan. Jadwal mengikuti kalender tetap: keterlambatan tidak menggeser tanggal berikutnya dan tanggal 29–31 memakai hari terakhir bulan. Pemilih anggota jadwal dikelompokkan per divisi dan tetap nyaman untuk tim besar: pencarian nama/NIK, filter divisi, preview 20 anggota per divisi dengan **Tampilkan 20 lagi**, pilih semua hasil filter, ringkasan jumlah per divisi, serta penggabungan anggota lintas divisi secara custom. Maksimal **500 anggota per jadwal** (disimpan dengan insert massal); tim yang lebih besar dibagi ke beberapa jadwal.
+- Mengelola **checklist operasional**: lokasi/area bertingkat (mis. **Lantai 2 → Ruang Hydrant**), template berversi dengan grup + sub-item (maksimal 2 tingkat, 100 item dan 30 grup per template; grup wajib punya minimal satu sub-item), panduan, wajib isi, kebijakan foto, dan catatan wajib, serta jadwal fleksibel—harian, mingguan, 2 mingguan, bulanan, 3 bulanan, atau kustom setiap N hari/minggu/bulan. Hari aktif dan jam per hari dapat diatur (mis. Minggu libur, Sabtu `09:00–12:00`) sehingga checklist hanya dibuat pada hari aktif dan pengisian dibuka sesuai jam mulai. Jadwal mengikuti kalender tetap: keterlambatan tidak menggeser tanggal berikutnya dan tanggal 29–31 memakai hari terakhir bulan. Pemilih anggota jadwal dikelompokkan per divisi dan tetap nyaman untuk tim besar: pencarian nama/NIK, filter divisi, preview 20 anggota per divisi dengan **Tampilkan 20 lagi**, pilih semua hasil filter, ringkasan jumlah per divisi, serta penggabungan anggota lintas divisi secara custom. Maksimal **500 anggota per jadwal** (disimpan dengan insert massal); tim yang lebih besar dibagi ke beberapa jadwal.
 - Memantau checklist yang dikerjakan tim bersama, membuka kembali checklist selesai dengan alasan, serta meninjau tindak lanjut temuan. Status temuan terpisah dari status checklist, dan **terlambat** dihitung otomatis dari deadline.
 - Menerbitkan **QR area publik**—satu QR umum untuk memilih area atau QR khusus satu area—yang dapat dipindai pengunjung tanpa login. Visibilitas diatur per area dan per item dengan default **nonpublik**; catatan, foto, dan identitas petugas tidak pernah ditampilkan.
 - Melaporkan **checklist dan tindak lanjut** selain lembur melalui tab terpisah, lengkap dengan filter, Excel (rekap + rincian item), CSV rekap, CSV rincian item, CSV tindak lanjut, serta cetak/PDF.
@@ -137,6 +137,8 @@ Pemilihan penerima berbagi Dokumen Kerja memakai migrasi `npm run db:migrate:doc
 Zona waktu kini menjadi pengaturan admin. Terapkan `npm run db:migrate:policy-timezone` (DDL `db/migrations/026_policy_timezone.sql`) agar constraint `policies.timezone` menerima `Asia/Jakarta`, `Asia/Makassar`, dan `Asia/Jayapura`. Setelah migrasi, super admin dapat mengganti zona di **Pengaturan → Kebijakan**; jam, label WIB/WITA/WIT, buka absen 00:00, serta batas hari/bulan laporan mengikuti zona tersebut. Tanggal kalender yang sudah tersimpan tidak diubah.
 
 Periode akumulasi lembur diatur lewat `npm run db:migrate:overtime-period` (DDL `db/migrations/027_overtime_period.sql`) yang menambah `policies.overtime_period_start_day` (`1`–`31`, default `1` = bulan kalender). Super admin mengisi **tanggal mulai periode** di **Pengaturan → Kebijakan**; misalnya `26` membuat periode berjalan `26 Okt – 25 Nov`. KPI dashboard, riwayat, tim, serta default laporan dan ekspor lembur memakai rentang tersebut. Tanggal `29`–`31` mengikuti hari terakhir pada bulan yang lebih pendek.
+
+Hari aktif dan jam per hari pada jadwal checklist memakai `npm run db:migrate:checklist-windows` (DDL `db/migrations/028_checklist_schedule_windows.sql`). Migrasi menambah tabel `checklist_schedule_days` (tujuh baris per jadwal, `weekday` ISO 1–7, `enabled`, `start_time`, `end_time`) dan kolom `checklist_inspections.opens_at`. Jadwal lama otomatis mendapat semua hari aktif `00:00–23:59` sehingga perilakunya tidak berubah; admin dapat menonaktifkan hari libur (mis. Minggu) dan memberi jam khusus (mis. Sabtu `09:00–12:00`). Hari nonaktif tidak membuat occurrence baru, dan occurrence mendatang yang belum disentuh dijadwalkan ulang saat jam diubah.
 
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
@@ -263,8 +265,9 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Aturan checklist | Perilaku |
 | --- | --- |
 | Checklist: periode | Harian, mingguan, 2 mingguan, bulanan, 3 bulanan, atau kustom setiap N hari/minggu/bulan dengan *anchor date*; tanggal 29–31 jatuh ke hari terakhir bulan. |
+| Checklist: hari & jam | Setiap jadwal punya tujuh pengaturan hari (Senin–Minggu) dengan sakelar aktif dan jam mulai/selesai. Hari nonaktif tidak membuat occurrence; jam mulai membuka pengisian pada tanggal occurrence, dan jam selesai menjadi batas `due_at` pada hari tenggat. Jadwal mingguan harus dimulai pada hari aktif. |
 | Checklist: keterlambatan | Dihitung otomatis dari `due_at`. Menyelesaikan terlambat tidak menggeser occurrence berikutnya (kalender tetap). |
-| Checklist: pengisian | Semua anggota penugasan dan atasan pemilik boleh mengisi/menyelesaikan. Inspection baru dapat diisi sejak tanggal occurrence tiba (Asia/Jakarta); inspection bertanggal besok atau mendatang tampil baca-saja lebih dulu. Checklist boleh selesai meski ada temuan; status tindak lanjut terpisah. Tombol selesai dinonaktifkan sampai item wajib, catatan wajib, dan foto wajib terpenuhi, serta semua draf sudah disimpan. |
+| Checklist: pengisian | Semua anggota penugasan dan atasan pemilik boleh mengisi/menyelesaikan. Inspection baru dapat diisi sejak `opens_at` tiba (zona waktu aplikasi); inspection dengan jam mulai mendatang tampil baca-saja lebih dulu. Checklist boleh selesai meski ada temuan; status tindak lanjut terpisah. Tombol selesai dinonaktifkan sampai item wajib, catatan wajib, dan foto wajib terpenuhi, serta semua draf sudah disimpan. |
 | Checklist: kondisi | Baik / perlu perhatian / tidak baik / tidak berlaku. Catatan wajib saat bermasalah dan alasan wajib saat tidak berlaku. |
 | Checklist: foto | Opsional / wajib / wajib saat bermasalah, default 6 foto per item atau tindak lanjut (dapat diubah super admin, maksimal 50), 1,5 MB, JPG/PNG/WEBP dengan magic bytes yang cocok. Foto dapat diambil lewat kamera dalam aplikasi atau dipilih beberapa sekaligus dari galeri; unggahan diproses berurutan. Foto gagal unggah dapat dicoba ulang tanpa memilih berkas lagi. |
 | Checklist: video | Video MP4/WEBM/MOV dari galeri sebagai bukti tambahan; default 2 per item atau tindak lanjut dan dapat dinonaktifkan super admin. Video tidak memenuhi kewajiban foto dan tidak dihitung sebagai foto pada progres maupun laporan. |
@@ -322,7 +325,8 @@ components/                UI per domain
   checklist/               Grid, detail, item + foto, tindak lanjut, template, jadwal, QR, halaman publik
   reports/                 Filter dan grid laporan (lembur, checklist, tindak lanjut)
 lib/
-  checklist-schedule.ts    Jadwal ber-anchor, label interval, clamping bulan
+  checklist-schedule.ts    Jadwal ber-anchor, hari & jam, label interval, clamping bulan
+  checklist-schedule-reconcile.ts  Rekonsiliasi occurrence setelah hari/jam diubah
   checklist-generate.ts    Generator occurrence idempoten
   checklist-queries.ts     Dashboard/detail/tindak lanjut/setup checklist
   checklist-access.ts      Akses inspection/answer/follow-up
@@ -350,6 +354,7 @@ scripts/
   migrate-manual-work-public.mjs  Terapkan migrasi 025 (Publikasi pekerjaan harian ke pengunjung)
   migrate-policy-timezone.mjs  Terapkan migrasi 026 (Allowlist zona waktu kebijakan)
   migrate-overtime-period.mjs  Terapkan migrasi 027 (Tanggal mulai periode lembur)
+  migrate-checklist-schedule-windows.mjs  Terapkan migrasi 028 (Hari dan jam jadwal checklist)
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB

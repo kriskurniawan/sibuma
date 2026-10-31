@@ -43,22 +43,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
+import { TimeField } from "@/components/time-field";
 import {
   CHECKLIST_INTERVAL_UNIT_LABEL,
   CHECKLIST_MAX_ASSIGNEES,
+  CHECKLIST_WEEKDAY_LABEL,
+  defaultChecklistScheduleDays,
   type ChecklistDistributionMode,
   type ChecklistIntervalUnit,
   type ChecklistLocation,
+  type ChecklistScheduleDay,
   type ChecklistSetup,
   type ChecklistSetupEmployee,
   type ChecklistSetupSchedule,
   type ChecklistSetupTemplate,
   type ChecklistTemplateItem,
 } from "@/lib/checklist-types";
-import { checklistIntervalLabel } from "@/lib/checklist-schedule";
+import {
+  checklistIntervalLabel,
+  checklistScheduleDaysSummary,
+  resolvedScheduleDays,
+  weekdayOf,
+} from "@/lib/checklist-schedule";
 import { formatDateHuman, todayLocal } from "@/lib/time";
+import { cn } from "@/lib/utils";
 
 function dateIso(date: string) {
   return `${date}T00:00:00+07:00`;
@@ -366,6 +377,15 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                         {scheduleAssigneesLabel(schedule.assignees)}
                       </span>
                     </span>
+                    <span className="inline-flex min-w-0 items-center gap-1.5">
+                      <CalendarClock
+                        className="size-3.5 shrink-0"
+                        aria-hidden="true"
+                      />
+                      <span className="truncate">
+                        {checklistScheduleDaysSummary(schedule.days)}
+                      </span>
+                    </span>
                     <span className="inline-flex items-center gap-1.5">
                       <Clock3 className="size-3.5" aria-hidden="true" />
                       Deadline +{schedule.dueDays} hari
@@ -439,6 +459,9 @@ function ScheduleDialog({
   const [intervalCount, setIntervalCount] = useState(1);
   const [anchorDate, setAnchorDate] = useState(todayLocal());
   const [dueDays, setDueDays] = useState(1);
+  const [days, setDays] = useState<ChecklistScheduleDay[]>(
+    defaultChecklistScheduleDays,
+  );
   const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [divisionFilter, setDivisionFilter] = useState("semua");
   const [memberQuery, setMemberQuery] = useState("");
@@ -463,6 +486,11 @@ function ScheduleDialog({
     setIntervalCount(schedule?.intervalCount ?? 1);
     setAnchorDate(schedule?.anchorDate ?? todayLocal());
     setDueDays(schedule?.dueDays ?? 1);
+    setDays(
+      schedule?.days?.length
+        ? resolvedScheduleDays(schedule.days)
+        : defaultChecklistScheduleDays(),
+    );
     setAssigneeIds(schedule?.assignees.map((person) => person.id) ?? []);
     setDivisionFilter(
       initialDivisionFilter(schedule, groupEmployeesByDivision(setup.employees)),
@@ -678,6 +706,26 @@ function ScheduleDialog({
     else addAssignees(filteredIds);
   }
 
+  function updateDay(
+    weekday: ChecklistScheduleDay["weekday"],
+    patch: Partial<Omit<ChecklistScheduleDay, "weekday">>,
+  ) {
+    setDays((current) =>
+      current.map((day) =>
+        day.weekday === weekday ? { ...day, ...patch } : day,
+      ),
+    );
+  }
+
+  function applyDayPreset(preset: "mon-sat" | "all") {
+    setDays((current) =>
+      current.map((day) => ({
+        ...day,
+        enabled: preset === "all" || day.weekday !== 7,
+      })),
+    );
+  }
+
   async function submit() {
     if (!templateId) {
       toast.error("Pilih template.");
@@ -712,6 +760,29 @@ function ScheduleDialog({
       toast.error("Deadline minimal 0 hari.");
       return;
     }
+    const activeDays = days.filter((day) => day.enabled);
+    if (activeDays.length === 0) {
+      toast.error("Aktifkan minimal satu hari pengisian.");
+      return;
+    }
+    const invalidDay = activeDays.find(
+      (day) => day.endTime <= day.startTime,
+    );
+    if (invalidDay) {
+      toast.error(
+        `Jam selesai ${CHECKLIST_WEEKDAY_LABEL[invalidDay.weekday]} harus lebih lambat dari jam mulai.`,
+      );
+      return;
+    }
+    if (
+      intervalUnit === "minggu" &&
+      !days.find((day) => day.weekday === weekdayOf(anchorDate))?.enabled
+    ) {
+      toast.error(
+        "Tanggal mulai mingguan jatuh pada hari yang tidak aktif. Pilih tanggal lain atau aktifkan hari itu.",
+      );
+      return;
+    }
 
     setSaving(true);
     try {
@@ -730,6 +801,7 @@ function ScheduleDialog({
             intervalCount,
             anchorDate,
             dueDays,
+            days,
             assigneeIds,
             active,
           }),
@@ -1026,6 +1098,102 @@ function ScheduleDialog({
             value={anchorDate}
             onChange={setAnchorDate}
           />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Label>Hari & jam pengisian</Label>
+            <div className="flex flex-wrap items-center gap-1">
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                onClick={() => applyDayPreset("mon-sat")}
+              >
+                Senin–Sabtu
+              </Button>
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                onClick={() => applyDayPreset("all")}
+              >
+                Setiap hari
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Checklist hanya dibuat pada hari aktif. Jam selesai menjadi batas
+            pengisian pada tanggal tenggat.
+          </p>
+          <Frame dense>
+            <FramePanel className="divide-y divide-border/70 p-0">
+              {days.map((day) => {
+                const label = CHECKLIST_WEEKDAY_LABEL[day.weekday];
+                return (
+                  <div
+                    key={day.weekday}
+                    className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Switch
+                        checked={day.enabled}
+                        onCheckedChange={(checked) =>
+                          updateDay(day.weekday, { enabled: checked === true })
+                        }
+                        aria-label={`Aktifkan ${label}`}
+                      />
+                      <span
+                        className={cn(
+                          "text-sm",
+                          day.enabled
+                            ? "font-medium text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {label}
+                      </span>
+                      {!day.enabled && (
+                        <Badge variant="outline" className="text-xs">
+                          Libur
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <TimeField
+                        value={day.startTime}
+                        onValueChange={(value) =>
+                          updateDay(day.weekday, {
+                            startTime: value ?? day.startTime,
+                          })
+                        }
+                        disabled={!day.enabled}
+                        aria-label={`Jam mulai ${label}`}
+                        className="w-28"
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        s.d.
+                      </span>
+                      <TimeField
+                        value={day.endTime}
+                        onValueChange={(value) =>
+                          updateDay(day.weekday, {
+                            endTime: value ?? day.endTime,
+                          })
+                        }
+                        disabled={!day.enabled}
+                        aria-label={`Jam selesai ${label}`}
+                        className="w-28"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </FramePanel>
+          </Frame>
+          <p className="text-xs text-muted-foreground">
+            {checklistScheduleDaysSummary(days)}
+          </p>
         </div>
 
         <div className="flex flex-col gap-2">

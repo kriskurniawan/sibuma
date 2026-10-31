@@ -29,6 +29,39 @@ export type ChecklistPhotoStage = "temuan" | "perbaikan";
 export type ChecklistItemType = "grup" | "item";
 export type ChecklistDistributionMode = "tunggal" | "per_lokasi";
 
+/** 1 = Senin, 7 = Minggu; mengikuti ISO weekday. */
+export type ChecklistWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export interface ChecklistScheduleDay {
+  weekday: ChecklistWeekday;
+  enabled: boolean;
+  /** Jam mulai pengisian, format HH:mm. */
+  startTime: string;
+  /** Jam batas pengisian pada hari tenggat, format HH:mm. */
+  endTime: string;
+}
+
+export const CHECKLIST_WEEKDAY_LABEL: Record<ChecklistWeekday, string> = {
+  1: "Senin",
+  2: "Selasa",
+  3: "Rabu",
+  4: "Kamis",
+  5: "Jumat",
+  6: "Sabtu",
+  7: "Minggu",
+};
+
+export const CHECKLIST_WEEKDAYS: ChecklistWeekday[] = [1, 2, 3, 4, 5, 6, 7];
+
+export function defaultChecklistScheduleDays(): ChecklistScheduleDay[] {
+  return CHECKLIST_WEEKDAYS.map((weekday) => ({
+    weekday,
+    enabled: true,
+    startTime: "00:00",
+    endTime: "23:59",
+  }));
+}
+
 export const CHECKLIST_CONDITION_TONE_LABEL: Record<
   ChecklistConditionTone,
   string
@@ -186,6 +219,8 @@ export interface ChecklistSchedule {
   intervalCount: number;
   anchorDate: string;
   dueDays: number;
+  /** Tujuh pengaturan hari; selalu lengkap setelah migrasi 028. */
+  days: ChecklistScheduleDay[];
   active: boolean;
   createdBy: string;
   createdAt: string;
@@ -213,6 +248,8 @@ export interface ChecklistInspection {
   templateVersionId: string;
   locationId: string;
   occurrenceDate: string;
+  /** Waktu pengisian dibuka; snapshot dari jam mulai jadwal. */
+  opensAt: string;
   dueAt: string;
   templateName: string;
   category: string;

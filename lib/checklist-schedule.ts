@@ -1,6 +1,14 @@
-import { addDays, addMonths, addWeeks, differenceInCalendarDays, format, parseISO } from "date-fns";
-import { formatDateHuman, localDate, zonedToIso } from "./time";
-import type { ChecklistIntervalUnit, ChecklistSchedule } from "./checklist-types";
+import { addDays, addMonths, addWeeks, differenceInCalendarDays, format, getISODay, parseISO } from "date-fns";
+import { formatDateHuman, formatDateTime, zonedToIso } from "./time";
+import {
+  CHECKLIST_WEEKDAYS,
+  CHECKLIST_WEEKDAY_LABEL,
+  defaultChecklistScheduleDays,
+  type ChecklistIntervalUnit,
+  type ChecklistSchedule,
+  type ChecklistScheduleDay,
+  type ChecklistWeekday,
+} from "./checklist-types";
 
 export const CHECKLIST_GENERATION_DAYS_BACK = 45;
 export const CHECKLIST_GENERATION_DAYS_AHEAD = 14;
@@ -55,22 +63,86 @@ export function scheduledDates(input: {
   return dates;
 }
 
-export function checklistDueAt(occurrenceDate: string, dueDays: number) {
+export function normalizeScheduleTime(value: string) {
+  const [hour = "0", minute = "0"] = value.split(":");
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
+}
+
+export function weekdayOf(date: string): ChecklistWeekday {
+  return getISODay(asDate(date)) as ChecklistWeekday;
+}
+
+export function resolvedScheduleDays(
+  days:
+    | Array<{
+        weekday: number;
+        enabled: boolean;
+        startTime: string;
+        endTime: string;
+      }>
+    | null
+    | undefined,
+): ChecklistScheduleDay[] {
+  if (!days || days.length === 0) return defaultChecklistScheduleDays();
+  const byWeekday = new Map(days.map((day) => [day.weekday, day]));
+  return CHECKLIST_WEEKDAYS.map((weekday) => {
+    const day = byWeekday.get(weekday);
+    return day
+      ? { ...day, weekday }
+      : {
+          weekday,
+          enabled: false,
+          startTime: "00:00",
+          endTime: "23:59",
+        };
+  });
+}
+
+export function scheduleDayFor(
+  days: ChecklistScheduleDay[] | null | undefined,
+  date: string,
+) {
+  const weekday = weekdayOf(date);
+  return (
+    resolvedScheduleDays(days).find((day) => day.weekday === weekday) ?? null
+  );
+}
+
+export function checklistOpensAt(occurrenceDate: string, startTime = "00:00") {
+  return zonedToIso(
+    occurrenceDate.slice(0, 10),
+    normalizeScheduleTime(startTime),
+  );
+}
+
+export function checklistDueAt(
+  occurrenceDate: string,
+  dueDays: number,
+  endTime = "23:59",
+) {
   const dueDate = shiftDate(occurrenceDate, Math.max(0, Math.trunc(dueDays)));
-  return zonedToIso(dueDate, "23:59");
+  return zonedToIso(dueDate, normalizeScheduleTime(endTime));
 }
 
 /**
  * Pemeriksaan dibuat beberapa hari lebih awal agar terlihat di daftar, tetapi
- * baru boleh diisi sejak tanggal jadwalnya tiba (zona waktu aplikasi).
+ * baru boleh diisi sejak jam mulai jadwal pada tanggal occurrence tiba.
  */
-export function checklistHasStarted(occurrenceDate: string, now = new Date()) {
-  return occurrenceDate.slice(0, 10) <= localDate(now);
+export function checklistHasOpened(
+  opensAt: string | Date,
+  now = new Date(),
+) {
+  return new Date(opensAt).getTime() <= now.getTime();
 }
 
-export function checklistNotStartedMessage(occurrenceDate: string) {
-  const date = occurrenceDate.slice(0, 10);
-  return `Checklist ini baru dapat diisi mulai ${formatDateHuman(`${date}T12:00:00`, "d MMMM yyyy")}.`;
+export function checklistNotOpenedMessage(opensAt: string | Date) {
+  const iso =
+    opensAt instanceof Date ? opensAt.toISOString() : opensAt;
+  const localTime = formatDateTime(iso, "HH:mm");
+  if (localTime === "00:00") {
+    return `Checklist ini baru dapat diisi mulai ${formatDateHuman(iso, "d MMMM yyyy")}.`;
+  }
+  return `Checklist ini baru dapat diisi mulai ${formatDateTime(iso, "d MMMM yyyy, HH:mm")}.`;
 }
 
 export function checklistIntervalLabel(unit: ChecklistIntervalUnit, count: number) {
@@ -85,19 +157,90 @@ export function checklistIntervalLabel(unit: ChecklistIntervalUnit, count: numbe
 export function scheduleOccurrences(
   schedule: Pick<
     ChecklistSchedule,
-    "anchorDate" | "intervalUnit" | "intervalCount" | "active"
+    "anchorDate" | "intervalUnit" | "intervalCount" | "active" | "days"
   >,
   from: string,
   to: string,
 ) {
   if (!schedule.active) return [];
+  const days = resolvedScheduleDays(schedule.days);
   return scheduledDates({
     anchorDate: schedule.anchorDate,
     unit: schedule.intervalUnit,
     count: schedule.intervalCount,
     from,
     to,
-  });
+  }).filter((date) => days[weekdayOf(date) - 1]?.enabled);
+}
+
+function weekdayRanges(weekdays: ChecklistWeekday[]) {
+  const sorted = [...weekdays].sort((left, right) => left - right);
+  const ranges: string[] = [];
+  let start: ChecklistWeekday | null = null;
+  let previous: ChecklistWeekday | null = null;
+
+  const flush = () => {
+    if (start === null || previous === null) return;
+    ranges.push(
+      start === previous
+        ? CHECKLIST_WEEKDAY_LABEL[start]
+        : `${CHECKLIST_WEEKDAY_LABEL[start]}–${CHECKLIST_WEEKDAY_LABEL[previous]}`,
+    );
+  };
+
+  for (const day of sorted) {
+    if (start === null || previous === null) {
+      start = day;
+      previous = day;
+      continue;
+    }
+    if (day === previous + 1) {
+      previous = day;
+      continue;
+    }
+    flush();
+    start = day;
+    previous = day;
+  }
+  flush();
+  return ranges;
+}
+
+/** Ringkasan untuk daftar jadwal: jam per kelompok hari dan hari libur. */
+export function checklistScheduleDaysSummary(
+  days: ChecklistScheduleDay[] | null | undefined,
+) {
+  const resolved = resolvedScheduleDays(days);
+  const enabled = resolved.filter((day) => day.enabled);
+  if (enabled.length === 0) return "Tidak ada hari aktif";
+
+  const allSameHours = enabled.every(
+    (day) =>
+      day.startTime === enabled[0].startTime &&
+      day.endTime === enabled[0].endTime,
+  );
+  if (enabled.length === CHECKLIST_WEEKDAYS.length && allSameHours) {
+    return `Setiap hari ${enabled[0].startTime}–${enabled[0].endTime}`;
+  }
+
+  const byHours = new Map<string, ChecklistWeekday[]>();
+  for (const day of enabled) {
+    const key = `${day.startTime}|${day.endTime}`;
+    const list = byHours.get(key) ?? [];
+    list.push(day.weekday);
+    byHours.set(key, list);
+  }
+  const parts = [...byHours.entries()].map(
+    ([key, weekdays]) =>
+      `${weekdayRanges(weekdays).join(", ")} ${key.replace("|", "–")}`,
+  );
+  const disabled = resolved
+    .filter((day) => !day.enabled)
+    .map((day) => day.weekday);
+  if (disabled.length > 0) {
+    parts.push(`${weekdayRanges(disabled).join(", ")} libur`);
+  }
+  return parts.join(" · ");
 }
 
 export function isChecklistOverdue(

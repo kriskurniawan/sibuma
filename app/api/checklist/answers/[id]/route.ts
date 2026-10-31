@@ -5,8 +5,8 @@ import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
-  checklistHasStarted,
-  checklistNotStartedMessage,
+  checklistHasOpened,
+  checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
 import { checklistAnswerSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
@@ -43,7 +43,7 @@ export async function PATCH(
       );
       if (!reference) throw new Error("Item checklist tidak ditemukan.");
       const [inspection] = await query(
-        `SELECT owner_id,status,occurrence_date FROM checklist_inspections WHERE id=$1 FOR UPDATE`,
+        `SELECT owner_id,status,occurrence_date,opens_at FROM checklist_inspections WHERE id=$1 FOR UPDATE`,
         [reference.inspection_id],
         connection,
       );
@@ -59,10 +59,8 @@ export async function PATCH(
       if (["selesai", "dilewati"].includes(inspection.status as string)) {
         throw new Error("Checklist sudah selesai. Minta atasan membuka kembali bila perlu diubah.");
       }
-      if (!checklistHasStarted(inspection.occurrence_date as string)) {
-        throw new Error(
-          checklistNotStartedMessage(inspection.occurrence_date as string),
-        );
+      if (!checklistHasOpened(inspection.opens_at)) {
+        throw new Error(checklistNotOpenedMessage(inspection.opens_at));
       }
       if (parsed.data.expectedVersion !== current.version) {
         const error = new Error(

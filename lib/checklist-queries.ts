@@ -12,7 +12,7 @@ import {
   listChecklistLocationOptions,
 } from "./checklist-location-scope";
 import {
-  checklistHasStarted,
+  checklistHasOpened,
   scheduleOccurrences,
   shiftDate,
 } from "./checklist-schedule";
@@ -363,7 +363,16 @@ export async function getChecklistInspectionDetail(
         [id],
       ),
       inspection.scheduleId
-        ? query(`SELECT * FROM checklist_schedules WHERE id=$1`, [inspection.scheduleId])
+        ? query(
+            `SELECT s.*,
+               coalesce((SELECT json_agg(json_build_object(
+                   'weekday',sd.weekday,'enabled',sd.enabled,
+                   'startTime',to_char(sd.start_time,'HH24:MI'),
+                   'endTime',to_char(sd.end_time,'HH24:MI')) ORDER BY sd.weekday)
+                 FROM checklist_schedule_days sd WHERE sd.schedule_id=s.id),'[]'::json) days
+             FROM checklist_schedules s WHERE s.id=$1`,
+            [inspection.scheduleId],
+          )
         : Promise.resolve([]),
       followUpRows(`WHERE f.inspection_id=$1`, [id]),
       query(
@@ -412,7 +421,7 @@ export async function getChecklistInspectionDetail(
   const owner = inspection.ownerId === user.id;
   const readOnly = user.accessMode === "read_only";
   const open = !["selesai", "dilewati"].includes(inspection.status);
-  const hasStarted = checklistHasStarted(inspection.occurrenceDate);
+  const hasStarted = checklistHasOpened(inspection.opensAt);
   const canFill = !readOnly && open && hasStarted && (owner || assigned);
 
   return {
@@ -534,7 +543,12 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
          coalesce((SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik,'divisionId',e.division_id,'divisionName',d.name) ORDER BY e.name,e.id)
            FROM checklist_schedule_assignees sa JOIN employees e ON e.id=sa.employee_id
            LEFT JOIN divisions d ON d.id=e.division_id
-           WHERE sa.schedule_id=s.id),'[]'::json) assignees
+           WHERE sa.schedule_id=s.id),'[]'::json) assignees,
+         coalesce((SELECT json_agg(json_build_object(
+             'weekday',sd.weekday,'enabled',sd.enabled,
+             'startTime',to_char(sd.start_time,'HH24:MI'),
+             'endTime',to_char(sd.end_time,'HH24:MI')) ORDER BY sd.weekday)
+           FROM checklist_schedule_days sd WHERE sd.schedule_id=s.id),'[]'::json) days
        FROM checklist_schedules s
        JOIN checklist_templates t ON t.id=s.template_id
        JOIN checklist_locations l ON l.id=s.location_id

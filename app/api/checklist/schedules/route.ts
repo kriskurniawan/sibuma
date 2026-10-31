@@ -3,7 +3,11 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import { generateChecklistInspections } from "@/lib/checklist-generate";
-import { checklistIntervalLabel } from "@/lib/checklist-schedule";
+import {
+  checklistIntervalLabel,
+  resolvedScheduleDays,
+  weekdayOf,
+} from "@/lib/checklist-schedule";
 import { checklistScheduleSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
@@ -25,6 +29,15 @@ export async function POST(request: Request) {
   if (!parsed.success) return apiError(validationMessage(parsed.error));
 
   const assigneeIds = [...new Set(parsed.data.assigneeIds)];
+  const days = resolvedScheduleDays(parsed.data.days);
+  if (
+    parsed.data.intervalUnit === "minggu" &&
+    !days[weekdayOf(parsed.data.anchorDate) - 1]?.enabled
+  ) {
+    return apiError(
+      "Tanggal mulai mingguan jatuh pada hari yang tidak aktif. Aktifkan hari tersebut atau ubah tanggal mulai.",
+    );
+  }
 
   try {
     const schedule = await transaction(async (connection) => {
@@ -78,6 +91,21 @@ export async function POST(request: Request) {
         connection,
       );
       await query(
+        `INSERT INTO checklist_schedule_days
+          (schedule_id,weekday,enabled,start_time,end_time)
+         SELECT $1,day.weekday,day.enabled,day.start_time::time,day.end_time::time
+         FROM unnest($2::smallint[],$3::boolean[],$4::text[],$5::text[])
+           AS day(weekday,enabled,start_time,end_time)`,
+        [
+          id,
+          days.map((day) => day.weekday),
+          days.map((day) => day.enabled),
+          days.map((day) => day.startTime),
+          days.map((day) => day.endTime),
+        ],
+        connection,
+      );
+      await query(
         `INSERT INTO checklist_schedule_assignees (schedule_id,employee_id)
          SELECT $1,t.employee_id FROM unnest($2::text[]) AS t(employee_id)`,
         [id, assigneeIds],
@@ -90,12 +118,13 @@ export async function POST(request: Request) {
         objectType: "checklist",
         objectId: id,
         summary: `${user.name} membuat jadwal ${checklistIntervalLabel(parsed.data.intervalUnit, parsed.data.intervalCount)} untuk ${target.template_name as string}${parsed.data.distributionMode === "per_lokasi" ? " dengan pemeriksaan terpisah per lokasi item" : ` di ${target.location_name as string}`}.`,
-        after: { ...parsed.data, assigneeIds },
+        after: { ...parsed.data, assigneeIds, days },
       });
       return {
         id,
         ownerId: user.id,
         ...parsed.data,
+        days,
         assigneeIds,
         createdAt: now,
         updatedAt: now,

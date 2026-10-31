@@ -5,8 +5,8 @@ import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
-  checklistHasStarted,
-  checklistNotStartedMessage,
+  checklistHasOpened,
+  checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
 import { query, transaction } from "@/lib/db";
 import { rowToCamel } from "@/lib/db-model";
@@ -35,10 +35,8 @@ export async function POST(
         ownerId: current.owner_id as string,
       });
       if (!allowed) throw new Error("Kamu tidak ditugaskan pada checklist ini.");
-      if (!checklistHasStarted(current.occurrence_date as string)) {
-        throw new Error(
-          checklistNotStartedMessage(current.occurrence_date as string),
-        );
+      if (!checklistHasOpened(current.opens_at as Date)) {
+        throw new Error(checklistNotOpenedMessage(current.opens_at as Date));
       }
       if (current.status === "selesai") throw new Error("Checklist ini sudah selesai.");
       if (current.status === "dilewati") throw new Error("Checklist ini dilewati.");

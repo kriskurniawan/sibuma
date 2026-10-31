@@ -61,7 +61,7 @@ import {
 import { ChecklistFollowUpDialog } from "@/components/checklist/follow-up-dialog";
 import { ChecklistFollowUpUpdateDialog } from "@/components/checklist/follow-up-update-dialog";
 import { ChecklistPhotoGallery } from "@/components/checklist/photo-gallery";
-import { checklistIntervalLabel } from "@/lib/checklist-schedule";
+import { checklistIntervalLabel, checklistScheduleDaysSummary } from "@/lib/checklist-schedule";
 import {
   conditionRequiresNote,
   isIssueCondition,
@@ -648,11 +648,22 @@ export function ChecklistDetail({
             </div>
             <div className="col-span-2 flex flex-col gap-0.5">
               <dt className="text-xs text-muted-foreground">Jadwal</dt>
-              <dd className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-                <UsersRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                {detail.schedule
-                  ? `${checklistIntervalLabel(detail.schedule.intervalUnit, detail.schedule.intervalCount)} · deadline ${detail.schedule.dueDays} hari`
-                  : "Tanpa jadwal berkala"}
+              <dd className="flex flex-col gap-0.5 text-sm font-medium text-foreground">
+                <span className="flex items-center gap-1.5">
+                  <UsersRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  {detail.schedule
+                    ? `${checklistIntervalLabel(detail.schedule.intervalUnit, detail.schedule.intervalCount)} · deadline ${detail.schedule.dueDays} hari`
+                    : "Tanpa jadwal berkala"}
+                </span>
+                {detail.schedule && (
+                  <span className="flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+                    <CalendarClock
+                      className="size-3.5"
+                      aria-hidden="true"
+                    />
+                    {checklistScheduleDaysSummary(detail.schedule.days)}
+                  </span>
+                )}
               </dd>
             </div>
           </dl>

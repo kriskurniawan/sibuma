@@ -21,6 +21,56 @@ const dateOnly = z
 
 const id = z.string().trim().min(1, "Data yang dipilih tidak valid.").max(120);
 
+const timeOfDay = z
+  .string()
+  .trim()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Format jam harus HH:mm.");
+
+export const checklistScheduleDaySchema = z
+  .object({
+    weekday: z
+      .number()
+      .int("Hari tidak valid.")
+      .min(1, "Hari tidak valid.")
+      .max(7, "Hari tidak valid."),
+    enabled: z.boolean(),
+    startTime: timeOfDay,
+    endTime: timeOfDay,
+  })
+  .superRefine((day, ctx) => {
+    if (day.enabled && day.endTime <= day.startTime) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["endTime"],
+        message: "Jam selesai harus lebih lambat dari jam mulai.",
+      });
+    }
+  });
+
+export const checklistScheduleDaysSchema = z
+  .array(checklistScheduleDaySchema)
+  .length(7, "Atur ketujuh hari dalam seminggu.")
+  .superRefine((days, ctx) => {
+    const seen = new Set<number>();
+    for (const [index, day] of days.entries()) {
+      if (seen.has(day.weekday)) {
+        ctx.addIssue({
+          code: "custom",
+          path: [index, "weekday"],
+          message: "Hari tidak boleh muncul lebih dari sekali.",
+        });
+      }
+      seen.add(day.weekday);
+    }
+    if (!days.some((day) => day.enabled)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [],
+        message: "Aktifkan minimal satu hari.",
+      });
+    }
+  });
+
 export const checklistLocationSchema = z.object({
   name: z
     .string()
@@ -218,6 +268,7 @@ export const checklistScheduleSchema = z.object({
     .int("Deadline harus bilangan bulat.")
     .min(0, "Deadline minimal 0 hari.")
     .max(90, "Deadline maksimal 90 hari."),
+  days: checklistScheduleDaysSchema.optional(),
   assigneeIds: z
     .array(id)
     .min(1, "Pilih minimal satu anggota tim.")

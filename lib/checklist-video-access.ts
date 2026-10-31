@@ -5,8 +5,8 @@ import {
   loadInspection,
 } from "./checklist-access";
 import {
-  checklistHasStarted,
-  checklistNotStartedMessage,
+  checklistHasOpened,
+  checklistNotOpenedMessage,
 } from "./checklist-schedule";
 import type {
   ChecklistFollowUp,
@@ -74,8 +74,8 @@ export async function assertChecklistVideoTarget(
   if (!(await canAccessInspection(connection, user, inspection))) {
     throw new Error("Kamu tidak ditugaskan pada checklist ini.");
   }
-  if (!checklistHasStarted(inspection.occurrenceDate)) {
-    throw new Error(checklistNotStartedMessage(inspection.occurrenceDate));
+  if (!checklistHasOpened(inspection.opensAt)) {
+    throw new Error(checklistNotOpenedMessage(inspection.opensAt));
   }
   if (["selesai", "dilewati"].includes(inspection.status)) {
     throw new Error(

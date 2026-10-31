@@ -5,8 +5,8 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
-  checklistHasStarted,
-  checklistNotStartedMessage,
+  checklistHasOpened,
+  checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
 import { getChecklistPhoto } from "@/lib/checklist-queries";
 import { query, transaction } from "@/lib/db";
@@ -92,7 +92,7 @@ export async function DELETE(
       // follows the same inspection -> child order as completion/reopen.
       const [photo] = await query(
         `SELECT p.*,i.owner_id inspection_owner_id,i.status inspection_status,
-                i.occurrence_date inspection_occurrence_date,
+                i.occurrence_date inspection_occurrence_date,i.opens_at inspection_opens_at,
                 f.status follow_up_status,f.pic_id follow_up_pic_id
          FROM checklist_photos p
          JOIN checklist_inspections i ON i.id=p.inspection_id
@@ -117,12 +117,10 @@ export async function DELETE(
           "Checklist sudah selesai. Minta atasan membuka kembali sebelum mengubah bukti.",
         );
       } else if (
-        !checklistHasStarted(photo.inspection_occurrence_date as string)
+        !checklistHasOpened(photo.inspection_opens_at as Date)
       ) {
         throw new Error(
-          checklistNotStartedMessage(
-            photo.inspection_occurrence_date as string,
-          ),
+          checklistNotOpenedMessage(photo.inspection_opens_at as Date),
         );
       }
       let allowed =
