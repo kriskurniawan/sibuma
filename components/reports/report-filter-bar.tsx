@@ -15,7 +15,6 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -38,8 +37,10 @@ export interface ReportFilterSelect {
   value: string;
   placeholder?: string;
   options: ReportFilterOption[];
-  /** Grid span pembungkus, mis. "xl:col-span-2". */
+  /** Lebar trigger pada layar lebar, mis. "sm:w-44". */
   className?: string;
+  /** Parameter lain yang dikembalikan ke default saat filter ini berubah. */
+  resetKeys?: string[];
 }
 
 type Navigate = (updates: Record<string, string | null | undefined>) => void;
@@ -56,30 +57,36 @@ function AutoSelectFilter({
   const [value, setValue] = useOptimisticFilterValue(filter.value, pending);
 
   return (
-    <div className={cn("flex flex-col gap-2", filter.className)}>
-      <Label htmlFor={filter.id}>{filter.label}</Label>
-      <Select
-        value={value}
-        onValueChange={(next) => {
-          if (next === null) return;
-          const nextValue = String(next);
-          setValue(nextValue);
-          navigate({ [filter.key]: nextValue });
-        }}
-        items={filter.options}
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next === null) return;
+        const nextValue = String(next);
+        setValue(nextValue);
+        navigate({
+          [filter.key]: nextValue,
+          ...Object.fromEntries(
+            (filter.resetKeys ?? []).map((key) => [key, null]),
+          ),
+        });
+      }}
+      items={filter.options}
+    >
+      <SelectTrigger
+        id={filter.id}
+        aria-label={filter.label}
+        className={cn("w-full", filter.className ?? "sm:w-40")}
       >
-        <SelectTrigger id={filter.id} className="w-full">
-          <SelectValue placeholder={filter.placeholder} />
-        </SelectTrigger>
-        <SelectContent>
-          {filter.options.map((option) => (
-            <SelectItem key={option.value || "__all"} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+        <SelectValue placeholder={filter.placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {filter.options.map((option) => (
+          <SelectItem key={option.value || "__all"} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
 
@@ -103,8 +110,7 @@ function AutoSearchFilter({
   );
 
   return (
-    <div className={cn("flex flex-col gap-2", className)}>
-      <Label htmlFor={id}>{label}</Label>
+    <div className={cn("min-w-0", className)}>
       <InputGroup>
         <InputGroupAddon>
           <Search aria-hidden="true" />
@@ -114,6 +120,7 @@ function AutoSearchFilter({
           type="search"
           inputMode="search"
           enterKeyHint="search"
+          aria-label={label}
           value={search.text}
           onChange={(event) => search.change(event.target.value)}
           onFocus={search.onFocus}
@@ -129,6 +136,7 @@ function AutoSearchFilter({
         {search.text && (
           <InputGroupAddon align="inline-end">
             <InputGroupButton
+              type="button"
               size="icon-xs"
               aria-label="Hapus pencarian"
               onClick={() => search.commitNow("")}
@@ -150,7 +158,6 @@ export function ReportFilterBar({
   searchId,
   searchLabel = "Cari",
   searchPlaceholder,
-  searchClassName,
   selectFilters = [],
   summary,
 }: {
@@ -161,44 +168,52 @@ export function ReportFilterBar({
   searchId: string;
   searchLabel?: string;
   searchPlaceholder: string;
-  searchClassName?: string;
   selectFilters?: ReportFilterSelect[];
   summary?: ReactNode;
 }) {
   const { isPending, navigate } = useFilterNavigation({ includeSub: "1" });
 
   return (
-    <div role="group" aria-label={ariaLabel} className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-12">
-        <ReportDateFilters
-          from={from}
-          to={to}
-          onChange={(nextFrom, nextTo) =>
-            navigate({ from: nextFrom, to: nextTo })
-          }
-        />
-        {selectFilters.map((filter) => (
-          <AutoSelectFilter
-            key={filter.key}
-            filter={filter}
-            navigate={navigate}
-            pending={isPending}
-          />
-        ))}
+    <div role="group" aria-label={ariaLabel} className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2 xl:flex-row xl:items-start">
         <AutoSearchFilter
           id={searchId}
           label={searchLabel}
           value={search}
           placeholder={searchPlaceholder}
-          className={searchClassName}
+          className="w-full xl:w-72"
           navigate={navigate}
         />
+
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
+          <ReportDateFilters
+            from={from}
+            to={to}
+            onChange={(nextFrom, nextTo) =>
+              navigate({ from: nextFrom, to: nextTo })
+            }
+            className="col-span-2 sm:col-auto"
+          />
+
+          {selectFilters.map((filter) => (
+            <AutoSelectFilter
+              key={filter.key}
+              filter={filter}
+              navigate={navigate}
+              pending={isPending}
+            />
+          ))}
+
+          <FilterPending
+            pending={isPending}
+            className="col-span-2 sm:col-span-1"
+          />
+        </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <FilterPending pending={isPending} />
-        {summary}
-      </div>
+      {summary && (
+        <div className="text-xs text-muted-foreground">{summary}</div>
+      )}
     </div>
   );
 }

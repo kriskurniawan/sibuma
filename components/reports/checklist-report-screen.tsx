@@ -221,8 +221,8 @@ export async function ChecklistReportScreen({
             to={to}
             search={filters.search ?? ""}
             searchId="checklist-search"
+            searchLabel="Cari laporan checklist"
             searchPlaceholder="Template, area, kategori…"
-            searchClassName="sm:col-span-2 xl:col-span-4"
             selectFilters={[
               {
                 key: "locationId",
@@ -231,16 +231,22 @@ export async function ChecklistReportScreen({
                 value: filters.locationId ?? "",
                 placeholder: "Semua area",
                 options: locationOptions,
-                className: "xl:col-span-2",
+                className: "sm:w-44",
+                resetKeys: ["includeSub"],
               },
-              {
-                key: "includeSub",
-                id: "checklist-scope",
-                label: "Cakupan area",
-                value: filters.includeSubLocations === false ? "0" : "1",
-                options: SCOPE_OPTIONS,
-                className: "xl:col-span-2",
-              },
+              ...(filters.locationId
+                ? [
+                    {
+                      key: "includeSub",
+                      id: "checklist-scope",
+                      label: "Cakupan area",
+                      value:
+                        filters.includeSubLocations === false ? "0" : "1",
+                      options: SCOPE_OPTIONS,
+                      className: "sm:w-44",
+                    },
+                  ]
+                : []),
               {
                 key: "templateId",
                 id: "checklist-template",
@@ -248,7 +254,7 @@ export async function ChecklistReportScreen({
                 value: filters.templateId ?? "",
                 placeholder: "Semua template",
                 options: templateOptions,
-                className: "xl:col-span-2",
+                className: "sm:w-48",
               },
               {
                 key: "status",
@@ -257,14 +263,10 @@ export async function ChecklistReportScreen({
                 value: filters.status ?? "",
                 placeholder: "Semua status",
                 options: STATUS_OPTIONS,
-                className: "xl:col-span-2",
+                className: "sm:w-40",
               },
             ]}
-            summary={
-              <p className="text-xs text-muted-foreground">
-                {data.total} pemeriksaan pada {periodLabel}.
-              </p>
-            }
+            summary={`${data.total} pemeriksaan pada ${periodLabel}.`}
           />
         </FramePanel>
       </Frame>

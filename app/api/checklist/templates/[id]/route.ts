@@ -62,3 +62,65 @@ export async function PATCH(
     return apiError(checklistErrorMessage(error, "Nama template sudah dipakai."));
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser();
+  if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
+  const denied = readOnlyWrite(user);
+  if (denied) return denied;
+  if (user.role !== "atasan") {
+    return apiError("Hanya atasan yang dapat menghapus template.", 403);
+  }
+
+  const { id } = await params;
+  try {
+    await transaction(async (connection) => {
+      const [current] = await query(
+        `SELECT * FROM checklist_templates WHERE id=$1 AND owner_id=$2 FOR UPDATE`,
+        [id, user.id],
+        connection,
+      );
+      if (!current) throw new Error("Template tidak ditemukan.");
+
+      const [usage] = await query<{ schedules: number; inspections: number }>(
+        `SELECT
+           (SELECT count(*)::integer FROM checklist_schedules WHERE template_id=$1) schedules,
+           (SELECT count(*)::integer FROM checklist_inspections WHERE template_id=$1) inspections`,
+        [id],
+        connection,
+      );
+      const schedules = Number(usage?.schedules ?? 0);
+      const inspections = Number(usage?.inspections ?? 0);
+      if (schedules > 0 || inspections > 0) {
+        const used = [
+          schedules > 0 ? `${schedules} jadwal` : null,
+          inspections > 0 ? `${inspections} inspeksi` : null,
+        ].filter(Boolean);
+        throw new Error(
+          `Template sudah dipakai pada ${used.join(" dan ")}. Nonaktifkan saja agar riwayat tetap terbaca.`,
+        );
+      }
+
+      await query(
+        `DELETE FROM checklist_templates WHERE id=$1 AND owner_id=$2`,
+        [id, user.id],
+        connection,
+      );
+      await insertChecklistAudit(connection, {
+        actorId: user.id,
+        actorName: user.name,
+        action: "checklist_template_dihapus",
+        objectType: "checklist",
+        objectId: id,
+        summary: `${user.name} menghapus template checklist ${current.name as string}.`,
+        before: current,
+      });
+    });
+    return apiOk({ message: "Template checklist dihapus." });
+  } catch (error) {
+    return apiError(checklistErrorMessage(error));
+  }
+}

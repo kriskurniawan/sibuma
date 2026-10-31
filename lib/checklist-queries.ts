@@ -566,7 +566,13 @@ export async function getChecklistTemplateDetail(userId: string, templateId: str
   );
   if (!templateRow) return null;
   const template = mapRow<ChecklistTemplate>(templateRow);
-  const [versionRows, itemRows] = await Promise.all([
+  const [usageRows, versionRows, itemRows] = await Promise.all([
+    query<{ schedules: number; inspections: number }>(
+      `SELECT
+         (SELECT count(*)::integer FROM checklist_schedules WHERE template_id=$1) schedules,
+         (SELECT count(*)::integer FROM checklist_inspections WHERE template_id=$1) inspections`,
+      [templateId],
+    ),
     query(
       `SELECT * FROM checklist_template_versions WHERE template_id=$1 ORDER BY version DESC`,
       [templateId],
@@ -581,6 +587,10 @@ export async function getChecklistTemplateDetail(userId: string, templateId: str
   const items = itemRows.map((row) => mapRow<ChecklistTemplateItem>(row));
   return {
     template,
+    usage: {
+      schedules: Number(usageRows[0]?.schedules ?? 0),
+      inspections: Number(usageRows[0]?.inspections ?? 0),
+    },
     versions: versionRows.map((row) => {
       const version = mapRow<ChecklistTemplateVersion>(row);
       return { ...version, items: items.filter((item) => item.versionId === version.id) };

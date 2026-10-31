@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Camera,
@@ -10,10 +11,10 @@ import {
   MapPin,
   PencilLine,
   ShieldAlert,
-  TimerReset,
   UserX,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTable, type ColumnDef } from "@tanstack/react-table";
 import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
 import {
@@ -21,6 +22,14 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/reui/alert";
+import {
+  DataGrid,
+  DataGridContainer,
+  dataGridFeatures,
+  type DataGridFeatures,
+} from "@/components/reui/data-grid/data-grid";
+import { DataGridScrollArea } from "@/components/reui/data-grid/data-grid-scroll-area";
+import { DataGridTable } from "@/components/reui/data-grid/data-grid-table";
 import {
   Frame,
   FrameDescription,
@@ -40,6 +49,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TimeField } from "@/components/time-field";
+import { avatarUrl } from "@/lib/avatar-url";
 import {
   durationLabel,
   formatDateHuman,
@@ -54,17 +64,152 @@ import type {
   EmployeeAttendanceView,
   Spkl,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
-function attendancePlacement(attendance: Attendance | null) {
-  if (!attendance) return "Belum absen";
-  if (attendance.status === "tidak_hadir") return "Tidak hadir";
-  if (attendance.status === "berjalan") return "Sedang berjalan";
-  if (attendance.status === "ditutup_otomatis" && !attendance.checkOutAt) {
-    return "Belum pulang";
-  }
-  return durationLabel(attendance.durationMinutes);
+interface AttendanceRow extends EmployeeAttendanceView {
+  documentationCount: number;
 }
+
+function attendanceDuration(attendance: Attendance | null) {
+  if (!attendance || attendance.status === "tidak_hadir") return "—";
+  if (attendance.durationMinutes !== null) {
+    return durationLabel(attendance.durationMinutes);
+  }
+  if (attendance.status === "berjalan") return "Berjalan";
+  return "—";
+}
+
+function attendanceStatusCell(attendance: Attendance | null) {
+  if (!attendance) {
+    return (
+      <Badge variant="warning-light" dot>
+        Belum absen
+      </Badge>
+    );
+  }
+  return (
+    <AttendanceBadge
+      status={attendance.status}
+      checkOutAt={attendance.checkOutAt}
+    />
+  );
+}
+
+const attendanceColumns: ColumnDef<DataGridFeatures, AttendanceRow>[] = [
+  {
+    id: "employee",
+    accessorFn: (row) => `${row.employee.name} ${row.employee.nik}`,
+    header: "Pekerja",
+    meta: {
+      headerClassName: "whitespace-nowrap",
+      cellClassName: "max-w-64",
+    },
+    cell: ({ row }) => {
+      const { employee } = row.original;
+      return (
+        <div className="flex items-center gap-2">
+          <Avatar
+            name={employee.name}
+            seed={employee.id}
+            src={avatarUrl(employee.id, employee.avatarKey)}
+            size="xs"
+          />
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="truncate text-sm font-medium text-foreground">
+              {employee.name}
+            </span>
+            <span className="truncate text-xs text-muted-foreground tabular-nums">
+              NIK {employee.nik}
+            </span>
+            {row.original.attendance && (
+              <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1 tabular-nums">
+                  <Camera className="size-3.5" aria-hidden="true" />
+                  {row.original.documentationCount} foto
+                </span>
+                {row.original.attendance.checkInLocation ? (
+                  <span
+                    className="inline-flex items-center gap-1 tabular-nums"
+                    title={`Akurasi ±${Math.round(row.original.attendance.checkInLocation.accuracy)} m`}
+                  >
+                    <MapPin className="size-3.5" aria-hidden="true" />
+                    {row.original.attendance.checkInLocation.distanceFromSite} m
+                  </span>
+                ) : null}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    },
+  },
+  {
+    id: "status",
+    accessorFn: (row) => row.attendance?.status ?? "belum_absen",
+    header: "Status",
+    meta: {
+      headerClassName: "whitespace-nowrap",
+      cellClassName: "max-w-56",
+    },
+    cell: ({ row }) => {
+      const { attendance } = row.original;
+      return (
+        <div className="flex flex-col items-start gap-1">
+          {attendanceStatusCell(attendance)}
+          {attendance?.status === "ditutup_otomatis" && (
+            <span className="text-xs leading-snug text-muted-foreground">
+              Sesi ditutup otomatis.
+            </span>
+          )}
+          {attendance?.status === "dikoreksi" &&
+            attendance.correctionReason && (
+              <span
+                className="line-clamp-2 max-w-48 text-xs leading-snug text-muted-foreground"
+                title={attendance.correctionReason}
+              >
+                Koreksi: {attendance.correctionReason}
+              </span>
+            )}
+        </div>
+      );
+    },
+  },
+  {
+    id: "time",
+    accessorFn: (row) => row.attendance?.checkInAt ?? "",
+    header: "Waktu",
+    meta: {
+      headerClassName: "whitespace-nowrap",
+      cellClassName:
+        "whitespace-nowrap text-sm font-medium text-foreground tabular-nums",
+    },
+    cell: ({ row }) => {
+      const { attendance } = row.original;
+      if (!attendance?.checkInAt && !attendance?.checkOutAt) return "—";
+      return (
+        <div className="flex items-center gap-1">
+          <span>
+            {attendance.checkInAt ? formatTime(attendance.checkInAt) : "—"}
+          </span>
+          <span className="text-muted-foreground">–</span>
+          <span>
+            {attendance.checkOutAt ? formatTime(attendance.checkOutAt) : "—"}
+          </span>
+        </div>
+      );
+    },
+  },
+  {
+    id: "duration",
+    accessorFn: (row) => row.attendance?.durationMinutes ?? null,
+    header: "Durasi",
+    meta: {
+      headerClassName: "whitespace-nowrap",
+      cellClassName:
+        "whitespace-nowrap text-sm font-medium text-foreground tabular-nums",
+    },
+    cell: ({ row }) => attendanceDuration(row.original.attendance),
+  },
+];
 
 function correctionDefaults(
   attendance: Attendance,
@@ -331,20 +476,98 @@ export function AttendanceSection({
     attendance: Attendance;
   } | null>(null);
 
-  const present = attendances.filter(
-    (row) => row.attendance?.checkInAt,
-  ).length;
-  const absent = attendances.filter(
-    (row) => row.attendance?.status === "tidak_hadir",
-  ).length;
-  const running = attendances.filter(
-    (row) => row.attendance?.status === "berjalan",
-  ).length;
-  const missingCheckout = attendances.filter(
-    (row) =>
-      row.attendance?.status === "ditutup_otomatis" &&
-      !row.attendance.checkOutAt,
-  ).length;
+  const summary = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let running = 0;
+    let missingCheckout = 0;
+    let notStarted = 0;
+
+    for (const row of attendances) {
+      if (!row.attendance) notStarted += 1;
+      if (row.attendance?.checkInAt) present += 1;
+      if (row.attendance?.status === "tidak_hadir") absent += 1;
+      if (row.attendance?.status === "berjalan") running += 1;
+      if (
+        row.attendance?.status === "ditutup_otomatis" &&
+        !row.attendance.checkOutAt
+      ) {
+        missingCheckout += 1;
+      }
+    }
+
+    return { present, absent, running, missingCheckout, notStarted };
+  }, [attendances]);
+
+  const documentationCountByAttendance = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const doc of documentation) {
+      if (doc.kind === "video") continue;
+      counts.set(doc.attendanceId, (counts.get(doc.attendanceId) ?? 0) + 1);
+    }
+
+    return counts;
+  }, [documentation]);
+
+  const rows = useMemo<AttendanceRow[]>(
+    () =>
+      attendances.map((row) => ({
+        ...row,
+        documentationCount: row.attendance
+          ? (documentationCountByAttendance.get(row.attendance.id) ?? 0)
+          : 0,
+      })),
+    [attendances, documentationCountByAttendance],
+  );
+
+  const actionColumn = useMemo<ColumnDef<DataGridFeatures, AttendanceRow>>(
+    () => ({
+      id: "actions",
+      header: "Aksi",
+      meta: {
+        headerClassName: "whitespace-nowrap text-end [&>div]:justify-end",
+        cellClassName: "whitespace-nowrap text-end",
+      },
+      cell: ({ row }) => {
+        const { attendance } = row.original;
+        if (!attendance) {
+          return <span className="text-xs text-muted-foreground">—</span>;
+        }
+        return (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() =>
+              setCorrection({ employee: row.original.employee, attendance })
+            }
+          >
+            <PencilLine aria-hidden="true" />
+            Koreksi
+          </Button>
+        );
+      },
+    }),
+    [],
+  );
+
+  const columns = useMemo(
+    () => (canManage ? [...attendanceColumns, actionColumn] : attendanceColumns),
+    [actionColumn, canManage],
+  );
+
+  const table = useTable({
+    features: dataGridFeatures,
+    data: rows,
+    columns,
+    initialState: {
+      pagination: { pageIndex: 0, pageSize: Math.max(rows.length, 1) },
+    },
+    getRowId: (row) => row.employee.id,
+  });
+
+  const { present, absent, running, missingCheckout, notStarted } = summary;
 
   return (
     <Frame id="kehadiran">
@@ -352,8 +575,8 @@ export function AttendanceSection({
         <div className="flex min-w-0 flex-col gap-1">
           <FrameTitle>Daftar pekerja</FrameTitle>
           <FrameDescription className="text-xs">
-            {present} hadir · {running} berjalan · {absent} tidak hadir
-            {missingCheckout > 0 ? ` · ${missingCheckout} belum pulang` : ""}
+            Kehadiran, bukti, dan koreksi {attendances.length} pekerja pada SPKL
+            ini.
           </FrameDescription>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -368,6 +591,9 @@ export function AttendanceSection({
               {missingCheckout} belum pulang
             </Badge>
           )}
+          {notStarted > 0 && (
+            <Badge variant="outline">{notStarted} belum absen</Badge>
+          )}
           {absent > 0 && (
             <Badge variant="destructive-light">{absent} absen</Badge>
           )}
@@ -379,117 +605,144 @@ export function AttendanceSection({
           <EmptyState
             icon={UserX}
             title="Belum ada pekerja"
-            description="Pekerja yang ditugaskan akan muncul di sini."
+            description={
+              canManage
+                ? "Tambahkan pekerja lewat halaman ubah SPKL agar kehadiran dapat dicatat."
+                : "Pekerja yang ditugaskan akan muncul di sini."
+            }
+            action={
+              canManage ? (
+                <Button
+                  nativeButton={false}
+                  render={<Link href={`/spkl/${spkl.id}/edit`} />}
+                  variant="outline"
+                  size="sm"
+                >
+                  <PencilLine aria-hidden="true" />
+                  Atur pekerja
+                </Button>
+              ) : undefined
+            }
           />
         </FramePanel>
       ) : (
-        <FramePanel className="flex flex-col divide-y divide-border">
-          {attendances.map(({ employee, attendance }) => {
-            const docCount = attendance
-              ? documentation.filter(
-                  (doc) =>
-                    doc.attendanceId === attendance.id &&
-                    doc.kind !== "video",
-                ).length
-              : 0;
-            return (
-              <div
+        <FramePanel className="p-0">
+          <div className="hidden lg:block">
+            <DataGrid
+              table={table}
+              recordCount={rows.length}
+              tableLayout={{ dense: true, width: "auto", headerBorder: true }}
+              tableClassNames={{
+                base: "min-w-[38rem]",
+                headerRow: "bg-muted/40",
+              }}
+            >
+              <DataGridContainer>
+                <DataGridScrollArea>
+                  <DataGridTable />
+                </DataGridScrollArea>
+              </DataGridContainer>
+            </DataGrid>
+          </div>
+
+          <div className="divide-y divide-border/70 lg:hidden">
+            {rows.map(({ employee, attendance, documentationCount }) => (
+              <article
                 key={employee.id}
-                className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0"
+                className="flex flex-col gap-3 p-4"
               >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar name={employee.name} seed={employee.id} size="sm" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <Avatar
+                      name={employee.name}
+                      seed={employee.id}
+                      src={avatarUrl(employee.id, employee.avatarKey)}
+                      size="sm"
+                    />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <p className="truncate text-sm font-semibold text-foreground">
                         {employee.name}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                        {employee.nik} · {employee.phone}
+                      <p className="truncate text-xs text-muted-foreground tabular-nums">
+                        NIK {employee.nik}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground tabular-nums">
+                        {employee.phone}
                       </p>
                     </div>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                    {attendance ? (
-                      <AttendanceBadge
-                        status={attendance.status}
-                        checkOutAt={attendance.checkOutAt}
-                      />
-                    ) : (
-                      <Badge variant="warning-light" dot>
-                        Belum absen
-                      </Badge>
-                    )}
-                    {canManage && attendance && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCorrection({ employee, attendance })
-                        }
-                      >
-                        <PencilLine />
-                        Koreksi
-                      </Button>
-                    )}
-                  </div>
+                  <div className="shrink-0">{attendanceStatusCell(attendance)}</div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
-                  <div className="flex flex-col gap-0.5">
+                <div className="grid grid-cols-3 gap-2 border-y border-border/70 py-2.5">
+                  <div>
                     <p className="text-xs text-muted-foreground">Masuk</p>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
                       {attendance?.checkInAt
                         ? formatTime(attendance.checkInAt)
                         : "—"}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-0.5">
+                  <div>
                     <p className="text-xs text-muted-foreground">Pulang</p>
-                    <p className="text-sm font-semibold tabular-nums text-foreground">
+                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
                       {attendance?.checkOutAt
                         ? formatTime(attendance.checkOutAt)
                         : "—"}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-0.5">
+                  <div>
                     <p className="text-xs text-muted-foreground">Durasi</p>
-                    <p className="text-sm font-semibold text-foreground">
-                      {attendancePlacement(attendance)}
+                    <p className="mt-0.5 text-sm font-medium text-foreground tabular-nums">
+                      {attendanceDuration(attendance)}
                     </p>
                   </div>
-                  <div className="flex flex-col gap-0.5">
-                    <p className="text-xs text-muted-foreground">Bukti & lokasi</p>
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Camera className="size-3" /> {docCount} foto
-                      </span>
-                      {attendance?.checkInLocation ? (
-                        <span
-                          className="flex items-center gap-1"
-                          title={`Akurasi ±${Math.round(attendance.checkInLocation.accuracy)} m`}
-                        >
-                          <MapPin className="size-3" />
-                          {attendance.checkInLocation.distanceFromSite} m
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {attendance ? (
+                      <>
+                        <span className="inline-flex items-center gap-1 tabular-nums">
+                          <Camera className="size-3.5" aria-hidden="true" />
+                          {documentationCount} foto
                         </span>
-                      ) : null}
-                      {attendance?.status === "berjalan" && (
-                        <span className="flex items-center gap-1 text-warning-foreground">
-                          <TimerReset className="size-3" />
-                          aktif
-                        </span>
-                      )}
-                    </div>
+                        {attendance.checkInLocation ? (
+                          <span
+                            className="inline-flex items-center gap-1 tabular-nums"
+                            title={`Akurasi ±${Math.round(attendance.checkInLocation.accuracy)} m`}
+                          >
+                            <MapPin className="size-3.5" aria-hidden="true" />
+                            {attendance.checkInLocation.distanceFromSite} m
+                          </span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span>Belum ada bukti</span>
+                    )}
                   </div>
+                  {canManage && attendance && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCorrection({ employee, attendance })}
+                    >
+                      <PencilLine aria-hidden="true" />
+                      Koreksi
+                    </Button>
+                  )}
                 </div>
 
                 {attendance?.status === "ditutup_otomatis" && (
                   <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
-                    <ShieldAlert className="mt-0.5 size-3 shrink-0" />
+                    <ShieldAlert
+                      className="mt-0.5 size-3.5 shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>
                       {attendance.checkOutAt
-                        ? "Sesi ditutup otomatis."
+                        ? "Sesi ditutup otomatis oleh sistem."
                         : "Absen pulang tidak tercatat. Durasi tidak dihitung; atasan dapat mengoreksi bila pekerja benar-benar menyelesaikan pekerjaan."}
                     </span>
                   </p>
@@ -497,21 +750,20 @@ export function AttendanceSection({
 
                 {attendance?.status === "dikoreksi" &&
                   attendance.correctionReason && (
-                    <p
-                      className={cn(
-                        "rounded-md bg-primary/5 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground",
-                      )}
-                    >
-                      <CornerDownRight className="mr-1 inline size-3" />
+                    <p className="rounded-md bg-primary/5 px-2.5 py-2 text-xs leading-relaxed text-muted-foreground">
+                      <CornerDownRight
+                        className="mr-1 inline size-3"
+                        aria-hidden="true"
+                      />
                       <span className="font-medium text-foreground">
                         Koreksi:
                       </span>{" "}
                       {attendance.correctionReason}
                     </p>
                   )}
-              </div>
-            );
-          })}
+              </article>
+            ))}
+          </div>
         </FramePanel>
       )}
 

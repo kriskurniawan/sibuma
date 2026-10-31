@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DatePicker } from "@/components/date-picker";
-import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -14,10 +14,12 @@ export function ReportDateFilters({
   from,
   to,
   onChange,
+  className,
 }: {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;
+  className?: string;
 }) {
   const [fromValue, setFromValue] = useState(from);
   const [toValue, setToValue] = useState(to);
@@ -56,36 +58,47 @@ export function ReportDateFilters({
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-2 xl:col-span-2">
-        <Label htmlFor="from">Dari tanggal</Label>
+    <div
+      role="group"
+      aria-label="Rentang tanggal laporan"
+      className={cn("flex flex-col gap-1", className)}
+    >
+      <div className="flex items-center gap-2">
         <DatePicker
-          id="from"
           value={fromValue}
           onChange={changeFrom}
+          placeholder="Dari tanggal"
+          ariaLabel="Dari tanggal"
           invalid={invalidRange}
-          ariaDescribedBy={invalidRange ? "report-date-range-error" : undefined}
+          ariaDescribedBy={
+            invalidRange ? "report-date-range-error" : undefined
+          }
+          className="min-w-0 flex-1 sm:w-40 sm:flex-none"
         />
-      </div>
-      <div className="flex flex-col gap-2 xl:col-span-2">
-        <Label htmlFor="to">Sampai tanggal</Label>
+        <span aria-hidden="true" className="text-xs text-muted-foreground">
+          –
+        </span>
         <DatePicker
-          id="to"
           value={toValue}
           onChange={changeTo}
+          placeholder="Sampai tanggal"
+          ariaLabel="Sampai tanggal"
           invalid={invalidRange}
-          ariaDescribedBy={invalidRange ? "report-date-range-error" : undefined}
+          ariaDescribedBy={
+            invalidRange ? "report-date-range-error" : undefined
+          }
+          className="min-w-0 flex-1 sm:w-40 sm:flex-none"
         />
       </div>
       {invalidRange && (
         <p
           id="report-date-range-error"
           role="alert"
-          className="text-xs text-destructive sm:col-span-2 xl:col-span-12"
+          className="text-xs text-destructive"
         >
           Tanggal “Dari” harus sebelum “Sampai”. Rentang belum diterapkan.
         </p>
       )}
-    </>
+    </div>
   );
 }

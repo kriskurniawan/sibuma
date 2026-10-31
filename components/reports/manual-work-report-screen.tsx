@@ -215,8 +215,8 @@ export async function ManualWorkReportScreen({
             to={to}
             search={filters.search ?? ""}
             searchId="pekerjaan-search"
+            searchLabel="Cari laporan pekerjaan harian"
             searchPlaceholder="Judul, lokasi, pekerja…"
-            searchClassName="sm:col-span-2 xl:col-span-4"
             selectFilters={[
               {
                 key: "locationId",
@@ -225,16 +225,22 @@ export async function ManualWorkReportScreen({
                 value: filters.locationId ?? "",
                 placeholder: "Semua area",
                 options: locationOptions,
-                className: "xl:col-span-2",
+                className: "sm:w-44",
+                resetKeys: ["includeSub"],
               },
-              {
-                key: "includeSub",
-                id: "pekerjaan-scope",
-                label: "Cakupan area",
-                value: filters.includeSubLocations === false ? "0" : "1",
-                options: SCOPE_OPTIONS,
-                className: "xl:col-span-2",
-              },
+              ...(filters.locationId
+                ? [
+                    {
+                      key: "includeSub",
+                      id: "pekerjaan-scope",
+                      label: "Cakupan area",
+                      value:
+                        filters.includeSubLocations === false ? "0" : "1",
+                      options: SCOPE_OPTIONS,
+                      className: "sm:w-44",
+                    },
+                  ]
+                : []),
               {
                 key: "employeeId",
                 id: "pekerjaan-employee",
@@ -242,7 +248,7 @@ export async function ManualWorkReportScreen({
                 value: filters.employeeId ?? "",
                 placeholder: "Semua pekerja",
                 options: employeeOptions,
-                className: "xl:col-span-2",
+                className: "sm:w-44",
               },
               {
                 key: "status",
@@ -251,14 +257,10 @@ export async function ManualWorkReportScreen({
                 value: filters.status ?? "",
                 placeholder: "Semua status",
                 options: STATUS_OPTIONS,
-                className: "xl:col-span-2",
+                className: "sm:w-40",
               },
             ]}
-            summary={
-              <p className="text-xs text-muted-foreground">
-                {data.total} pekerjaan pada {periodLabel}.
-              </p>
-            }
+            summary={`${data.total} pekerjaan pada ${periodLabel}.`}
           />
         </FramePanel>
       </Frame>

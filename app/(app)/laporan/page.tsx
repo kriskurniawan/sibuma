@@ -201,7 +201,7 @@ export default async function ReportPage({
       <Frame className="no-print">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
-            <FrameTitle>Rentang &amp; filter</FrameTitle>
+            <FrameTitle>Periode &amp; filter</FrameTitle>
             <FrameDescription className="text-xs">
               Default bulan berjalan. Semua tanggal dalam WIB.
             </FrameDescription>
@@ -226,8 +226,8 @@ export default async function ReportPage({
             to={to}
             search={filters.search ?? ""}
             searchId="search"
+            searchLabel="Cari laporan lembur"
             searchPlaceholder="Nama pekerja, SPKL, atau nomor…"
-            searchClassName="sm:col-span-2 xl:col-span-3"
             selectFilters={[
               {
                 key: "employeeId",
@@ -236,7 +236,7 @@ export default async function ReportPage({
                 value: filters.employeeId ?? "",
                 placeholder: "Semua pekerja",
                 options: employeeOptions,
-                className: "xl:col-span-2",
+                className: "sm:w-44",
               },
               {
                 key: "spklId",
@@ -245,14 +245,10 @@ export default async function ReportPage({
                 value: filters.spklId ?? "",
                 placeholder: "Semua SPKL",
                 options: spklOptions,
-                className: "xl:col-span-3",
+                className: "sm:w-56",
               },
             ]}
-            summary={
-              <p className="text-xs text-muted-foreground">
-                {data.totals.sessions} sesi ditemukan pada {periodLabel}.
-              </p>
-            }
+            summary={`${data.totals.sessions} sesi ditemukan pada ${periodLabel}.`}
           />
         </FramePanel>
       </Frame>

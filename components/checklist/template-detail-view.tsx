@@ -11,8 +11,10 @@ import {
   ImageIcon,
   Pencil,
   PlusCircle,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
   Frame,
   FrameDescription,
@@ -21,6 +23,17 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { Badge, PageHeader } from "@/components/ui";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -60,9 +73,11 @@ function leafCount(items: ChecklistTemplateItem[]) {
 
 export function ChecklistTemplateDetailView({
   template,
+  usage,
   versions,
 }: {
   template: ChecklistTemplate;
+  usage: { schedules: number; inspections: number };
   versions: VersionWithItems[];
 }) {
   const router = useRouter();
@@ -70,8 +85,10 @@ export function ChecklistTemplateDetailView({
     versions[0]?.id ?? "",
   );
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [versionOpen, setVersionOpen] = useState(false);
   const itemsFrameRef = useRef<HTMLDivElement>(null);
+  const canDelete = usage.schedules === 0 && usage.inspections === 0;
 
   const selected =
     versions.find((version) => version.id === selectedVersionId) ??
@@ -137,6 +154,17 @@ export function ChecklistTemplateDetailView({
               <Pencil aria-hidden="true" />
               Ubah
             </Button>
+            {canDelete && (
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                onClick={() => setDeleteOpen(true)}
+              >
+                <Trash2 aria-hidden="true" />
+                Hapus
+              </Button>
+            )}
             <Button
               type="button"
               size="sm"
@@ -341,7 +369,15 @@ export function ChecklistTemplateDetailView({
         open={editOpen}
         onClose={() => setEditOpen(false)}
         template={template}
+        usage={usage}
         onSaved={() => router.refresh()}
+      />
+
+      <TemplateDeleteDialog
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        template={template}
+        onDeleted={() => router.replace("/checklist/template")}
       />
 
       <PublishVersionDialog
@@ -362,11 +398,13 @@ function TemplateEditDialog({
   open,
   onClose,
   template,
+  usage,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   template: ChecklistTemplate;
+  usage: { schedules: number; inspections: number };
   onSaved: () => void;
 }) {
   const [name, setName] = useState(template.name);
@@ -471,8 +509,115 @@ function TemplateEditDialog({
           />
           Template aktif
         </Label>
+        <p className="text-xs text-muted-foreground">
+          {usage.schedules === 0 && usage.inspections === 0
+            ? "Template ini belum pernah dipakai sehingga dapat dihapus permanen."
+            : `Template sudah dipakai pada ${[
+                usage.schedules > 0 ? `${usage.schedules} jadwal` : null,
+                usage.inspections > 0 ? `${usage.inspections} inspeksi` : null,
+              ]
+                .filter(Boolean)
+                .join(" dan ")}. Nonaktifkan saja agar riwayat tetap terbaca.`}
+        </p>
       </div>
     </Modal>
+  );
+}
+
+function TemplateDeleteDialog({
+  open,
+  onClose,
+  template,
+  onDeleted,
+}: {
+  open: boolean;
+  onClose: () => void;
+  template: ChecklistTemplate;
+  onDeleted: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) setError(null);
+  }, [open]);
+
+  async function submit() {
+    setDeleting(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/checklist/templates/${template.id}`, {
+        method: "DELETE",
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+      };
+      if (!response.ok) {
+        setError(data.message ?? "Gagal menghapus template.");
+        return;
+      }
+      toast.success(data.message ?? "Template checklist dihapus.");
+      onClose();
+      onDeleted();
+    } catch {
+      setError("Tidak dapat menghubungi server. Periksa koneksimu.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  return (
+    <AlertDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen && deleting) return;
+        if (!nextOpen) {
+          setError(null);
+          onClose();
+        }
+      }}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogMedia className="bg-destructive/10 text-destructive">
+            <Trash2 aria-hidden="true" />
+          </AlertDialogMedia>
+          <AlertDialogTitle>Hapus template?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {template.name} akan dihapus permanen beserta seluruh versi dan
+            itemnya.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="flex flex-col gap-4">
+          <Alert variant="destructive">
+            <Trash2 aria-hidden="true" />
+            <AlertDescription>
+              Tindakan ini tidak dapat dibatalkan. Template hanya dapat dihapus
+              jika belum pernah dipakai pada jadwal atau inspeksi.
+            </AlertDescription>
+          </Alert>
+          {error && (
+            <Alert variant="destructive" role="alert">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+          <AlertDialogAction
+            variant="destructive"
+            onClick={() => void submit()}
+            disabled={deleting}
+          >
+            {deleting ? <Spinner /> : <Trash2 aria-hidden="true" />}
+            {deleting ? "Menghapus…" : "Hapus template"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

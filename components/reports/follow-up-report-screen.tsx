@@ -194,8 +194,8 @@ export async function FollowUpReportScreen({
             to={to}
             search={filters.search ?? ""}
             searchId="follow-up-search"
+            searchLabel="Cari laporan tindak lanjut"
             searchPlaceholder="Judul, area, template…"
-            searchClassName="sm:col-span-2 xl:col-span-2"
             selectFilters={[
               {
                 key: "locationId",
@@ -204,16 +204,22 @@ export async function FollowUpReportScreen({
                 value: filters.locationId ?? "",
                 placeholder: "Semua area",
                 options: locationOptions,
-                className: "xl:col-span-2",
+                className: "sm:w-44",
+                resetKeys: ["includeSub"],
               },
-              {
-                key: "includeSub",
-                id: "follow-up-scope",
-                label: "Cakupan area",
-                value: filters.includeSubLocations === false ? "0" : "1",
-                options: SCOPE_OPTIONS,
-                className: "xl:col-span-2",
-              },
+              ...(filters.locationId
+                ? [
+                    {
+                      key: "includeSub",
+                      id: "follow-up-scope",
+                      label: "Cakupan area",
+                      value:
+                        filters.includeSubLocations === false ? "0" : "1",
+                      options: SCOPE_OPTIONS,
+                      className: "sm:w-44",
+                    },
+                  ]
+                : []),
               {
                 key: "status",
                 id: "follow-up-status",
@@ -221,14 +227,10 @@ export async function FollowUpReportScreen({
                 value: filters.status ?? "",
                 placeholder: "Semua status",
                 options: STATUS_OPTIONS,
-                className: "xl:col-span-2",
+                className: "sm:w-40",
               },
             ]}
-            summary={
-              <p className="text-xs text-muted-foreground">
-                {data.total} tindak lanjut pada {periodLabel}.
-              </p>
-            }
+            summary={`${data.total} tindak lanjut pada ${periodLabel}.`}
           />
         </FramePanel>
       </Frame>

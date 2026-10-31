@@ -25,6 +25,7 @@ export default async function ChecklistTemplateDetailPage({
   return (
     <ChecklistTemplateDetailView
       template={detail.template}
+      usage={detail.usage}
       versions={detail.versions}
     />
   );

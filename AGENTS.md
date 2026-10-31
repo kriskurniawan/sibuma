@@ -22,3 +22,9 @@ This project uses an existing design system: ReUI on shadcn/ui. Keep its look. G
 
 Managed by the ReUI installer. Edits between the markers are replaced on the next run.
 <!-- END:reui-agent-rules -->
+
+## Instruksi kerja (wajib)
+
+- Jangan menjalankan `npm run dev`, `npm run build`, `git commit`, atau `git push` tanpa arahan eksplisit dari user.
+- Jika verifikasi memerlukan server, build, commit, atau push, minta arahan terlebih dahulu.
+
