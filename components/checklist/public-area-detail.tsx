@@ -32,7 +32,7 @@ import { PublicStaffAccess, type PublicStaffState } from "@/components/checklist
 import { ManualWorkStatusBadge } from "@/components/pekerjaan/manual-work-badges";
 import type { ChecklistConditionOption, ChecklistPublicArea } from "@/lib/checklist-types";
 import { cn } from "@/lib/utils";
-import { formatDateHuman, formatDateTime } from "@/lib/time";
+import { currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
 
 export function PublicAreaDetail({
   qrName,
@@ -99,7 +99,7 @@ export function PublicAreaDetail({
         <StatCard label="Progres item" value={latest ? `${latest.answeredCount}/${latest.totalItems}` : "—"} icon={ListChecks} helper="Item sudah diperiksa" tone="primary" />
         <StatCard label="Temuan" value={latest?.issueCount ?? 0} icon={TriangleAlert} helper="Perlu perhatian atau tidak baik" tone={latest && latest.issueCount > 0 ? "warning" : "neutral"} />
         <StatCard label="Tindak lanjut" value={followUps.open} suffix="terbuka" icon={ClipboardCheck} helper={`${followUps.done} selesai`} tone={followUps.open > 0 ? "warning" : "neutral"} />
-        <StatCard label="Pembaruan" value={area.lastUpdated ? formatDateHuman(area.lastUpdated, "d MMM") : "—"} icon={Clock3} helper={area.lastUpdated ? `Terakhir ${formatDateTime(area.lastUpdated, "HH:mm")} WIB` : "Belum ada pembaruan"} tone="info" />
+        <StatCard label="Pembaruan" value={area.lastUpdated ? formatDateHuman(area.lastUpdated, "d MMM") : "—"} icon={Clock3} helper={area.lastUpdated ? `Terakhir ${formatDateTime(area.lastUpdated, "HH:mm")} ${currentTimeZoneLabel()}` : "Belum ada pembaruan"} tone="info" />
       </div>
 
       <PublicStaffAccess staff={staff} loginNext={loginNext} />
@@ -148,7 +148,7 @@ export function PublicAreaDetail({
                           <p className="min-w-0 flex-1 wrap-anywhere text-sm font-medium text-foreground">{item.prompt}</p>
                           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-60 sm:justify-end">
                             {item.condition ? <ChecklistConditionBadge condition={item.condition} conditions={conditions} /> : <Badge variant="primary-light">Belum diperiksa</Badge>}
-                            {item.updatedAt && <span className="text-xs text-muted-foreground tabular-nums">{formatDateTime(item.updatedAt, "d MMM, HH:mm")} WIB</span>}
+                            {item.updatedAt && <span className="text-xs text-muted-foreground tabular-nums">{formatDateTime(item.updatedAt, "d MMM, HH:mm")} {currentTimeZoneLabel()}</span>}
                           </div>
                         </div>
                       </li>
@@ -263,7 +263,7 @@ export function PublicAreaDetail({
                   <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
                   <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                     <p className="wrap-anywhere text-sm font-medium text-foreground">{entry.label}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(entry.at, "d MMM yyyy, HH:mm")} WIB</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(entry.at, "d MMM yyyy, HH:mm")} {currentTimeZoneLabel()}</p>
                   </div>
                 </li>
               ))}

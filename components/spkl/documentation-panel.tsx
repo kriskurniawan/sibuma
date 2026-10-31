@@ -38,6 +38,7 @@ import { compressImage } from "@/lib/compress-image";
 import { buildDocumentationMarker } from "@/lib/documentation-marker";
 import { readImageExif } from "@/lib/exif";
 import {
+  currentTimeZoneLabel,
   formatDateHuman,
   formatTime,
 } from "@/lib/time";
@@ -241,7 +242,7 @@ export function DocumentationPanel({
             `${timeLabel} ${formatDateHuman(
               capturedAt,
               "d MMM yyyy, HH.mm",
-            )} WIB`,
+            )} ${currentTimeZoneLabel()}`,
           ],
           comment: buildDocumentationMarker({
             spklNumber,
@@ -582,7 +583,7 @@ export function DocumentationPanel({
                     </div>
                     <span className="flex items-center gap-1 text-xs font-medium tabular-nums text-foreground">
                       <Clock3 className="size-3" />
-                      {formatTime(photo.capturedAt)} WIB
+                      {formatTime(photo.capturedAt)} {currentTimeZoneLabel()}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {photo.timeLabel === "Diambil"
@@ -792,11 +793,12 @@ export function DocumentationPanel({
                   <p className="text-xs text-muted-foreground">
                     {selected.kind === "video" ? "Diunggah" : "Waktu foto"}{" "}
                     {formatDateHuman(selected.takenAt, "d MMM yyyy")} ·{" "}
-                    {formatTime(selected.takenAt)} WIB
+                    {formatTime(selected.takenAt)} {currentTimeZoneLabel()}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Diunggah {formatDateHuman(selected.createdAt, "d MMM yyyy")} ·{" "}
-                    {formatTime(selected.createdAt)} WIB
+                    {formatTime(selected.createdAt)}{" "}
+                    {currentTimeZoneLabel()}
                   </p>
                 </div>
               </div>

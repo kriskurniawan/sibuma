@@ -4,39 +4,42 @@ import {
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { APP_TIMEZONE } from "./constants";
+import { getActiveTimeZone } from "./active-time-zone";
 import type { Spkl, SpklStatus } from "./types";
 
-export function zonedToIso(date: string, time: string, timeZone = APP_TIMEZONE) {
+export { currentTimeZoneLabel, setActiveTimeZone } from "./active-time-zone";
+export { getActiveTimeZone };
+
+export function zonedToIso(date: string, time: string, timeZone = getActiveTimeZone()) {
   return fromZonedTime(`${date}T${time}:00`, timeZone).toISOString();
 }
 
 export function localDateTimeToIso(
   value: string,
-  timeZone = APP_TIMEZONE,
+  timeZone = getActiveTimeZone(),
 ) {
   return fromZonedTime(`${value}:00`, timeZone).toISOString();
 }
 
-export function toLocalDateInput(iso: string, timeZone = APP_TIMEZONE) {
+export function toLocalDateInput(iso: string, timeZone = getActiveTimeZone()) {
   return formatInTimeZone(parseISO(iso), timeZone, "yyyy-MM-dd");
 }
 
-export function toLocalTimeInput(iso: string, timeZone = APP_TIMEZONE) {
+export function toLocalTimeInput(iso: string, timeZone = getActiveTimeZone()) {
   return formatInTimeZone(parseISO(iso), timeZone, "HH:mm");
 }
 
 export function formatDateHuman(
   iso: string,
   pattern = "EEEE, d MMMM yyyy",
-  timeZone = APP_TIMEZONE,
+  timeZone = getActiveTimeZone(),
 ) {
   return formatInTimeZone(parseISO(iso), timeZone, pattern, {
     locale: localeId,
   });
 }
 
-export function formatTime(iso: string, timeZone = APP_TIMEZONE) {
+export function formatTime(iso: string, timeZone = getActiveTimeZone()) {
   return formatInTimeZone(parseISO(iso), timeZone, "HH:mm", {
     locale: localeId,
   });
@@ -45,34 +48,34 @@ export function formatTime(iso: string, timeZone = APP_TIMEZONE) {
 export function formatDateTime(
   iso: string,
   pattern = "d MMM yyyy, HH:mm",
-  timeZone = APP_TIMEZONE,
+  timeZone = getActiveTimeZone(),
 ) {
   return formatInTimeZone(parseISO(iso), timeZone, pattern, {
     locale: localeId,
   });
 }
 
-export function formatDateShort(iso: string, timeZone = APP_TIMEZONE) {
+export function formatDateShort(iso: string, timeZone = getActiveTimeZone()) {
   return formatInTimeZone(parseISO(iso), timeZone, "d MMM", {
     locale: localeId,
   });
 }
 
-export function formatDayName(iso: string, timeZone = APP_TIMEZONE) {
+export function formatDayName(iso: string, timeZone = getActiveTimeZone()) {
   return formatInTimeZone(parseISO(iso), timeZone, "EEEE", {
     locale: localeId,
   });
 }
 
-export function localDate(now = new Date(), timeZone = APP_TIMEZONE) {
+export function localDate(now = new Date(), timeZone = getActiveTimeZone()) {
   return formatInTimeZone(now, timeZone, "yyyy-MM-dd");
 }
 
-export function todayLocal(timeZone = APP_TIMEZONE) {
+export function todayLocal(timeZone = getActiveTimeZone()) {
   return localDate(new Date(), timeZone);
 }
 
-export function currentMonthRange(timeZone = APP_TIMEZONE) {
+export function currentMonthRange(timeZone = getActiveTimeZone()) {
   const today = todayLocal(timeZone);
   const year = Number(today.slice(0, 4));
   const month = Number(today.slice(5, 7));
@@ -93,7 +96,7 @@ export function spklStatus(spkl: Spkl, now = new Date()): SpklStatus {
   return "selesai";
 }
 
-export function checkInOpensAt(date: string, timeZone = APP_TIMEZONE) {
+export function checkInOpensAt(date: string, timeZone = getActiveTimeZone()) {
   return zonedToIso(date, "00:00", timeZone);
 }
 
@@ -142,7 +145,7 @@ export function attendanceMinutes(input: {
   return Math.max(0, Math.round((end - start) / 60_000));
 }
 
-export function isSameLocalDay(a: string, b: string, timeZone = APP_TIMEZONE) {
+export function isSameLocalDay(a: string, b: string, timeZone = getActiveTimeZone()) {
   return (
     formatInTimeZone(parseISO(a), timeZone, "yyyy-MM-dd") ===
     formatInTimeZone(parseISO(b), timeZone, "yyyy-MM-dd")
@@ -177,7 +180,7 @@ export function durationClock(seconds: number) {
   return [h, m, sec].map((v) => String(v).padStart(2, "0")).join(":");
 }
 
-export function greeting(timeZone = APP_TIMEZONE) {
+export function greeting(timeZone = getActiveTimeZone()) {
   const hour = Number(formatInTimeZone(new Date(), timeZone, "H"));
   if (hour < 11) return "Selamat pagi";
   if (hour < 15) return "Selamat siang";
@@ -185,7 +188,7 @@ export function greeting(timeZone = APP_TIMEZONE) {
   return "Selamat malam";
 }
 
-export function dayLabel(iso: string, timeZone = APP_TIMEZONE) {
+export function dayLabel(iso: string, timeZone = getActiveTimeZone()) {
   const today = formatInTimeZone(new Date(), timeZone, "yyyy-MM-dd");
   const target = toLocalDateInput(iso, timeZone);
   if (today === target) return "Hari ini";

@@ -3,6 +3,7 @@ import {
   FrameHeader,
   FramePanel,
 } from "@/components/reui/frame";
+import { MobileFabSkeleton } from "@/components/mobile-fab";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function DocumentRowSkeleton() {
@@ -34,7 +35,7 @@ export default function DokumenLoading() {
           <Skeleton className="h-7 w-52" />
           <Skeleton className="hidden h-4 w-full max-w-xl sm:block" />
         </div>
-        <Skeleton className="h-9 w-36 rounded-md" />
+        <Skeleton className="hidden h-9 w-36 rounded-md md:block" />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
@@ -77,6 +78,8 @@ export default function DokumenLoading() {
           </Frame>
         </div>
       </div>
+
+      <MobileFabSkeleton />
     </div>
   );
 }

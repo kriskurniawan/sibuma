@@ -36,7 +36,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { avatarUrl } from "@/lib/avatar-url";
 import { isCompanyEmail } from "@/lib/email";
 import {
-  APP_TIMEZONE,
   OTP_TTL_SECONDS,
   ROLE_LABEL,
   SESSION_DAYS,
@@ -45,7 +44,7 @@ import { listWorkLocations } from "@/lib/work-locations";
 import { isNeonBackend } from "@/lib/db-state";
 import { getPolicy, getTeam } from "@/lib/queries";
 import { isS3Configured } from "@/lib/storage-config";
-import { durationLabel, formatDateTime } from "@/lib/time";
+import { currentTimeZoneLabel, durationLabel, formatDateTime } from "@/lib/time";
 
 export const metadata = { title: "Profil" };
 
@@ -248,7 +247,7 @@ export default async function ProfilePage() {
                 <div className="flex min-w-0 flex-col">
                   <DataRow label="Masa sesi" value={`${SESSION_DAYS} hari`} />
                   <DataRow label="OTP 6 digit" value={`${OTP_TTL_SECONDS / 60} menit`} />
-                  <DataRow label="Waktu server" value={`${serverTime} WIB`} />
+                  <DataRow label="Waktu server" value={`${serverTime} ${currentTimeZoneLabel()}`} />
                   <p className="text-xs text-muted-foreground">
                     Cookie httpOnly bertanda tangan HMAC; OTP disimpan sebagai hash.
                   </p>
@@ -315,7 +314,7 @@ export default async function ProfilePage() {
                   </span>
                 }
               />
-              <DataRow label="Zona waktu" value={isAdmin ? `${APP_TIMEZONE} (WIB)` : "WIB"} />
+              <DataRow label="Zona waktu" value={isAdmin ? `${policy.timezone} (${currentTimeZoneLabel()})` : currentTimeZoneLabel()} />
             </div>
             <p className="text-xs text-muted-foreground">
               Absensi memakai waktu server dan GPS. Radius mengikuti titik absensi

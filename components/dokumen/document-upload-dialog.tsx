@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FolderUp, Pencil, UploadCloud, X } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
+import { MobileFab } from "@/components/mobile-fab";
 import { DocumentFileIcon } from "@/components/dokumen/document-file-icon";
 import { Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -43,11 +44,13 @@ export function DocumentUploadDialog({
   usedBytes,
   folders,
   currentFolderId,
+  trigger = "default",
 }: {
   settings: WorkDocumentSettings;
   usedBytes: number;
   folders: WorkDocumentFolder[];
   currentFolderId: string | null;
+  trigger?: "default" | "fab";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -93,6 +96,13 @@ export function DocumentUploadDialog({
     if (busy) return;
     setOpen(false);
     reset();
+  }
+
+  // Folder aktif berasal dari URL dan dapat berubah tanpa me-remount dialog.
+  // Sinkronkan tujuan setiap kali dibuka agar unggahan mengikuti folder dipilih.
+  function openDialog() {
+    setFolderId(currentFolderId ?? NO_FOLDER);
+    setOpen(true);
   }
 
   function addFiles(list: FileList | File[] | null) {
@@ -294,23 +304,34 @@ export function DocumentUploadDialog({
     }
   }
 
+  const triggerTitle = !settings.uploadsEnabled
+    ? "Unggahan dinonaktifkan oleh super admin."
+    : quotaFull
+      ? "Kuota dokumen penuh. Hapus dokumen lama atau kosongkan sampah."
+      : undefined;
+
   return (
     <>
-      <Button
-        size="sm"
-        onClick={() => setOpen(true)}
-        disabled={uploadDisabled}
-        title={
-          !settings.uploadsEnabled
-            ? "Unggahan dinonaktifkan oleh super admin."
-            : quotaFull
-              ? "Kuota dokumen penuh. Hapus dokumen lama atau kosongkan sampah."
-              : undefined
-        }
-      >
-        <UploadCloud aria-hidden="true" />
-        Unggah dokumen
-      </Button>
+      {trigger === "fab" ? (
+        <MobileFab
+          onClick={openDialog}
+          disabled={uploadDisabled}
+          title={triggerTitle}
+        >
+          <UploadCloud aria-hidden="true" />
+          Unggah dokumen
+        </MobileFab>
+      ) : (
+        <Button
+          size="sm"
+          onClick={openDialog}
+          disabled={uploadDisabled}
+          title={triggerTitle}
+        >
+          <UploadCloud aria-hidden="true" />
+          Unggah dokumen
+        </Button>
+      )}
 
       <Modal
         open={open}

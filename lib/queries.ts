@@ -3,12 +3,14 @@ import "server-only";
 import { addDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
-import { APP_TIMEZONE, CHECKOUT_GRACE_MINUTES } from "./constants";
+import { getActiveTimeZone } from "./active-time-zone";
+import { CHECKOUT_GRACE_MINUTES } from "./constants";
 import { getPolicyRow, query, select } from "./db";
 import { getTeamLoad, getTeamTotals } from "./team-queries";
 export { getTeamOverview, getTeamTotals } from "./team-queries";
 export { getReportData, type ReportFilters } from "./report-queries";
 import { finalizeScope, hydrateSpkls, overviewData, overviewMetrics, effectiveMinutesSql } from "./relational-reads";
+import { sqlTimeZone } from "./sql-time-zone";
 import {
   attendanceMinutes,
   isCheckInOpen,
@@ -241,14 +243,14 @@ function calculateWeekly(
   for (let offset = -6; offset <= 0; offset += 1) {
     const day = formatInTimeZone(
       addDays(new Date(`${today}T12:00:00`), offset),
-      APP_TIMEZONE,
+      getActiveTimeZone(),
       "yyyy-MM-dd",
     );
     result.push({
       date: day,
       label: formatInTimeZone(
         new Date(`${day}T12:00:00`),
-        APP_TIMEZONE,
+        getActiveTimeZone(),
         "EEEE",
         { locale: localeId },
       ),
@@ -460,7 +462,7 @@ export async function getAllAuditLogs(limit = 80): Promise<AuditLog[]> {
 
 export async function getAssignmentSchedules(userId: string) {
  const rows=await query(`SELECT w.employee_id,w.spkl_id,s.title,s.start_at,s.end_at,s.canceled_at FROM spkl_workers w JOIN spkls s ON s.id=w.spkl_id
- WHERE s.created_by=$1 AND s.end_at>=date_trunc('week',now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta' - interval '7 days'`,[userId]);
+ WHERE s.created_by=$1 AND s.end_at>=date_trunc('week',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()} - interval '7 days'`,[userId]);
  return rows.map(row=>({employeeId:row.employee_id,spklId:row.spkl_id,title:row.title,startAt:row.start_at.toISOString(),endAt:row.end_at.toISOString(),canceled:Boolean(row.canceled_at)}));
 }
 

@@ -51,6 +51,7 @@ import {
 import { formatDistance } from "@/lib/geo";
 import {
   attendanceStartAt,
+  currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
   formatTime,
@@ -190,7 +191,7 @@ export function SpklDetailView({
               <p className="text-xs text-muted-foreground">Masuk</p>
               <p className="mt-0.5 text-sm font-semibold text-foreground">
                 {myAttendance.checkInAt
-                  ? `${formatTime(myAttendance.checkInAt)} WIB`
+                  ? `${formatTime(myAttendance.checkInAt)} ${currentTimeZoneLabel()}`
                   : "Belum absen"}
               </p>
               {myAttendance.checkInLocation && (
@@ -216,7 +217,7 @@ export function SpklDetailView({
               <p className="text-xs text-muted-foreground">Pulang</p>
               <p className="mt-0.5 text-sm font-semibold text-foreground">
                 {myAttendance.checkOutAt
-                  ? `${formatTime(myAttendance.checkOutAt)} WIB`
+                  ? `${formatTime(myAttendance.checkOutAt)} ${currentTimeZoneLabel()}`
                   : running
                     ? "Sesi masih berjalan"
                     : "—"}
@@ -267,7 +268,7 @@ export function SpklDetailView({
           {checkedInEarly && (
             <p className="text-xs leading-relaxed text-muted-foreground">
               Kamu absen lebih awal. Durasi lembur dihitung sejak{" "}
-              {formatTime(spkl.startAt)} WIB.
+              {formatTime(spkl.startAt)} {currentTimeZoneLabel()}.
             </p>
           )}
 
@@ -369,7 +370,8 @@ export function SpklDetailView({
             </span>
             <span className="flex items-center gap-1.5">
               <Clock3 className="size-3.5" />
-              {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)} WIB
+              {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)}{" "}
+              {currentTimeZoneLabel()}
             </span>
             <span className="flex min-w-0 items-center gap-1.5">
               <MapPin className="size-3.5 shrink-0" />
@@ -608,7 +610,7 @@ export function SpklDetailView({
                 />
                 <DataRow
                   label="Jam"
-                  value={`${formatTime(spkl.startAt)}–${formatTime(spkl.endAt)} WIB`}
+                  value={`${formatTime(spkl.startAt)}–${formatTime(spkl.endAt)} ${currentTimeZoneLabel()}`}
                 />
                 <DataRow
                   label="Lokasi"
@@ -659,9 +661,9 @@ export function SpklDetailView({
             <AlertDescription>
               <ul className="flex flex-col gap-1.5">
                 <li>
-                  Absen masuk bisa dilakukan sejak 00:00 WIB pada tanggal SPKL
-                  hingga jam selesai, dalam radius {spkl.radiusMeters} m dari
-                  titik.
+                  Absen masuk bisa dilakukan sejak 00:00 {currentTimeZoneLabel()}{" "}
+                  pada tanggal SPKL hingga jam selesai, dalam radius{" "}
+                  {spkl.radiusMeters} m dari titik.
                 </li>
                 <li>
                   Absen lebih awal diperbolehkan; durasi lembur tetap dihitung

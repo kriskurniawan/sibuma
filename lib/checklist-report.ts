@@ -4,6 +4,7 @@ import { query } from "./db";
 import { rowToCamel } from "./db-model";
 import { getChecklistLocationPathMap, getChecklistLocationScopeIds, listChecklistLocationOptions } from "./checklist-location-scope";
 import { clampPage, type PageRequest } from "./pagination";
+import { sqlTimeZone } from "./sql-time-zone";
 import type {
   ChecklistFollowUp,
   ChecklistFollowUpReportTotals,
@@ -310,7 +311,7 @@ async function followUpWhere(userId: string | null, filters: ChecklistReportFilt
   if (filters.status === "aktif") {
     where += ` AND f.status IN ${OPEN_FOLLOW_UP_STATUSES}`;
   } else if (filters.status === "terlambat") {
-    where += ` AND f.status IN ${OPEN_FOLLOW_UP_STATUSES} AND f.due_date<(now() AT TIME ZONE 'Asia/Jakarta')::date`;
+    where += ` AND f.status IN ${OPEN_FOLLOW_UP_STATUSES} AND f.due_date<(now() AT TIME ZONE ${sqlTimeZone()})::date`;
   } else if (
     filters.status &&
     ["terbuka", "diproses", "tertunda", "selesai", "dibatalkan"].includes(
@@ -390,7 +391,7 @@ export async function getChecklistFollowUpReportData(
       `SELECT count(*)::integer total,
          count(*) FILTER (WHERE f.status IN ${OPEN_FOLLOW_UP_STATUSES})::integer open,
          count(*) FILTER (WHERE f.status='diproses')::integer in_progress,
-         count(*) FILTER (WHERE f.status IN ${OPEN_FOLLOW_UP_STATUSES} AND f.due_date<(now() AT TIME ZONE 'Asia/Jakarta')::date)::integer overdue,
+         count(*) FILTER (WHERE f.status IN ${OPEN_FOLLOW_UP_STATUSES} AND f.due_date<(now() AT TIME ZONE ${sqlTimeZone()})::date)::integer overdue,
          count(*) FILTER (WHERE f.status='selesai')::integer done,
          count(*) FILTER (WHERE f.status='dibatalkan')::integer cancelled
        FROM checklist_follow_ups f JOIN checklist_inspections i ON i.id=f.inspection_id

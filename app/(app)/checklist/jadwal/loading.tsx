@@ -1,4 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobileFabSkeleton } from "@/components/mobile-fab";
 import { Frame, FrameHeader, FramePanel } from "@/components/reui/frame";
 
 function ScheduleRowSkeleton() {
@@ -47,7 +48,7 @@ export default function ChecklistScheduleLoading() {
           <Skeleton className="h-7 w-48 max-w-full" />
           <Skeleton className="hidden h-4 w-full max-w-xl md:block" />
         </div>
-        <Skeleton className="h-8 w-28 shrink-0 rounded-md" />
+        <Skeleton className="hidden h-8 w-28 shrink-0 rounded-md md:block" />
       </div>
 
       <Frame>
@@ -68,6 +69,8 @@ export default function ChecklistScheduleLoading() {
           </ul>
         </FramePanel>
       </Frame>
+
+      <MobileFabSkeleton />
     </div>
   );
 }

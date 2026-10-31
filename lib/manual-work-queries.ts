@@ -4,6 +4,7 @@ import { query } from "./db";
 import { rowToCamel } from "./db-model";
 import { listManualWorkLocations } from "./manual-work-locations";
 import { clampPage, type PageRequest } from "./pagination";
+import { sqlTimeZone } from "./sql-time-zone";
 import { todayLocal } from "./time";
 import type { SessionUser } from "./types";
 import type {
@@ -23,7 +24,7 @@ import type {
 } from "./manual-work-types";
 
 const ACTIVE_STATUSES: ManualWorkStatus[] = ["terbuka", "dikerjakan"];
-const TODAY_SQL = "(now() AT TIME ZONE 'Asia/Jakarta')::date";
+const TODAY_SQL = () => `(now() AT TIME ZONE ${sqlTimeZone()})::date`;
 
 function toPlain(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString();
@@ -151,9 +152,9 @@ export async function getManualWorkTotals(
   const [row] = await query(
     `SELECT
        count(*) FILTER (WHERE w.status IN ('terbuka','dikerjakan'))::integer active,
-       count(*) FILTER (WHERE w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL})::integer overdue,
+       count(*) FILTER (WHERE w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL()})::integer overdue,
        count(*) FILTER (WHERE w.status='terbuka')::integer not_started,
-       count(*) FILTER (WHERE w.status='selesai' AND w.completed_at>=date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta')::integer completed_this_month
+       count(*) FILTER (WHERE w.status='selesai' AND w.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer completed_this_month
      FROM manual_works w
      WHERE ${workAccess("w")}`,
     [userId, manager],
@@ -229,7 +230,7 @@ export async function getManualWorks(
   if (status === "aktif") {
     where += ` AND w.status IN ('terbuka','dikerjakan')`;
   } else if (status === "terlambat") {
-    where += ` AND w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL}`;
+    where += ` AND w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL()}`;
   } else if (status === "belum_mulai") {
     where += ` AND w.status='terbuka'`;
   } else if (["terbuka", "dikerjakan", "selesai", "dibatalkan"].includes(status)) {
@@ -273,7 +274,7 @@ export async function getManualWorks(
      ${where}
      ORDER BY
        CASE WHEN w.status IN ('terbuka','dikerjakan') THEN 0 ELSE 1 END,
-       CASE WHEN w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL} THEN 0 ELSE 1 END,
+       CASE WHEN w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL()} THEN 0 ELSE 1 END,
        w.target_date NULLS LAST,w.updated_at DESC,w.id
      ${pagination ? `LIMIT $${values.length + 1} OFFSET $${values.length + 2}` : ""}`,
     pagination
@@ -302,7 +303,7 @@ export async function getManualWorkDashboard(
        WHERE ${workAccess("w")}
          AND w.status IN ('terbuka','dikerjakan')
        ORDER BY
-         CASE WHEN w.target_date < ${TODAY_SQL} THEN 0 ELSE 1 END,
+         CASE WHEN w.target_date < ${TODAY_SQL()} THEN 0 ELSE 1 END,
          w.target_date NULLS LAST,w.updated_at DESC,w.id
        LIMIT $3`,
       [userId, manager, Math.max(1, Math.min(limit, 10))],

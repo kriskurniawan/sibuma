@@ -6,7 +6,7 @@ import writeXlsxFile, {
   type Sheet,
   type SheetData,
 } from "write-excel-file/node";
-import { APP_TIMEZONE } from "./constants";
+import { getActiveTimeZone } from "./active-time-zone";
 
 export type ExcelCellValue = string | number | Date | null;
 
@@ -49,7 +49,7 @@ export function excelDate(value: string | null | undefined) {
 }
 
 /**
- * Timestamp ISO menjadi tanggal + jam dinding WIB. Date dibentuk dari
+ * Timestamp ISO menjadi tanggal + jam dinding zona waktu aktif. Date dibentuk dari
  * komponen UTC agar Excel menampilkan jam yang sama dengan aplikasi.
  */
 export function excelDateTime(value: string | null | undefined) {
@@ -58,7 +58,7 @@ export function excelDateTime(value: string | null | undefined) {
   if (Number.isNaN(date.getTime())) return null;
   const wallClock = formatInTimeZone(
     date,
-    APP_TIMEZONE,
+    getActiveTimeZone(),
     "yyyy-MM-dd'T'HH:mm:ss",
   );
   return new Date(`${wallClock}Z`);

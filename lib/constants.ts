@@ -1,7 +1,12 @@
+import { isAppTimeZone, type AppTimeZone } from "./time-zone";
+
 export const APP_NAME = "SIBUMA";
 export const APP_TAGLINE = "Sistem Building Management";
-export const APP_TIMEZONE =
-  process.env.NEXT_PUBLIC_APP_TIMEZONE || "Asia/Jakarta";
+const configuredTimeZone = process.env.NEXT_PUBLIC_APP_TIMEZONE;
+/** Fallback build-time; zona aktif runtime dibaca dari policy database. */
+export const APP_TIMEZONE: AppTimeZone = isAppTimeZone(configuredTimeZone)
+  ? configuredTimeZone
+  : "Asia/Jakarta";
 export const SESSION_COOKIE = "lembur_session";
 export const SESSION_DAYS = 30;
 export const OTP_TTL_SECONDS = 5 * 60;

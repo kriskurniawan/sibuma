@@ -23,6 +23,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
+import { MobileFab } from "@/components/mobile-fab";
 import { Avatar, Badge, EmptyState, PageHeader } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -233,10 +234,12 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
         description="Checklist otomatis sesuai kalender dan penugasan tim."
         descriptionClassName="hidden md:block"
         action={
-          <Button type="button" size="sm" onClick={() => openSchedule(null)}>
-            <Plus aria-hidden="true" />
-            Jadwal baru
-          </Button>
+          <div className="max-md:hidden">
+            <Button type="button" size="sm" onClick={() => openSchedule(null)}>
+              <Plus aria-hidden="true" />
+              Jadwal baru
+            </Button>
+          </div>
         }
       />
 
@@ -263,10 +266,12 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
               description="Buat jadwal dari template dan lokasi yang tersedia. Checklist akan muncul otomatis sesuai kalender."
               action={
                 setup.templates.length > 0 && setup.locations.length > 0 ? (
-                  <Button type="button" size="sm" onClick={() => openSchedule(null)}>
-                    <Plus aria-hidden="true" />
-                    Buat jadwal
-                  </Button>
+                  <div className="max-md:hidden">
+                    <Button type="button" size="sm" onClick={() => openSchedule(null)}>
+                      <Plus aria-hidden="true" />
+                      Buat jadwal
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     size="sm"
@@ -395,6 +400,11 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
           )}
         </FramePanel>
       </Frame>
+
+      <MobileFab onClick={() => openSchedule(null)}>
+        <Plus aria-hidden="true" />
+        Jadwal baru
+      </MobileFab>
 
       <ScheduleDialog
         open={dialogOpen}

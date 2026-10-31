@@ -41,7 +41,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SPKL_STATUS_LABEL } from "@/lib/constants";
 import type { SpklListItem, SpklStatus } from "@/lib/types";
 import type { WorkerOverview } from "@/lib/queries";
-import { durationLabel, formatDateHuman, formatTime } from "@/lib/time";
+import { currentTimeZoneLabel, durationLabel, formatDateHuman, formatTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const FILTERS: Array<{ value: "semua" | SpklStatus; label: string }> = [
@@ -94,7 +94,8 @@ function HistoryRow({ item }: { item: SpklListItem }) {
             {formatDateHuman(spkl.startAt, "d MMM yyyy")}
           </span>
           <span className="tabular-nums">
-            {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)} WIB
+            {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)}{" "}
+            {currentTimeZoneLabel()}
           </span>
           <span className="inline-flex items-center gap-1 tabular-nums">
             <TimerReset className="size-4 shrink-0" aria-hidden="true" />
@@ -363,7 +364,7 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
 
         <FrameFooter className="flex flex-wrap items-start gap-2 text-xs text-muted-foreground sm:flex-row sm:justify-between">
           <p>Ekspor rekap melalui atasan.</p>
-          <p>Waktu dalam WIB</p>
+          <p>Waktu dalam {currentTimeZoneLabel()}</p>
         </FrameFooter>
       </Frame>
 

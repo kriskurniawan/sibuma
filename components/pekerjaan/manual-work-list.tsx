@@ -19,6 +19,7 @@ import {
   ManualWorkSelfReportedBadge,
   ManualWorkStatusBadge,
 } from "@/components/pekerjaan/manual-work-badges";
+import { MobileFab } from "@/components/mobile-fab";
 import { MobileSummary } from "@/components/mobile-summary";
 import {
   Frame,
@@ -315,14 +316,16 @@ export function ManualWorkListView({
                     Reset filter
                   </Button>
                 ) : canManage ? (
-                  <Button
-                    size="sm"
-                    nativeButton={false}
-                    render={<Link href="/pekerjaan/baru" />}
-                  >
-                    <Plus aria-hidden="true" />
-                    {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-                  </Button>
+                  <div className="max-md:hidden">
+                    <Button
+                      size="sm"
+                      nativeButton={false}
+                      render={<Link href="/pekerjaan/baru" />}
+                    >
+                      <Plus aria-hidden="true" />
+                      {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+                    </Button>
+                  </div>
                 ) : (
                   <Button
                     size="sm"
@@ -361,17 +364,10 @@ export function ManualWorkListView({
       </Frame>
 
       {canManage && (
-        <div className="above-mobile-nav pointer-events-none fixed inset-x-0 z-30 flex justify-end px-4 md:hidden">
-          <Button
-            size="lg"
-            className="pointer-events-auto rounded-full"
-            nativeButton={false}
-            render={<Link href="/pekerjaan/baru" />}
-          >
-            <Plus aria-hidden="true" />
-            {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-          </Button>
-        </div>
+        <MobileFab href="/pekerjaan/baru">
+          <Plus aria-hidden="true" />
+          {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+        </MobileFab>
       )}
     </div>
   );

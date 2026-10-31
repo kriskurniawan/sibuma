@@ -10,6 +10,7 @@ import {
   shiftDate,
 } from "./checklist-schedule";
 import { todayLocal } from "./time";
+import { sqlTimeZone } from "./sql-time-zone";
 import type {
   ChecklistDistributionMode,
   ChecklistIntervalUnit,
@@ -102,7 +103,7 @@ export async function generateChecklistInspections(ownerId: string) {
   const schedules = (await query(
     `SELECT s.id,s.template_id,s.location_id,s.distribution_mode,s.interval_unit,s.interval_count,
        s.anchor_date,s.due_days,t.name template_name,t.category,l.name location_name,
-       (s.created_at AT TIME ZONE 'Asia/Jakarta')::date::text created_on,
+       (s.created_at AT TIME ZONE ${sqlTimeZone()})::date::text created_on,
        (SELECT v.id FROM checklist_template_versions v WHERE v.template_id=s.template_id ORDER BY v.version DESC LIMIT 1) latest_version_id
      FROM checklist_schedules s
      JOIN checklist_templates t ON t.id=s.template_id

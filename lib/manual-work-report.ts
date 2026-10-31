@@ -19,9 +19,10 @@ import type {
   ManualWorkReportTotals,
 } from "./manual-work-types";
 import { clampPage, type PageRequest } from "./pagination";
+import { sqlTimeZone } from "./sql-time-zone";
 
 const ACTIVE_SQL = "w.status IN ('terbuka','dikerjakan')";
-const TODAY_SQL = "(now() AT TIME ZONE 'Asia/Jakarta')::date";
+const TODAY_SQL = () => `(now() AT TIME ZONE ${sqlTimeZone()})::date`;
 const STATUS_VALUES = ["terbuka", "dikerjakan", "selesai", "dibatalkan"];
 
 async function reportWhere(
@@ -35,7 +36,7 @@ async function reportWhere(
   if (filters.status === "aktif") {
     where += ` AND ${ACTIVE_SQL}`;
   } else if (filters.status === "terlambat") {
-    where += ` AND ${ACTIVE_SQL} AND w.target_date < ${TODAY_SQL}`;
+    where += ` AND ${ACTIVE_SQL} AND w.target_date < ${TODAY_SQL()}`;
   } else if (filters.status && STATUS_VALUES.includes(filters.status)) {
     values.push(filters.status);
     where += ` AND w.status=$${values.length}`;
@@ -99,7 +100,7 @@ export async function getManualWorkReportData(
     }>(
       `SELECT count(*)::integer total,
          count(*) FILTER (WHERE ${ACTIVE_SQL})::integer active,
-         count(*) FILTER (WHERE ${ACTIVE_SQL} AND w.target_date < ${TODAY_SQL})::integer overdue,
+         count(*) FILTER (WHERE ${ACTIVE_SQL} AND w.target_date < ${TODAY_SQL()})::integer overdue,
          count(*) FILTER (WHERE w.status='dikerjakan')::integer in_progress,
          count(*) FILTER (WHERE w.status='terbuka')::integer not_started,
          count(*) FILTER (WHERE w.status='selesai')::integer completed,

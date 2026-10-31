@@ -7,6 +7,7 @@ import { pdfFileResponse } from "@/lib/pdf";
 import { getReportData } from "@/lib/queries";
 import {
   currentMonthRange,
+  currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
   formatTime,
@@ -86,7 +87,7 @@ export async function GET(request: Request) {
         {
           name: "Rekap Lembur",
           title: "Rekap Lembur",
-          subtitle: `${period} · Diekspor ${exportedAt} WIB`,
+          subtitle: `${period} · Diekspor ${exportedAt} ${currentTimeZoneLabel()}`,
           columns: [
             { header: "Tanggal", width: 12, type: "date" },
             { header: "Nomor SPKL", width: 18 },
@@ -136,7 +137,7 @@ export async function GET(request: Request) {
         {
           name: "Ringkasan Pekerja",
           title: "Ringkasan per Pekerja",
-          subtitle: `${period} · Diekspor ${exportedAt} WIB`,
+          subtitle: `${period} · Diekspor ${exportedAt} ${currentTimeZoneLabel()}`,
           columns: [
             { header: "Nama pekerja", width: 24 },
             { header: "NIK", width: 18 },
@@ -192,7 +193,7 @@ export async function GET(request: Request) {
       subtitle: period,
       meta: [
         `${isSuperAdmin(user) ? "Super admin" : "Atasan"}: ${user.name}`,
-        `Diekspor ${exportedAt} WIB`,
+        `Diekspor ${exportedAt} ${currentTimeZoneLabel()}`,
       ],
       exportedAt,
       kpis: [
@@ -349,7 +350,7 @@ export async function GET(request: Request) {
     ),
     "",
     `Periode: ${period}`,
-    `Diekspor: ${exportedAt} WIB`,
+    `Diekspor: ${exportedAt} ${currentTimeZoneLabel()}`,
   ];
 
   const body = `\uFEFF${[...lines, ...summaryLines].join("\r\n")}`;

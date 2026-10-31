@@ -3,7 +3,7 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { distanceMeters } from "@/lib/geo";
 import { mutateDb, pushAudit } from "@/lib/store";
-import { checkInOpensAt, formatDateHuman, spklStatus } from "@/lib/time";
+import { checkInOpensAt, currentTimeZoneLabel, formatDateHuman, spklStatus } from "@/lib/time";
 import type { Attendance } from "@/lib/types";
 import { checkInSchema } from "@/lib/validation";
 
@@ -47,7 +47,7 @@ export async function POST(
       const opensAt = new Date(checkInOpensAt(spkl.date));
       if (now < opensAt) {
         throw new Error(
-          `Absen masuk baru dibuka pada ${formatDateHuman(spkl.startAt, "d MMMM yyyy")} pukul 00:00 WIB.`,
+          `Absen masuk baru dibuka pada ${formatDateHuman(spkl.startAt, "d MMMM yyyy")} pukul 00:00 ${currentTimeZoneLabel()}.`,
         );
       }
       if (now > new Date(spkl.endAt)) {

@@ -27,4 +27,5 @@ Managed by the ReUI installer. Edits between the markers are replaced on the nex
 
 - Jangan menjalankan `npm run dev`, `npm run build`, `git commit`, atau `git push` tanpa arahan eksplisit dari user.
 - Jika verifikasi memerlukan server, build, commit, atau push, minta arahan terlebih dahulu.
+- Setiap perubahan tampilan (aksi header, FAB, layout, atau isi halaman) wajib disertai penyesuaian skeleton/`loading.tsx` pada route terkait, sehingga struktur dan posisi elemen tetap sama saat memuat.
 

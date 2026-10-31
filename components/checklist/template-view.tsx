@@ -37,6 +37,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/modal";
+import { MobileFab } from "@/components/mobile-fab";
 import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import {
   TemplateItemEditor,
@@ -163,16 +164,18 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         descriptionClassName="hidden md:block"
         action={
           <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
-            <Button
-              size="sm"
-              type="button"
-              aria-haspopup="dialog"
-              aria-expanded={templateOpen}
-              data-dialog-intent="template-new"
-            >
-              <Plus aria-hidden="true" />
-              Template baru
-            </Button>
+            <div className="max-md:hidden">
+              <Button
+                size="sm"
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={templateOpen}
+                data-dialog-intent="template-new"
+              >
+                <Plus aria-hidden="true" />
+                Template baru
+              </Button>
+            </div>
             <Button
               size="sm"
               variant="outline"
@@ -313,16 +316,18 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               title="Belum ada template"
               description="Template menentukan item pemeriksaan. Buat template pertama lalu terbitkan versinya."
               action={
-                <Button
-                  size="sm"
-                  type="button"
-                  aria-haspopup="dialog"
-                  aria-expanded={templateOpen}
-                  data-dialog-intent="template-new"
-                >
-                  <Plus aria-hidden="true" />
-                  Buat template
-                </Button>
+                <div className="max-md:hidden">
+                  <Button
+                    size="sm"
+                    type="button"
+                    aria-haspopup="dialog"
+                    aria-expanded={templateOpen}
+                    data-dialog-intent="template-new"
+                  >
+                    <Plus aria-hidden="true" />
+                    Buat template
+                  </Button>
+                </div>
               }
             />
           ) : (
@@ -386,6 +391,11 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
           )}
         </FramePanel>
       </Frame>
+
+      <MobileFab onClick={openTemplate}>
+        <Plus aria-hidden="true" />
+        Template baru
+      </MobileFab>
 
       <LocationDialog
         open={locationOpen}

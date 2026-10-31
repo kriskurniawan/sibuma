@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_DAILY_MINUTES, MAX_WEEKLY_MINUTES } from "./constants";
+import { TIME_ZONE_VALUES } from "./time-zone";
 
 const loginIdentifier = z.string().trim().min(5, "Email atau WhatsApp wajib diisi.").max(254);
 export const otpRequestSchema = z.object({ identifier: loginIdentifier });
@@ -222,6 +223,9 @@ export const policySchema = z
       .int()
       .min(10, "Akurasi GPS minimal 10 meter.")
       .max(1_000, "Akurasi GPS maksimal 1.000 meter."),
+    timezone: z.enum(TIME_ZONE_VALUES, {
+      error: "Zona waktu tidak valid.",
+    }),
   })
   .superRefine((value, ctx) => {
     if (value.weeklyLimitMinutes < value.dailyLimitMinutes) {

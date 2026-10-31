@@ -1,9 +1,10 @@
 import pg from "pg";
 import type { PoolClient, QueryResultRow } from "pg";
+import { setActiveTimeZone } from "./active-time-zone";
 import { columns, decode, encode, models, snake, type Entity, type Model } from "./db-model";
 
 // Small per-instance pool; use Neon's pooled connection string on Vercel.
-pg.types.setTypeParser(1082, (value) => value); // SQL date is a WIB calendar date, not a timestamp.
+pg.types.setTypeParser(1082, (value) => value); // SQL date is an app-timezone calendar date, not a timestamp.
 const globalDb = globalThis as typeof globalThis & { relationalPool?: pg.Pool };
 export function pool() {
   if (!globalDb.relationalPool) {
@@ -56,5 +57,6 @@ export async function transaction<T>(operation: (connection: PoolClient) => Prom
 export async function getPolicyRow(connection: Connection = pool()) {
   const [policy] = await select("policy", "id='policy'", [], connection);
   if (!policy) throw new Error("Database relasional belum diinisialisasi. Jalankan migrasi database.");
+  setActiveTimeZone(policy.timezone);
   return policy;
 }

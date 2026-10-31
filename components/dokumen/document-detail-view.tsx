@@ -12,6 +12,7 @@ import {
   Pencil,
   RotateCcw,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
@@ -39,6 +40,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -86,6 +93,7 @@ export function DocumentDetailView({
   const [title, setTitle] = useState(document.title);
   const [description, setDescription] = useState(document.description);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [imageOpen, setImageOpen] = useState(false);
   const [moveFolderId, setMoveFolderId] = useState(
     document.folderId ?? NO_FOLDER,
   );
@@ -337,7 +345,7 @@ export function DocumentDetailView({
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-4">
           <Frame stacked spacing="sm">
-            <FrameHeader className="flex-row flex-wrap items-center justify-between gap-2">
+            <FrameHeader className="hidden flex-row flex-wrap items-center justify-between gap-2 md:flex">
               <div className="flex min-w-0 flex-col gap-0.5">
                 <FrameTitle className="max-md:sr-only">Pratinjau</FrameTitle>
                 <FrameDescription className="max-md:hidden text-xs">
@@ -382,11 +390,18 @@ export function DocumentDetailView({
                 document.extension === "png" ? (
                 <div className="flex items-center justify-center bg-muted/30 p-3">
                   {/* Berkas privat di balik route ber-otorisasi; bukan aset publik. */}
-                  <img
-                    src={fileUrl}
-                    alt={`Pratinjau ${document.title}`}
-                    className="max-h-[70vh] w-auto max-w-full rounded-md object-contain"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setImageOpen(true)}
+                    className="group w-full cursor-zoom-in rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    aria-label={`Buka pratinjau ${document.title} layar penuh`}
+                  >
+                    <img
+                      src={fileUrl}
+                      alt={`Pratinjau ${document.title}`}
+                      className="mx-auto max-h-[70vh] w-auto max-w-full rounded-md object-contain group-hover:opacity-95"
+                    />
+                  </button>
                 </div>
               ) : document.extension === "mp4" ||
                 document.extension === "webm" ||
@@ -743,6 +758,46 @@ export function DocumentDetailView({
           Kembali ke daftar dokumen
         </Link>
       </p>
+
+      <Dialog open={imageOpen} onOpenChange={setImageOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="top-0 left-0 z-[1000000000] flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-black p-0 text-white ring-0 outline-none sm:max-w-none"
+        >
+          <div className="flex shrink-0 items-start gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <DialogTitle className="truncate text-sm text-white">
+                {document.title}
+              </DialogTitle>
+              <DialogDescription className="truncate text-xs text-white/70">
+                Pratinjau gambar · {formatDocumentBytes(document.sizeBytes)}
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              onClick={() => setImageOpen(false)}
+              aria-label="Tutup pratinjau gambar"
+              className="text-white hover:bg-white/10 hover:text-white"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+          <div
+            className="flex min-h-0 flex-1 items-center justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setImageOpen(false);
+            }}
+          >
+            <img
+              src={fileUrl}
+              alt={`Pratinjau ${document.title}`}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

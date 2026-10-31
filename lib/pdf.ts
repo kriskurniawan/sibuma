@@ -2,6 +2,7 @@ import "server-only";
 
 import { jsPDF } from "jspdf";
 import autoTable, { type UserOptions } from "jspdf-autotable";
+import { currentTimeZoneLabel } from "./time";
 
 export type PdfCell = string | number | null | undefined;
 export type PdfAlign = "left" | "center" | "right";
@@ -215,7 +216,7 @@ function drawFooters(doc: jsPDF, input: PdfReportInput) {
       .setTextColor(...MUTED);
     doc.text("SIBUMA - Sistem Building Management", MARGIN, height - 17);
     const right = input.exportedAt
-      ? `${input.exportedAt} WIB  |  Halaman ${page} dari ${total}`
+      ? `${input.exportedAt} ${currentTimeZoneLabel()}  |  Halaman ${page} dari ${total}`
       : `Halaman ${page} dari ${total}`;
     doc.text(right, width - MARGIN, height - 17, { align: "right" });
   }

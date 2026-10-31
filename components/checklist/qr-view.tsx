@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Modal } from "@/components/modal";
+import { MobileFab } from "@/components/mobile-fab";
 import { MobileSummary } from "@/components/mobile-summary";
 import {
   checklistQrPath,
@@ -109,10 +110,12 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
         description="Kelola tautan QR untuk pengunjung dan petugas."
         descriptionClassName="hidden md:block"
         action={
-          <Button type="button" size="sm" onClick={() => openForm(null)}>
-            <Plus aria-hidden="true" />
-            QR baru
-          </Button>
+          <div className="max-md:hidden">
+            <Button type="button" size="sm" onClick={() => openForm(null)}>
+              <Plus aria-hidden="true" />
+              QR baru
+            </Button>
+          </div>
         }
       />
 
@@ -180,10 +183,12 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
               title="Belum ada QR"
               description="Buat QR umum untuk memilih area, atau QR khusus yang langsung membuka satu area."
               action={
-                <Button type="button" size="sm" onClick={() => openForm(null)}>
-                  <Plus aria-hidden="true" />
-                  Buat QR pertama
-                </Button>
+                <div className="max-md:hidden">
+                  <Button type="button" size="sm" onClick={() => openForm(null)}>
+                    <Plus aria-hidden="true" />
+                    Buat QR pertama
+                  </Button>
+                </div>
               }
             />
           ) : (
@@ -297,6 +302,11 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
           )}
         </FramePanel>
       </Frame>
+
+      <MobileFab onClick={() => openForm(null)}>
+        <Plus aria-hidden="true" />
+        QR baru
+      </MobileFab>
 
       <QrFormDialog
         open={formOpen}

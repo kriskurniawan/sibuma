@@ -69,6 +69,7 @@ import { TimeField } from "@/components/time-field";
 import type { ScheduledItem, ScheduleWarning } from "@/lib/schedule";
 import { scheduleWarnings } from "@/lib/schedule";
 import {
+  currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
   zonedToIso,
@@ -576,8 +577,9 @@ export function SpklForm({
               <div className="flex min-w-0 flex-col">
                 <FrameTitle>Jadwal lembur</FrameTitle>
                 <FrameDescription className="text-xs">
-                  Waktu dalam WIB. Absen masuk dibuka sejak 00:00 WIB pada
-                  tanggal SPKL; durasi lembur dihitung sejak jam mulai.
+                  Waktu dalam {currentTimeZoneLabel()}. Absen masuk dibuka sejak
+                  00:00 {currentTimeZoneLabel()} pada tanggal SPKL; durasi lembur
+                  dihitung sejak jam mulai.
                 </FrameDescription>
               </div>
             </FrameHeader>
@@ -647,7 +649,8 @@ export function SpklForm({
                 </span>
                 <span aria-hidden className="size-1 rounded-full bg-border" />
                 <span className="text-xs font-semibold text-foreground">
-                  {startTime || "—"}–{endTime || "—"} WIB
+                  {startTime || "—"}–{endTime || "—"}{" "}
+                  {currentTimeZoneLabel()}
                 </span>
                 {duration > 0 && (
                   <StateBadge variant="outline" className="ml-auto">
@@ -1081,7 +1084,8 @@ export function SpklForm({
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock3 className="size-3 shrink-0" />
-                  {startTime || "—"}–{endTime || "—"} WIB
+                  {startTime || "—"}–{endTime || "—"}{" "}
+                  {currentTimeZoneLabel()}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <MapPin className="size-3 shrink-0" />

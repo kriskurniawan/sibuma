@@ -52,9 +52,9 @@ export default function DokumenDetailLoading() {
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex min-w-0 flex-col gap-4">
-          <Frame spacing="sm">
-            <FrameHeader className="flex-row items-start justify-between gap-3">
-              <div className="hidden flex-col gap-1 md:flex">
+          <Frame stacked spacing="sm">
+            <FrameHeader className="hidden flex-row items-center justify-between gap-3 md:flex">
+              <div className="flex flex-col gap-1">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-48 max-w-full" />
               </div>

@@ -54,6 +54,7 @@ import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
 import { checklistHasStarted } from "@/lib/checklist-schedule";
 import {
+  currentTimeZoneLabel,
   formatDateHuman,
   formatDateTime,
   formatTime,
@@ -279,7 +280,8 @@ export function WorkerDashboard({
                   </Link>
                   <p className="text-xs text-muted-foreground">
                     {formatDateHuman(overtime.spkl.startAt, "d MMM, HH:mm")}–
-                    {formatTime(overtime.spkl.endAt)} WIB
+                    {formatTime(overtime.spkl.endAt)}{" "}
+                    {currentTimeZoneLabel()}
                   </p>
                   <div>
                     <SpklStatusBadge status={overtime.status} />

@@ -29,7 +29,7 @@ import {
 } from "@/lib/checklist-report";
 import type { ChecklistReportFilters } from "@/lib/checklist-types";
 import { pageRequest } from "@/lib/pagination";
-import { currentMonthRange, formatDateHuman } from "@/lib/time";
+import { currentMonthRange, currentTimeZoneLabel, formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -163,7 +163,8 @@ export async function FollowUpReportScreen({
         </h1>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
           Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
-          {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")} WIB
+          {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")}{" "}
+          {currentTimeZoneLabel()}
         </p>
       </div>
 

@@ -15,7 +15,7 @@ import {
 } from "@/lib/manual-work-types";
 import { pdfFileResponse } from "@/lib/pdf";
 import { getPhotoLimits } from "@/lib/photo-limits";
-import { currentMonthRange, formatDateHuman, formatDateTime } from "@/lib/time";
+import { currentMonthRange, currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
 
 export const runtime = "nodejs";
 
@@ -129,7 +129,7 @@ export async function GET(request: Request) {
     new Date().toISOString(),
     "d MMMM yyyy, HH:mm",
   );
-  const subtitle = `${period} · Diekspor ${exportedAt} WIB`;
+  const subtitle = `${period} · Diekspor ${exportedAt} ${currentTimeZoneLabel()}`;
 
   if (format === "xlsx") {
     return excelFileResponse({
@@ -145,7 +145,7 @@ export async function GET(request: Request) {
       subtitle: period,
       meta: [
         `${isSuperAdmin(user) ? "Super admin" : "Atasan"}: ${user.name}`,
-        `Diekspor ${exportedAt} WIB`,
+        `Diekspor ${exportedAt} ${currentTimeZoneLabel()}`,
       ],
       exportedAt,
       kpis: [
@@ -248,7 +248,7 @@ export async function GET(request: Request) {
     ...lines.map((line) => line.map(csvCell).join(";")),
     "",
     `Periode: ${period}`,
-    `Diekspor: ${exportedAt} WIB`,
+    `Diekspor: ${exportedAt} ${currentTimeZoneLabel()}`,
   ].join("\r\n")}`;
 
   return new Response(body, {

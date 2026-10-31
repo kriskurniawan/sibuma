@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowLeft,
   BarChart3,
@@ -35,6 +40,7 @@ import { toast } from "sonner";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { EmailChangeNotice } from "@/components/email-change-notice";
 import { LogoMark } from "@/components/logo";
+import { PwaInstallButton } from "@/components/pwa-install-button";
 import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,7 +75,7 @@ import { avatarUrl } from "@/lib/avatar-url";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isReadOnly } from "@/lib/access";
 import { isCompanyEmail } from "@/lib/email";
-import { formatDateHuman } from "@/lib/time";
+import { currentTimeZoneLabel, formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -215,13 +221,6 @@ function navMatchDepth(pathname: string, item: NavItem) {
   return extra ? extra.length : -1;
 }
 
-const CHECKLIST_ROOT_PATHS = new Set([
-  "/checklist/template",
-  "/checklist/jadwal",
-  "/checklist/qr",
-  "/checklist/tindak-lanjut",
-]);
-
 /** Halaman daftar SPKL bergantung pada peran yang membuka detail. */
 function spklBackTarget(role: SessionUser["role"]) {
   if (role === "super_admin") {
@@ -231,7 +230,7 @@ function spklBackTarget(role: SessionUser["role"]) {
   return { href: "/riwayat", label: "Lembur" };
 }
 
-/** Halaman detail atau form memakai tombol kembali di header mobile. */
+/** Halaman detail, form, dan sub-halaman checklist memakai tombol kembali di header mobile. */
 function mobileBackLink(pathname: string, role: SessionUser["role"]) {
   if (pathname === "/pekerjaan/baru") {
     return { href: "/pekerjaan", label: "Pekerjaan harian" };
@@ -267,10 +266,10 @@ function mobileBackLink(pathname: string, role: SessionUser["role"]) {
   if (/^\/checklist\/template\/[^/]+$/.test(pathname)) {
     return { href: "/checklist/template", label: "Template checklist" };
   }
-  if (
-    pathname.startsWith("/checklist/") &&
-    !CHECKLIST_ROOT_PATHS.has(pathname)
-  ) {
+  if (pathname === "/checklist/qr") {
+    return { href: "/checklist/template", label: "Template & lokasi" };
+  }
+  if (pathname.startsWith("/checklist/")) {
     return { href: "/checklist", label: "Checklist" };
   }
   return null;
@@ -316,6 +315,76 @@ function CloseMobileSidebarOnNavigate() {
   }, [pathname, setOpenMobile]);
 
   return null;
+}
+
+const MOBILE_NAV_HISTORY_KEY = "sibuma:mobile-nav-history";
+const MOBILE_NAV_HISTORY_LIMIT = 20;
+let mobileNavHistoryStarted = false;
+
+function readMobileNavHistory(key: string): string[] {
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is string =>
+        typeof item === "string" && item.startsWith("/"),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Tombol kembali header mobile mengikuti asal navigasi di tab ini, sehingga
+ * halaman yang dibuka dari menu kembali ke menu. Riwayat singkat disimpan di
+ * sessionStorage; halaman yang dibuka langsung memakai tautan fallback agar
+ * tidak keluar dari aplikasi.
+ */
+function useMobileBack(pathname: string, userId: string) {
+  const router = useRouter();
+  const [previousPath, setPreviousPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    const key = `${MOBILE_NAV_HISTORY_KEY}:${userId}`;
+    let history = readMobileNavHistory(key);
+
+    if (!mobileNavHistoryStarted) {
+      mobileNavHistoryStarted = true;
+      const entry = performance.getEntriesByType("navigation")[0] as
+        | PerformanceNavigationTiming
+        | undefined;
+      // Muat ulang mempertahankan riwayat; entri baru (URL atau markah) tidak.
+      if (entry?.type === "navigate") history = [];
+    }
+
+    const index = history.lastIndexOf(pathname);
+    if (index >= 0) {
+      history = history.slice(0, index + 1);
+    } else {
+      history = [...history, pathname].slice(-MOBILE_NAV_HISTORY_LIMIT);
+    }
+
+    const currentIndex = history.lastIndexOf(pathname);
+    setPreviousPath(currentIndex > 0 ? history[currentIndex - 1] : null);
+
+    try {
+      window.sessionStorage.setItem(key, JSON.stringify(history));
+    } catch {
+      // Penyimpanan sesi tidak tersedia; tautan fallback tetap dipakai.
+    }
+  }, [pathname, userId]);
+
+  function handleBack(event: MouseEvent<HTMLAnchorElement>) {
+    if (!previousPath) return;
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    router.back();
+  }
+
+  return { previousPath, handleBack };
 }
 
 function NavRows({
@@ -392,6 +461,7 @@ export function AppShell({
   const sectionLabel = currentSectionLabel(pathname, nav);
   const firstName = user.name.split(" ")[0];
   const backLink = mobileBackLink(pathname, user.role);
+  const { previousPath, handleBack } = useMobileBack(pathname, user.id);
 
   let activeMobileHref: string | null = null;
   let activeMobileDepth = -1;
@@ -574,9 +644,9 @@ export function AppShell({
               variant="ghost"
               size="icon-sm"
               className="-ml-1 md:hidden"
-              aria-label={`Kembali ke ${backLink.label}`}
+              aria-label={previousPath ? "Kembali" : `Kembali ke ${backLink.label}`}
               nativeButton={false}
-              render={<Link href={backLink.href} />}
+              render={<Link href={backLink.href} onClick={handleBack} />}
             >
               <ArrowLeft />
             </Button>
@@ -590,7 +660,7 @@ export function AppShell({
               <span suppressHydrationWarning className="capitalize">
                 {todayLabel}
               </span>
-              <span>· WIB</span>
+              <span>· {currentTimeZoneLabel()}</span>
             </span>
             {readOnly && (
               <Badge variant="warning-light" className="shrink-0">
@@ -601,6 +671,7 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-1">
+            <PwaInstallButton />
             <Button
               variant="ghost"
               size="icon-sm"

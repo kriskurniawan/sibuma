@@ -3,6 +3,7 @@ import {
   FrameHeader,
   FramePanel,
 } from "@/components/reui/frame";
+import { MobileFabSkeleton } from "@/components/mobile-fab";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function SpklCardSkeleton() {
@@ -48,14 +49,14 @@ export default function LemburLoading() {
       <span className="sr-only">Memuat data lembur…</span>
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-40" />
           <Skeleton className="hidden h-4 w-full max-w-xl sm:block" />
         </div>
         <div className="flex w-full flex-wrap gap-2 sm:w-auto">
           <Skeleton className="h-9 w-32 rounded-md" />
-          <Skeleton className="h-9 w-36 rounded-md" />
+          <Skeleton className="hidden h-9 w-36 rounded-md md:block" />
         </div>
       </div>
 
@@ -85,6 +86,8 @@ export default function LemburLoading() {
           ))}
         </FramePanel>
       </Frame>
+
+      <MobileFabSkeleton />
     </div>
   );
 }

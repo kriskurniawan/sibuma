@@ -63,6 +63,12 @@ export default function SettingsLoading() {
                 ))}
               </div>
 
+              <div className="flex flex-col gap-2 border-t border-border/70 pt-4">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-8 w-full max-w-xs rounded-md" />
+                <Skeleton className="h-3 w-full max-w-md" />
+              </div>
+
               <div className="flex justify-end border-t border-border/70 pt-4">
                 <Skeleton className="h-8 w-36 rounded-md" />
               </div>

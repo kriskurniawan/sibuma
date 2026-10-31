@@ -4,6 +4,7 @@ import { models, snake, type Model } from "./db-model";
 import type { Database } from "./types";
 import { finalizeExpired } from "./attendance-finalization";
 import { listWorkLocationsByIds } from "./work-locations";
+import { sqlTimeZone } from "./sql-time-zone";
 
 export type MutationScope =
   | { kind: "spkl"; id?: string; workerIds?: string[]; divisionId?: string; sequence?: boolean; startAt?: string; workLocationId?: string }
@@ -30,7 +31,7 @@ async function loadScope(scope: MutationScope, connection: Connection) {
     const workerIds = scope.kind === "spkl" ? scope.workerIds ?? [] : [];
     if (workerIds.length) {
       // Schedule warnings need only the selected workers' schedules, not all SPKLs.
-      const schedules = await select("spkls", "id IN (SELECT spkl_id FROM spkl_workers WHERE employee_id=ANY($1::text[])) AND end_at >= (date_trunc('week',$2::timestamptz AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta') - interval '1 day' AND start_at < (date_trunc('week',$2::timestamptz AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta') + interval '8 days'", [workerIds, scope.kind === "spkl" ? scope.startAt ?? new Date().toISOString() : new Date().toISOString()], connection);
+      const schedules = await select("spkls", `id IN (SELECT spkl_id FROM spkl_workers WHERE employee_id=ANY($1::text[])) AND end_at >= (date_trunc('week',$2::timestamptz AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()}) - interval '1 day' AND start_at < (date_trunc('week',$2::timestamptz AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()}) + interval '8 days'`, [workerIds, scope.kind === "spkl" ? scope.startAt ?? new Date().toISOString() : new Date().toISOString()], connection);
       const map = new Map([...schedules, ...db.spkls].map((row) => [row.id, row]));
       db.spkls = [...map.values()];
     }

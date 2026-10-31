@@ -5,7 +5,7 @@ import { Frame, FramePanel } from "@/components/reui/frame";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import type { ChecklistPublicStaffTask } from "@/lib/checklist-types";
-import { formatDateHuman, formatDateTime } from "@/lib/time";
+import { currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
 
 export interface PublicStaffState {
   loggedIn: boolean;
@@ -59,7 +59,8 @@ export function PublicStaffAccess({
                     </div>
                     <p className="flex items-start gap-1 text-xs text-muted-foreground">
                       <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
-                      Batas {formatDateTime(task.dueAt, "d MMM yyyy, HH:mm")} WIB
+                      Batas {formatDateTime(task.dueAt, "d MMM yyyy, HH:mm")}{" "}
+                      {currentTimeZoneLabel()}
                     </p>
                   </div>
                   <Button

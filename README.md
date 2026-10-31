@@ -2,7 +2,7 @@
 
 Aplikasi web mobile-first untuk operasional **SIBUMA**: tim mengisi checklist area secara berkala, atasan memantau temuan dan tindak lanjut, dan modul lembur/SPKL melengkapi absensi serta dokumentasi kerja.
 
-Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan dirancang sebagai PWA yang dapat dipasang di layar utama ponsel.
+Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, atau **WIT**) yang diatur admin dari **Pengaturan → Kebijakan**, dan dirancang sebagai PWA yang dapat dipasang di layar utama ponsel.
 
 > **Status:** MVP P0 selesai secara fungsional. Penyimpanan produksi memakai **Neon Postgres** (tabel relasional) dan **object storage S3-compatible** untuk dokumentasi serta dokumen kerja pada bucket terpisah. Seluruh data dan foto wajib memakai penyimpanan tersebut; tidak ada database atau fallback upload lokal. Pengiriman Chatery dan Resend sudah diimplementasikan, tetapi belum diuji dengan kredensial nyata.
 
@@ -14,9 +14,9 @@ Antarmuka berbahasa Indonesia, memakai zona waktu **Asia/Jakarta (WIB)**, dan di
 
 - Masuk dengan **email atau WhatsApp terdaftar**, tanpa mengetik NIK (OTP 6 digit, berlaku 5 menit). Akun wajib aktif, NIK terisi, dan pekerja harus terhubung ke atasan aktif. Atasan mendaftarkan NIK/kontak terlebih dahulu.
 - Beranda berisi checklist aktif berikutnya lengkap dengan progres, antrean checklist, tindak lanjut yang ditugaskan, dan jadwal lembur ringkas.
-- Absen masuk/pulang dengan **verifikasi geofence** dan akurasi GPS. Absen masuk dibuka sejak 00:00 WIB pada tanggal SPKL, termasuk sebelum jam mulai.
+- Absen masuk/pulang dengan **verifikasi geofence** dan akurasi GPS. Absen masuk dibuka sejak 00:00 zona waktu kebijakan pada tanggal SPKL, termasuk sebelum jam mulai.
 - Timer sesi berjalan serta riwayat lembur dan status kehadiran.
-- Unggah dokumentasi pekerjaan (foto + deskripsi + lokasi opsional) per sesi SPKL. Foto dapat diambil langsung dari kamera atau dipilih beberapa sekaligus dari galeri. Saat diproses di perangkat, nomor SPKL dan waktu foto WIB dicetak di bagian bawah foto; waktu diambil dari EXIF kamera bila tersedia, jika tidak dari jam perangkat. File tanpa cap waktu SIBUMA ditolak server, sehingga unggahan mentah di luar formulir tidak diterima. Video MP4/WEBM/MOV dapat ditambahkan dari galeri sebagai bukti tambahan; video tidak diberi cap waktu dan tidak menggantikan kewajiban foto.
+- Unggah dokumentasi pekerjaan (foto + deskripsi + lokasi opsional) per sesi SPKL. Foto dapat diambil langsung dari kamera atau dipilih beberapa sekaligus dari galeri. Saat diproses di perangkat, nomor SPKL dan waktu foto sesuai zona kebijakan dicetak di bagian bawah foto; waktu diambil dari EXIF kamera bila tersedia, jika tidak dari jam perangkat. File tanpa cap waktu SIBUMA ditolak server, sehingga unggahan mentah di luar formulir tidak diterima. Video MP4/WEBM/MOV dapat ditambahkan dari galeri sebagai bukti tambahan; video tidak diberi cap waktu dan tidak menggantikan kewajiban foto.
 - Mengisi **checklist operasional** yang ditugaskan: kondisi per item (baik / perlu perhatian / tidak baik / tidak berlaku), catatan wajib saat bermasalah, alasan saat tidak berlaku, dan foto sesuai kebijakan item. Item dapat dikelompokkan di bawah heading grup (mis. **Pemeriksaan Pompa → Periksa gear**); grup hanya judul dan tidak ikut dijawab atau dihitung progres. Semua anggota penugasan boleh mengisi dan menyelesaikan checklist; setiap item disimpan dengan pemeriksaan versi agar tidak saling menimpa.
 - Membuat dan memperbarui **tindak lanjut** dari item bermasalah, termasuk menutupnya tanpa persetujuan atasan.
 - Melihat catatan koreksi dan alasan yang diberikan atasan.
@@ -78,7 +78,7 @@ Sistem UI memakai **ReUI** di atas shadcn/ui dengan komponen gratis saja:
 
 - **Frame** untuk panel operasional, **Data Grid** untuk rekap desktop, serta **Alert**, **Badge**, dan **Icon Tile**.
 - **Pagination** memakai `DataGridPagination` ReUI pada tabel laporan dan kontrol berbasis `Pagination` shadcn pada daftar log audit/outbox. Ukuran baris `10/25/50/100`, label Indonesia, dan halaman otomatis kembali ke awal saat filter atau pencarian berubah.
-- **Pemilih tanggal & waktu** memakai **TimePicker** ReUI dan **Calendar** shadcn di dalam `Popover` (pola gratis [date and time](https://reui.io/components/time-picker/c-time-picker-13)); tidak ada lagi kontrol native `type="date"`, `type="time"`, atau `type="datetime-local"`. Nilai form tetap `yyyy-MM-dd`/`HH:mm`, label berbahasa Indonesia, dan validasi tanggal minimum serta batas WIB dipertahankan.
+- **Pemilih tanggal & waktu** memakai **TimePicker** ReUI dan **Calendar** shadcn di dalam `Popover` (pola gratis [date and time](https://reui.io/components/time-picker/c-time-picker-13)); tidak ada lagi kontrol native `type="date"`, `type="time"`, atau `type="datetime-local"`. Nilai form tetap `yyyy-MM-dd`/`HH:mm`, label berbahasa Indonesia, dan validasi tanggal minimum serta batas zona waktu dipertahankan.
 - **Shell aplikasi** memakai **Sidebar** ReUI varian standar (bukan *inset*): sidebar ivory `rgb(251,249,243)`, kanvas konten putih `rgb(255,255,255)`, kartu putih dengan border tipis, dan item menu berjarak `gap-1`. Header sidebar serta topbar sama-sama 56px sehingga bordernya sejajar. Navigasi berkelompok, menu akun `DropdownMenu`, dan tab bar bawah di mobile tetap dipertahankan. Warna diambil dari token `--sidebar`/`--background` sehingga tema gelap tinggal mengaktifkan token gelap yang sudah disiapkan.
 - **Navigasi mobile**: pekerja memakai **Beranda · Checklist · Scan · Pekerjaan · Lembur**; atasan memakai **Beranda · Checklist · Pekerjaan · Lembur · Menu**. Profil dibuka lewat avatar kanan atas. Scan QR atasan tersedia di halaman Checklist, termasuk akun hanya-lihat. Label **Lembur** pekerja mencakup jadwal, aktivitas berlangsung, dan riwayat; rute `/riwayat` tetap dipertahankan.
 - **Dashboard atasan** menyusun pita KPI checklist (aktif, terlambat, tindak lanjut, selesai bulan ini), daftar checklist prioritas dengan progres/anggota/deadline, rel tindak lanjut dan kartu **Lembur hari ini** ringkas. **Dashboard pekerja** menempatkan tugas lebih dulu: checklist paling mendesak (terlambat/berlangsung) sebagai panel fokus dengan progres dan aksi, lalu antrean checklist, tindak lanjut pribadi, dan jadwal lembur. KPI ringkas berada di bawahnya sebagai konteks, bukan hal pertama yang dilihat.
@@ -134,6 +134,8 @@ Folder Dokumen Kerja dan video bukti pekerjaan memakai migrasi `npm run db:migra
 
 Pemilihan penerima berbagi Dokumen Kerja memakai migrasi `npm run db:migrate:document-shares` (DDL `db/migrations/023_document_share_targets.sql`). Migrasi ini menambah `work_document_share_targets` dan `work_document_folder_share_targets` dengan kunci `(document_id|folder_id, audience, target_id)`; `audience` bernilai `division` atau `supervisor`. Tabel lama `work_document_shares`/`work_document_folder_shares` tetap dipertahankan sebagai fallback agar akses yang sudah terbuka tidak hilang. Saat pemilik menyimpan pilihan baru, target eksplisit menggantikan baris lama secara atomik. Target hanya berlaku selama divisi/atasan masih aktif, dan atasan yang bukan lagi berperan `atasan` tidak lagi diberi akses. Migrasi idempoten dan aman dijalankan ulang.
 
+Zona waktu kini menjadi pengaturan admin. Terapkan `npm run db:migrate:policy-timezone` (DDL `db/migrations/026_policy_timezone.sql`) agar constraint `policies.timezone` menerima `Asia/Jakarta`, `Asia/Makassar`, dan `Asia/Jayapura`. Setelah migrasi, super admin dapat mengganti zona di **Pengaturan → Kebijakan**; jam, label WIB/WITA/WIT, buka absen 00:00, serta batas hari/bulan laporan mengikuti zona tersebut. Tanggal kalender yang sudah tersimpan tidak diubah.
+
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
 ### Migrasi lokal yang sudah dilakukan
@@ -143,7 +145,7 @@ Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL
 ### Deploy ke Vercel
 
 1. Hubungkan repositori ke Vercel dengan framework preset **Next.js**.
-2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada.
+2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada. Zona waktu diatur dari **Pengaturan → Kebijakan**, bukan environment.
 3. `vercel.json` menetapkan **Function Region Singapore (`sin1`)** agar fungsi Vercel dekat dengan Neon.
 4. Jalankan `npm run storage:init` dan `npm run storage:init:documents` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
 5. Buka `https://<domain>/api/health`; `database` harus `neon-postgres`, `schema` harus `relational-v1`, dan `storage` harus `neon-object-storage`.
@@ -205,7 +207,7 @@ Salin `.env.example` menjadi `.env.local`.
 | Variabel | Wajib | Keterangan |
 | --- | --- | --- |
 | `SESSION_SECRET` | Produksi | Kunci HMAC untuk cookie sesi dan hash OTP. Wajib ≥ 32 karakter di produksi; aplikasi **gagal tertutup** bila kosong, terlalu pendek, atau masih memakai nilai pengembangan. Di pengembangan, secret pengembangan hanya dipakai bila variabel tidak diisi. |
-| `NEXT_PUBLIC_APP_TIMEZONE` | Tidak | Default `Asia/Jakarta`. Dipakai untuk tampilan dan konversi waktu. |
+| `NEXT_PUBLIC_APP_TIMEZONE` | Tidak | Fallback build-time sebelum policy dimuat. Zona waktu aktif dibaca dari `policies.timezone` dan diubah lewat **Pengaturan → Kebijakan** (`Asia/Jakarta`, `Asia/Makassar`, atau `Asia/Jayapura`). |
 | `BOOTSTRAP_ADMIN_ID` | Tidak | ID akun super admin awal; default `emp_admin`. |
 | `BOOTSTRAP_ADMIN_NAME` | `db:init` | Nama super admin awal. |
 | `BOOTSTRAP_ADMIN_NIK` | `db:init` | NIK super admin awal. |
@@ -241,13 +243,13 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | --- | --- |
 | Pembuatan SPKL | Boleh dibuat pada hari yang sama selama jam selesai masih di masa depan. Jam selesai harus setelah jam mulai. |
 | Penugasan | Minimal satu pekerja aktif dari tim atasan pembuat. |
-| Absen masuk | Hanya untuk pekerja yang ditugaskan; dibuka sejak **00:00 WIB pada tanggal SPKL** dan dikunci setelah `endAt`. |
+| Absen masuk | Hanya untuk pekerja yang ditugaskan; dibuka sejak **00:00 zona waktu kebijakan pada tanggal SPKL** dan dikunci setelah `endAt`. |
 | Geofence | Jarak GPS ke titik SPKL ≤ radius SPKL. |
 | Akurasi GPS | Tidak boleh melebihi `maxGpsAccuracyMeters` (default 100 m). |
 | Durasi | Dihitung dari selisih menit aktual waktu server sejak `max(checkInAt, startAt)` sampai `checkOutAt`, dibatasi `endAt`, lalu dibulatkan ke menit terdekat. Tidak ada pembulatan ke atas ke kelipatan tertentu. Absen lebih awal tidak menambah durasi. |
 | Absen pulang | Wajib di dalam radius. Checkout setelah `endAt` masih diterima dalam toleransi 60 menit; durasi tetap dibatasi sampai `endAt`. Jika SPKL mewajibkan dokumentasi, minimal satu dokumentasi harus sudah diunggah. |
 | Penutupan otomatis | Pekerja tanpa absen masuk dicatat `tidak_hadir` saat `endAt` terlewati. Sesi `berjalan` yang belum absen pulang ditutup setelah toleransi 60 menit dengan status `ditutup_otomatis`, `checkOutAt` dan durasi kosong. Sesi seperti ini tidak dihitung dalam total lembur dan dapat dikoreksi atasan pembuat. |
-| Dokumentasi | Batas foto default 12 per sesi (dapat diubah super admin, maksimal 50), 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). Foto dari kamera atau galeri (boleh beberapa sekaligus) dikompresi di perangkat dan diberi cap **nomor SPKL + waktu foto WIB**. Waktu diambil dari EXIF `DateTimeOriginal` bila ada, jika tidak dari jam perangkat. Server menolak file tanpa penanda cap waktu SIBUMA, waktu foto lebih dari 10 menit di masa depan, atau lebih dari 24 jam sebelum `startAt`. `takenAt` menyimpan waktu foto dan `createdAt` menyimpan waktu unggah server. Penanda dibuat di klien sehingga menutup jalur unggah normal, bukan bukti anti-palsu. Server tidak melakukan OCR terhadap teks yang terlihat; validasi memakai penanda JPEG tersembunyi. |
+| Dokumentasi | Batas foto default 12 per sesi (dapat diubah super admin, maksimal 50), 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). Foto dari kamera atau galeri (boleh beberapa sekaligus) dikompresi di perangkat dan diberi cap **nomor SPKL + waktu foto sesuai zona kebijakan**. Waktu diambil dari EXIF `DateTimeOriginal` bila ada, jika tidak dari jam perangkat. Server menolak file tanpa penanda cap waktu SIBUMA, waktu foto lebih dari 10 menit di masa depan, atau lebih dari 24 jam sebelum `startAt`. `takenAt` menyimpan waktu foto dan `createdAt` menyimpan waktu unggah server. Penanda dibuat di klien sehingga menutup jalur unggah normal, bukan bukti anti-palsu. Server tidak melakukan OCR terhadap teks yang terlihat; validasi memakai penanda JPEG tersembunyi. |
 | Dokumentasi: video | Video MP4/WEBM/MOV hanya dari galeri (tidak ada rekaman dalam aplikasi dan tidak ada cap waktu di berkas). Kuota video terpisah dari foto; default 3 per sesi, dapat diubah super admin (0 menonaktifkan). Ukuran default 50 MB dan batas keras 100 MB. Server memverifikasi tipe yang ditandatangani, ukuran objek, magic bytes (`ftyp`/EBML), dan menyimpan ETag sebagai sidik jari. Video tidak memenuhi kewajiban foto. Pemutaran memakai redirect `302` ke URL baca bertanda tangan 15 menit agar byte dan `Range` tidak melewati Vercel. |
 | Koreksi | Hanya atasan pembuat SPKL. Alasan 10–500 karakter. Jam masuk boleh lebih awal dari `startAt`; durasi tetap dihitung sejak jam mulai. Durasi dihitung ulang dan status menjadi `dikoreksi`. |
 | Batas lembur | Durasi satu SPKL tidak boleh melebihi batas harian (default 480 menit / 8 jam) dan ditolak di klien maupun API saat membuat/mengubah. Total harian dan mingguan (default 2.400 menit / 40 jam) tetap dicek sebagai peringatan, bukan blokir. |
@@ -290,7 +292,7 @@ Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikor
 11. Buka tab **Checklist** dan **Tindak lanjut** di **Laporan**, lalu unduh Excel/CSV rekap atau rincian, atau cetak PDF.
 12. Periksa **Log audit** dan **Outbox WhatsApp**.
 
-Untuk menguji check-in, browser harus diberi izin lokasi. Titik default kebijakan berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 WIB tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai. Untuk menguji absen pulang, lakukan checkout di dalam radius; checkout sebelum jam selesai memotong durasi sampai waktu checkout, sedangkan checkout setelah jam selesai tetap diterima dalam toleransi 60 menit. Jika absen pulang terlewat, sesi ditutup tanpa durasi dan atasan pembuat dapat menekan **Koreksi** pada daftar pekerja.
+Untuk menguji check-in, browser harus diberi izin lokasi. Titik default kebijakan berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 zona waktu kebijakan pada tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai. Untuk menguji absen pulang, lakukan checkout di dalam radius; checkout sebelum jam selesai memotong durasi sampai waktu checkout, sedangkan checkout setelah jam selesai tetap diterima dalam toleransi 60 menit. Jika absen pulang terlewat, sesi ditutup tanpa durasi dan atasan pembuat dapat menekan **Koreksi** pada daftar pekerja.
 
 ---
 
@@ -344,6 +346,7 @@ scripts/
   migrate-follow-up-safety.mjs  Terapkan migrasi 018 (Petugas safety tindak lanjut)
   migrate-manual-work-safety.mjs  Terapkan migrasi 019 (Petugas safety pekerjaan harian)
   migrate-manual-work-public.mjs  Terapkan migrasi 025 (Publikasi pekerjaan harian ke pengunjung)
+  migrate-policy-timezone.mjs  Terapkan migrasi 026 (Allowlist zona waktu kebijakan)
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB
@@ -510,7 +513,7 @@ Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta 
 - Dokumentasi disajikan lewat proxy fungsi Vercel, belum lewat CDN atau presigned URL. Untuk file 1,5 MB ini masih wajar.
 - Pembatasan OTP per akun lintas email/WhatsApp; belum ada rate limit per IP, CAPTCHA, atau deteksi abuse. Tambahkan proteksi edge sebelum produksi publik.
 - Tim/laporan sudah server-paginated. Audit (dibatasi per tim atasan) dan outbox (maksimal 100 pesan) masih dipaginasi di klien. Ekspor/cetak besar perlu streaming atau job terpisah.
-- `npm run db:test` menguji transaksi/constraint/concurrency/pagination/WIB langsung pada Neon menggunakan fixture unik; `npm run db:verify` menguji API/S3 lewat localhost yang dijalankan pengguna. Tidak ada reset; fixture sendiri dibersihkan. Suite E2E/CI menyeluruh belum tersedia.
+- `npm run db:test` menguji transaksi/constraint/concurrency/pagination langsung pada Neon menggunakan fixture unik; asersi batas 00:00 masih mengasumsikan kebijakan `Asia/Jakarta`. `npm run db:verify` menguji API/S3 lewat localhost yang dijalankan pengguna. Tidak ada reset; fixture sendiri dibersihkan. Suite E2E/CI menyeluruh belum tersedia.
 - Enkripsi at-rest mengikuti Neon; belum ada enkripsi tambahan tingkat aplikasi, retensi otomatis, atau alur penghapusan data pribadi.
 - PDF bergantung pada dialog cetak browser, bukan generator PDF server.
 

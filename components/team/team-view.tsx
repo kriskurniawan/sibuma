@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition, type FormEvent } from "rea
 import type { PageRequest } from "@/lib/pagination";
 import type { getTeamTotals } from "@/lib/team-queries";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
+import { MobileFab } from "@/components/mobile-fab";
 import { MobileSummary } from "@/components/mobile-summary";
 import { useRouter } from "next/navigation";
 import {
@@ -538,49 +539,53 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
         descriptionClassName="hidden md:block"
         action={
           <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto print:hidden">
-            {!readOnly && (divisions.length === 0 ? (
-              <Button
-                type="button"
-                onClick={openCreateDivision}
-                size="sm"
-                data-dialog-intent="division-new"
-              >
-                <FolderPlus />
-                Buat divisi
-              </Button>
-            ) : tab === "divisi" || activeDivisions.length === 0 ? (
-              <Button
-                type="button"
-                onClick={openCreateDivision}
-                size="sm"
-                data-dialog-intent="division-new"
-              >
-                <FolderPlus />
-                Tambah divisi
-              </Button>
-            ) : (
-              <div className="flex shrink-0 items-center gap-2">
-                <Button
-                  type="button"
-                  onClick={openAddFromHeader}
-                  size="sm"
-                  data-dialog-intent="worker-new"
-                >
-                  <UserPlus />
-                  Tambah pekerja
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={openCreateDivision}
-                  size="sm"
-                  data-dialog-intent="division-new"
-                >
-                  <FolderPlus />
-                  Tambah divisi
-                </Button>
+            {!readOnly && (
+              <div className="flex shrink-0 items-center gap-2 max-md:hidden">
+                {divisions.length === 0 ? (
+                  <Button
+                    type="button"
+                    onClick={openCreateDivision}
+                    size="sm"
+                    data-dialog-intent="division-new"
+                  >
+                    <FolderPlus />
+                    Buat divisi
+                  </Button>
+                ) : tab === "divisi" || activeDivisions.length === 0 ? (
+                  <Button
+                    type="button"
+                    onClick={openCreateDivision}
+                    size="sm"
+                    data-dialog-intent="division-new"
+                  >
+                    <FolderPlus />
+                    Tambah divisi
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      onClick={openAddFromHeader}
+                      size="sm"
+                      data-dialog-intent="worker-new"
+                    >
+                      <UserPlus />
+                      Tambah pekerja
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={openCreateDivision}
+                      size="sm"
+                      data-dialog-intent="division-new"
+                    >
+                      <FolderPlus />
+                      Tambah divisi
+                    </Button>
+                  </>
+                )}
               </div>
-            ))}
+            )}
             <ReportPrintButton variant="outline" />
           </div>
         }
@@ -797,15 +802,17 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                     }
                     action={
                       readOnly ? undefined : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={openCreateDivision}
-                          data-dialog-intent="division-new"
-                        >
-                          <FolderPlus />
-                          Buat divisi
-                        </Button>
+                        <div className="max-md:hidden">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={openCreateDivision}
+                            data-dialog-intent="division-new"
+                          >
+                            <FolderPlus />
+                            Buat divisi
+                          </Button>
+                        </div>
                       )
                     }
                   />
@@ -822,15 +829,17 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                     }
                     action={
                       readOnly ? undefined : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={openCreateDivision}
-                          data-dialog-intent="division-new"
-                        >
-                          <FolderPlus />
-                          Tambah divisi
-                        </Button>
+                        <div className="max-md:hidden">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={openCreateDivision}
+                            data-dialog-intent="division-new"
+                          >
+                            <FolderPlus />
+                            Tambah divisi
+                          </Button>
+                        </div>
                       )
                     }
                   />
@@ -847,15 +856,17 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                     }
                     action={
                       readOnly ? undefined : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => openAdd()}
-                          data-dialog-intent="worker-new"
-                        >
-                          <UserPlus />
-                          Tambah pekerja
-                        </Button>
+                        <div className="max-md:hidden">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => openAdd()}
+                            data-dialog-intent="worker-new"
+                          >
+                            <UserPlus />
+                            Tambah pekerja
+                          </Button>
+                        </div>
                       )
                     }
                   />
@@ -975,15 +986,17 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                     }
                     action={
                       readOnly ? undefined : (
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={openCreateDivision}
-                          data-dialog-intent="division-new"
-                        >
-                          <FolderPlus />
-                          Buat divisi
-                        </Button>
+                        <div className="max-md:hidden">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={openCreateDivision}
+                            data-dialog-intent="division-new"
+                          >
+                            <FolderPlus />
+                            Buat divisi
+                          </Button>
+                        </div>
                       )
                     }
                   />
@@ -1039,6 +1052,32 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
           </Frame>
         </Tabs>
       </div>
+
+      {!readOnly && (
+        <MobileFab
+          onClick={
+            divisions.length === 0 ||
+            tab === "divisi" ||
+            activeDivisions.length === 0
+              ? openCreateDivision
+              : openAddFromHeader
+          }
+        >
+          {divisions.length === 0 ||
+          tab === "divisi" ||
+          activeDivisions.length === 0 ? (
+            <>
+              <FolderPlus aria-hidden="true" />
+              {divisions.length === 0 ? "Buat divisi" : "Tambah divisi"}
+            </>
+          ) : (
+            <>
+              <UserPlus aria-hidden="true" />
+              Tambah pekerja
+            </>
+          )}
+        </MobileFab>
+      )}
 
       <Modal
         open={addOpen || Boolean(editing)}

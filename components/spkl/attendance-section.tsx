@@ -51,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TimeField } from "@/components/time-field";
 import { avatarUrl } from "@/lib/avatar-url";
 import {
+  currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
   formatTime,
@@ -421,9 +422,9 @@ function CorrectionDialog({
 
         <p className="text-xs leading-relaxed text-muted-foreground">
           Jadwal SPKL: {formatDateHuman(spkl.startAt, "d MMM yyyy")} ·{" "}
-          {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)} WIB. Waktu masuk
-          boleh lebih awal dari jam mulai; durasi dihitung sejak jam mulai dan
-          waktu pulang maksimal jam selesai.
+          {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)}{" "}
+          {currentTimeZoneLabel()}. Waktu masuk boleh lebih awal dari jam mulai;
+          durasi dihitung sejak jam mulai dan waktu pulang maksimal jam selesai.
         </p>
 
         <div className="flex flex-col gap-1.5">
@@ -770,7 +771,7 @@ export function AttendanceSection({
       <FrameFooter className="flex-row flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <Clock3 className="size-3" />
-          Waktu dari server dalam WIB
+          Waktu dari server dalam {currentTimeZoneLabel()}
         </span>
         <span className="flex items-center gap-1.5">
           <CheckCircle2 className="size-3" />

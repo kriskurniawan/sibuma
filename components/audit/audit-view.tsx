@@ -60,7 +60,7 @@ import type {
   NotificationLog,
   NotificationStatus,
 } from "@/lib/types";
-import { formatDateTime } from "@/lib/time";
+import { currentTimeZoneLabel, formatDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 type AuditType = AuditLog["objectType"];
@@ -560,7 +560,7 @@ export function AuditView({
                               <span>{log.actorName}</span>
                               <span aria-hidden="true">·</span>
                               <span>
-                                {formatDateTime(log.createdAt)} WIB
+                                {formatDateTime(log.createdAt)} {currentTimeZoneLabel()}
                               </span>
                               <span aria-hidden="true" className="hidden md:inline">·</span>
                               <span className="hidden font-mono md:inline">{log.objectId}</span>
@@ -770,7 +770,7 @@ export function AuditView({
                               </span>
                               <span className="text-xs text-muted-foreground">
                                 {notification.recipientPhone} ·{" "}
-                                {formatDateTime(notification.createdAt)} WIB
+                                {formatDateTime(notification.createdAt)} {currentTimeZoneLabel()}
                               </span>
                               <span className="line-clamp-1 text-xs text-muted-foreground">
                                 {notification.message}

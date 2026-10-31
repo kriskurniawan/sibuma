@@ -1,4 +1,5 @@
 import { can } from "@/lib/access";
+import { setActiveTimeZone } from "@/lib/active-time-zone";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
@@ -43,6 +44,7 @@ export async function PATCH(request: Request) {
     });
     return db.policy;
   });
+  setActiveTimeZone(policy.timezone);
 
   return apiOk({
     policy,

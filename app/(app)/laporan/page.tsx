@@ -44,6 +44,7 @@ import {
 } from "@/lib/queries";
 import {
   currentMonthRange,
+  currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
 } from "@/lib/time";
@@ -195,7 +196,8 @@ export default async function ReportPage({
         </h1>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
           Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
-          {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")} WIB
+          {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")}{" "}
+          {currentTimeZoneLabel()}
         </p>
       </div>
 
@@ -206,7 +208,8 @@ export default async function ReportPage({
               Periode &amp; filter
             </FrameTitle>
             <FrameDescription className="text-xs">
-              Default bulan berjalan. Semua tanggal dalam WIB.
+              Default bulan berjalan. Semua tanggal dalam{" "}
+              {currentTimeZoneLabel()}.
             </FrameDescription>
           </div>
           {isFiltered && (

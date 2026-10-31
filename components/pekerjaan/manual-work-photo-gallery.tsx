@@ -31,7 +31,7 @@ import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import { buildManualWorkMarker } from "@/lib/documentation-marker";
 import { readImageExif } from "@/lib/exif";
 import type { ManualWorkPhoto } from "@/lib/manual-work-types";
-import { formatDateHuman, formatDateTime } from "@/lib/time";
+import { currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
 import { formatVideoDuration } from "@/lib/video";
 
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -204,7 +204,7 @@ export function ManualWorkPhotoGallery({
             `${timeLabel} ${formatDateHuman(
               takenAt,
               "d MMM yyyy, HH.mm",
-            )} WIB`,
+            )} ${currentTimeZoneLabel()}`,
           ],
           comment: buildManualWorkMarker({ workId, takenAt, source }),
         });

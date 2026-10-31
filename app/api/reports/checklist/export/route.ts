@@ -20,7 +20,7 @@ import {
 } from "@/lib/excel";
 import { apiError } from "@/lib/http";
 import { pdfFileResponse } from "@/lib/pdf";
-import { currentMonthRange, formatDateHuman, formatDateTime } from "@/lib/time";
+import { currentMonthRange, currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
 
 export const runtime = "nodejs";
 
@@ -213,7 +213,7 @@ export async function GET(request: Request) {
     new Date().toISOString(),
     "d MMMM yyyy, HH:mm",
   );
-  const subtitle = `${period} · Diekspor ${exportedAt} WIB`;
+  const subtitle = `${period} · Diekspor ${exportedAt} ${currentTimeZoneLabel()}`;
 
   if (format === "xlsx") {
     const conventionalKind =
@@ -439,7 +439,7 @@ export async function GET(request: Request) {
       subtitle: period,
       meta: [
         `${isSuperAdmin(user) ? "Super admin" : "Atasan"}: ${user.name}`,
-        `Diekspor ${exportedAt} WIB`,
+        `Diekspor ${exportedAt} ${currentTimeZoneLabel()}`,
       ],
       exportedAt,
       tables: [
@@ -460,7 +460,7 @@ export async function GET(request: Request) {
     ...lines.map((line) => line.map(csvCell).join(";")),
     "",
     `Periode: ${period}`,
-    `Diekspor: ${exportedAt} WIB`,
+    `Diekspor: ${exportedAt} ${currentTimeZoneLabel()}`,
   ].join("\r\n")}`;
 
   const slug =

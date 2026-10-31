@@ -4,8 +4,9 @@ import { HydrationMarker } from "@/components/hydration-marker";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeColorSync } from "@/components/theme-color-sync";
 import { ThemeToaster } from "@/components/theme-toaster";
+import { TimeZoneBootstrap } from "@/components/time-zone-bootstrap";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { APP_NAME, APP_TAGLINE, APP_TIMEZONE } from "@/lib/constants";
 import { THEME_COLOR, THEME_STORAGE_KEY } from "@/lib/theme";
 import "./globals.css";
 
@@ -52,6 +53,7 @@ export default function RootLayout({
     <html lang="id" suppressHydrationWarning data-scroll-behavior="smooth">
       {/* Browser extensions can add attributes to <body> before hydration. */}
       <body suppressHydrationWarning>
+        <TimeZoneBootstrap timeZone={APP_TIMEZONE} />
         {/* Inline sengaja: beforeInteractive baru dieksekusi setelah bootstrap
             Next diunduh. Capture harus aktif sebelum tombol SSR terlihat. */}
         <script id="dialog-intent">
@@ -73,6 +75,18 @@ export default function RootLayout({
     // Listener halaman menerima klik yang sama; jika belum siap, intent
     // tetap tersimpan sampai handler halaman tersebut terpasang.
   }, true);
+})();`}
+        </script>
+        <script id="pwa-install-capture">
+          {`(function () {
+  window.__sibumaInstallPrompt = null;
+  window.addEventListener("beforeinstallprompt", function (event) {
+    event.preventDefault();
+    window.__sibumaInstallPrompt = event;
+  });
+  window.addEventListener("appinstalled", function () {
+    window.__sibumaInstallPrompt = null;
+  });
 })();`}
         </script>
         <HydrationMarker />

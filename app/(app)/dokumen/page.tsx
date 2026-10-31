@@ -120,14 +120,16 @@ export default async function DocumentsPage({
   const filtered = search.length > 0;
   const uploadAction =
     storageReady && !readOnly ? (
-      <DocumentUploadDialog
-        settings={settings}
-        usedBytes={usage.usedBytes}
-        folders={folders}
-        currentFolderId={
-          typeof folderFilter === "string" ? folderFilter : null
-        }
-      />
+      <div className="max-md:hidden">
+        <DocumentUploadDialog
+          settings={settings}
+          usedBytes={usage.usedBytes}
+          folders={folders}
+          currentFolderId={
+            typeof folderFilter === "string" ? folderFilter : null
+          }
+        />
+      </div>
     ) : undefined;
   const ownEmptyAction = readOnly ? (
     <Button
@@ -314,6 +316,18 @@ export default async function DocumentsPage({
           <DocumentUsagePanel usage={usage} />
         </div>
       </div>
+
+      {storageReady && !readOnly && (
+        <DocumentUploadDialog
+          trigger="fab"
+          settings={settings}
+          usedBytes={usage.usedBytes}
+          folders={folders}
+          currentFolderId={
+            typeof folderFilter === "string" ? folderFilter : null
+          }
+        />
+      )}
     </div>
   );
 }

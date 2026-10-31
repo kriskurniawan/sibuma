@@ -1,6 +1,7 @@
 import "server-only";
 import { query } from "./db";
 import { decode } from "./db-model";
+import { sqlTimeZone } from "./sql-time-zone";
 import type { Employee } from "./types";
 
 export interface SupervisorRow {
@@ -56,7 +57,7 @@ export async function getOrganizationOverview(): Promise<OrganizationOverview> {
        (SELECT count(*) FROM divisions WHERE active)::integer active_divisions,
        (SELECT count(*) FROM spkls WHERE canceled_at IS NULL AND start_at<=now() AND end_at>=now())::integer running_spkls,
        (SELECT count(*) FROM spkls WHERE canceled_at IS NULL
-         AND date=(now() AT TIME ZONE 'Asia/Jakarta')::date)::integer today_spkls,
+         AND date=(now() AT TIME ZONE ${sqlTimeZone()})::date)::integer today_spkls,
        (SELECT count(*) FROM checklist_inspections WHERE status IN ${OPEN_INSPECTIONS})::integer open_checklists,
        (SELECT count(*) FROM checklist_inspections WHERE status IN ${OPEN_INSPECTIONS} AND due_at<now())::integer overdue_checklists,
        (SELECT count(*) FROM checklist_follow_ups WHERE status IN ${OPEN_FOLLOW_UPS})::integer open_follow_ups`,

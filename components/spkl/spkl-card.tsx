@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Badge, Avatar, SpklStatusBadge } from "@/components/ui";
 import { Frame, FramePanel } from "@/components/reui/frame";
-import { dayLabel, formatTime } from "@/lib/time";
+import { currentTimeZoneLabel, dayLabel, formatTime } from "@/lib/time";
 import type { SpklListItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,7 @@ export function SpklCard({
             <span className="inline-flex items-center gap-1 tabular-nums">
               <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
               {dayLabel(spkl.startAt)}, {formatTime(spkl.startAt)}–
-              {formatTime(spkl.endAt)} WIB
+              {formatTime(spkl.endAt)} {currentTimeZoneLabel()}
             </span>
             {attendanceHint && (
               <Badge variant="warning-light" dot>

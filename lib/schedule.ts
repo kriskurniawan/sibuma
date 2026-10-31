@@ -1,5 +1,5 @@
 import { addDays, parseISO, startOfWeek } from "date-fns";
-import { APP_TIMEZONE } from "./constants";
+import { getActiveTimeZone } from "./active-time-zone";
 import { minutesBetween, toLocalDateInput } from "./time";
 
 export interface ScheduledItem {
@@ -41,7 +41,7 @@ export function scheduleWarnings(input: {
   const warnings: ScheduleWarning[] = [];
   const newStart = parseISO(input.startAt);
   const newEnd = parseISO(input.endAt);
-  const day = toLocalDateInput(input.startAt, APP_TIMEZONE);
+  const day = toLocalDateInput(input.startAt, getActiveTimeZone());
   const weekStart = startOfWeek(newStart, { weekStartsOn: 1 });
   const weekEnd = addDays(weekStart, 7);
   const duration = minutesBetween(input.startAt, input.endAt);
@@ -66,7 +66,7 @@ export function scheduleWarnings(input: {
     }
 
     const dailyExisting = existing.filter(
-      (item) => toLocalDateInput(item.startAt, APP_TIMEZONE) === day,
+      (item) => toLocalDateInput(item.startAt, getActiveTimeZone()) === day,
     );
     const dailyTotal =
       dailyExisting.reduce(

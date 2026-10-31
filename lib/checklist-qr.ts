@@ -5,6 +5,7 @@ import { query, transaction } from "./db";
 import { rowToCamel } from "./db-model";
 import { insertChecklistAudit } from "./checklist-audit";
 import { getChecklistLocationScope } from "./checklist-location-scope";
+import { sqlTimeZone } from "./sql-time-zone";
 import type {
   ChecklistLocation,
   ChecklistPublicArea,
@@ -379,7 +380,7 @@ export async function getChecklistPublicStaff(
      FROM checklist_inspections i
      WHERE i.owner_id=$1 AND i.location_id=$2
        AND i.status IN ('belum_dimulai','berlangsung')
-       AND i.occurrence_date<=(now() AT TIME ZONE 'Asia/Jakarta')::date
+       AND i.occurrence_date<=(now() AT TIME ZONE ${sqlTimeZone()})::date
        AND (($3::boolean AND i.owner_id=$4) OR EXISTS(
          SELECT 1 FROM checklist_inspection_assignees ia
          WHERE ia.inspection_id=i.id AND ia.employee_id=$4))

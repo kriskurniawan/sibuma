@@ -1,5 +1,5 @@
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { APP_TIMEZONE } from "./constants";
+import { getActiveTimeZone } from "./active-time-zone";
 import type { GeoPoint } from "./types";
 
 export interface ImageExif {
@@ -166,10 +166,10 @@ function parseExifDate(raw: string) {
     return null;
   }
   const local = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
-  const date = fromZonedTime(local, APP_TIMEZONE);
+  const date = fromZonedTime(local, getActiveTimeZone());
   if (Number.isNaN(date.getTime())) return null;
   if (
-    formatInTimeZone(date, APP_TIMEZONE, "yyyy:MM:dd HH:mm:ss") !==
+    formatInTimeZone(date, getActiveTimeZone(), "yyyy:MM:dd HH:mm:ss") !==
     `${year}:${month}:${day} ${hour}:${minute}:${second}`
   ) {
     return null;

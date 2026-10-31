@@ -10,6 +10,7 @@ import {
   TimerReset,
   X,
 } from "lucide-react";
+import { MobileFab } from "@/components/mobile-fab";
 import { SpklCard } from "@/components/spkl/spkl-card";
 import {
   Frame,
@@ -96,10 +97,12 @@ export function LemburView({
               Laporan
             </Button>
             {!readOnly && (
-              <Button nativeButton={false} render={<Link href="/spkl/baru" />}>
-                <Plus aria-hidden="true" />
-                Buat SPKL
-              </Button>
+              <div className="max-md:hidden">
+                <Button nativeButton={false} render={<Link href="/spkl/baru" />}>
+                  <Plus aria-hidden="true" />
+                  Buat SPKL
+                </Button>
+              </div>
             )}
           </div>
         }
@@ -187,13 +190,15 @@ export function LemburView({
               action={
                 items.length === 0 ? (
                   readOnly ? undefined : (
-                    <Button
-                      nativeButton={false}
-                      render={<Link href="/spkl/baru" />}
-                    >
-                      <Plus aria-hidden="true" />
-                      Buat SPKL
-                    </Button>
+                    <div className="max-md:hidden">
+                      <Button
+                        nativeButton={false}
+                        render={<Link href="/spkl/baru" />}
+                      >
+                        <Plus aria-hidden="true" />
+                        Buat SPKL
+                      </Button>
+                    </div>
                   )
                 ) : (
                   <Button type="button" variant="outline" onClick={resetFilters}>
@@ -207,6 +212,13 @@ export function LemburView({
         )}
 
       </Frame>
+
+      {!readOnly && (
+        <MobileFab href="/spkl/baru">
+          <Plus aria-hidden="true" />
+          Buat SPKL
+        </MobileFab>
+      )}
     </div>
   );
 }

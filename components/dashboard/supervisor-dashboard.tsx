@@ -45,7 +45,7 @@ import type {
 import type { SupervisorOverview } from "@/lib/queries";
 import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
-import { formatDateHuman, formatTime, greeting } from "@/lib/time";
+import { currentTimeZoneLabel, formatDateHuman, formatTime, greeting } from "@/lib/time";
 
 export function SupervisorDashboard({
   user,
@@ -261,7 +261,8 @@ export function SupervisorDashboard({
                         </Link>
                         <p className="text-xs text-muted-foreground">
                           {formatTime(spotlight.spkl.startAt)}–
-                          {formatTime(spotlight.spkl.endAt)} WIB ·{" "}
+                          {formatTime(spotlight.spkl.endAt)}{" "}
+                          {currentTimeZoneLabel()} ·{" "}
                           {spotlight.checkedIn}/{spotlight.expected} hadir
                         </p>
                       </div>

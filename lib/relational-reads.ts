@@ -2,6 +2,7 @@ import "server-only";
 import { CHECKOUT_GRACE_MINUTES } from "./constants";
 import { decode } from "./db-model";
 import { getPolicyRow, query, select, transaction, type Connection } from "./db";
+import { sqlTimeZone } from "./sql-time-zone";
 import { emptyData, persistChanges } from "./unit-of-work";
 import { finalizeExpired } from "./attendance-finalization";
 import type { Database, SessionUser, Spkl } from "./types";
@@ -60,16 +61,16 @@ export async function overviewMetrics(user: SessionUser) {
   const owner = user.role === "atasan" ? "s.created_by=$1" : "EXISTS(SELECT 1 FROM spkl_workers w WHERE w.spkl_id=s.id AND w.employee_id=$1)";
   const employee = user.role === "pekerja" ? "AND a.employee_id=$1" : "";
   const [stats] = await query(`SELECT
-    coalesce(sum(${effectiveMinutesSql}) FILTER (WHERE s.date>=date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta')::date AND s.date<(date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta')+interval '1 month')::date),0)::integer monthly_minutes,
-    count(*) FILTER(WHERE a.check_in_at IS NOT NULL AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer monthly_sessions,
-    count(*) FILTER(WHERE (a.status IN ('selesai','dikoreksi') OR (a.status='ditutup_otomatis' AND a.check_out_at IS NOT NULL)) AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer completed_sessions
+    coalesce(sum(${effectiveMinutesSql}) FILTER (WHERE s.date>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()})::date AND s.date<(date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()})+interval '1 month')::date),0)::integer monthly_minutes,
+    count(*) FILTER(WHERE a.check_in_at IS NOT NULL AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE ${sqlTimeZone()},'YYYY-MM'))::integer monthly_sessions,
+    count(*) FILTER(WHERE (a.status IN ('selesai','dikoreksi') OR (a.status='ditutup_otomatis' AND a.check_out_at IS NOT NULL)) AND to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE ${sqlTimeZone()},'YYYY-MM'))::integer completed_sessions
     FROM attendances a JOIN spkls s ON s.id=a.spkl_id WHERE ${owner} ${employee}`, [user.id]);
-  const [documents] = await query(`SELECT count(*) FILTER(WHERE to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE 'Asia/Jakarta','YYYY-MM'))::integer monthly,
-    count(*) FILTER(WHERE (d.taken_at AT TIME ZONE 'Asia/Jakarta')::date=(now() AT TIME ZONE 'Asia/Jakarta')::date)::integer today,
-    count(*) FILTER(WHERE (d.taken_at AT TIME ZONE 'Asia/Jakarta')::date=(now() AT TIME ZONE 'Asia/Jakarta')::date-1)::integer yesterday
+  const [documents] = await query(`SELECT count(*) FILTER(WHERE to_char(s.date,'YYYY-MM')=to_char(now() AT TIME ZONE ${sqlTimeZone()},'YYYY-MM'))::integer monthly,
+    count(*) FILTER(WHERE (d.taken_at AT TIME ZONE ${sqlTimeZone()})::date=(now() AT TIME ZONE ${sqlTimeZone()})::date)::integer today,
+    count(*) FILTER(WHERE (d.taken_at AT TIME ZONE ${sqlTimeZone()})::date=(now() AT TIME ZONE ${sqlTimeZone()})::date-1)::integer yesterday
     FROM documentations d JOIN spkls s ON s.id=d.spkl_id WHERE ${owner} AND d.kind='photo'`, [user.id]);
   const weekly = await query<{ date: string; minutes: number }>(`SELECT s.date::text date, sum(${effectiveMinutesSql})::integer minutes FROM attendances a JOIN spkls s ON s.id=a.spkl_id
-    WHERE ${owner} ${employee} AND s.date BETWEEN (now() AT TIME ZONE 'Asia/Jakarta')::date-6 AND (now() AT TIME ZONE 'Asia/Jakarta')::date GROUP BY s.date`, [user.id]);
+    WHERE ${owner} ${employee} AND s.date BETWEEN (now() AT TIME ZONE ${sqlTimeZone()})::date-6 AND (now() AT TIME ZONE ${sqlTimeZone()})::date GROUP BY s.date`, [user.id]);
   const recent = await query(`SELECT row_to_json(d) documentation,row_to_json(e) employee,row_to_json(s) spkl FROM documentations d
     JOIN spkls s ON s.id=d.spkl_id JOIN employees e ON e.id=d.employee_id WHERE ${owner} ORDER BY d.taken_at DESC,d.id DESC LIMIT 6`, [user.id]);
   const [activity] = await query(`WITH active AS (

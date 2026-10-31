@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
+import { MobileFab } from "@/components/mobile-fab";
 import { MobileSummary } from "@/components/mobile-summary";
 import { AvatarUploader } from "@/components/profile/avatar-uploader";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -188,10 +189,12 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
         description="Kelola akun dan hak akses atasan."
         descriptionClassName="hidden md:block"
         action={
-          <Button type="button" size="sm" onClick={openAdd}>
-            <UserPlus aria-hidden="true" />
-            Tambah atasan
-          </Button>
+          <div className="max-md:hidden">
+            <Button type="button" size="sm" onClick={openAdd}>
+              <UserPlus aria-hidden="true" />
+              Tambah atasan
+            </Button>
+          </div>
         }
       />
 
@@ -257,10 +260,12 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
               title="Belum ada akun atasan"
               description="Buat akun atasan pertama agar operasional tim dapat berjalan."
               action={
-                <Button type="button" onClick={openAdd}>
-                  <Plus aria-hidden="true" />
-                  Tambah atasan
-                </Button>
+                <div className="max-md:hidden">
+                  <Button type="button" onClick={openAdd}>
+                    <Plus aria-hidden="true" />
+                    Tambah atasan
+                  </Button>
+                </div>
               }
             />
           ) : (
@@ -273,6 +278,11 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
           )}
         </FramePanel>
       </Frame>
+
+      <MobileFab onClick={openAdd}>
+        <UserPlus aria-hidden="true" />
+        Tambah atasan
+      </MobileFab>
 
       <Modal
         open={addOpen}

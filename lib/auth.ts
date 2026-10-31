@@ -3,7 +3,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE, SESSION_DAYS } from "./constants";
-import { select } from "./db";
+import { getPolicyRow, select } from "./db";
 import { canEmployeeLogin } from "./login-identity";
 import { serverSecret } from "./server-secret";
 import type { Employee, SessionPayload, SessionUser } from "./types";
@@ -80,7 +80,12 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   const payload = verifySessionToken(token);
   if (!payload) return null;
 
-  const employees = await select("employees", "id=$1 OR id=(SELECT supervisor_id FROM employees WHERE id=$1)", [payload.employeeId]);
+  // getPolicyRow juga menyiapkan zona waktu aktif untuk request ini, sehingga
+  // formatter dan query SQL memakai zona yang sama dengan policy.
+  const [employees] = await Promise.all([
+    select("employees", "id=$1 OR id=(SELECT supervisor_id FROM employees WHERE id=$1)", [payload.employeeId]),
+    getPolicyRow(),
+  ]);
   const employee = employees.find((item) => item.id === payload.employeeId);
   if (!employee || !canEmployeeLogin(employee, employees)) return null;
   return toSessionUser(employee, employees);

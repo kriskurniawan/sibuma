@@ -22,15 +22,29 @@ import {
   InputGroupText,
 } from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { MAX_DAILY_MINUTES, MAX_WEEKLY_MINUTES } from "@/lib/constants";
+import { TIME_ZONE_OPTIONS } from "@/lib/time-zone";
 import type { Policy } from "@/lib/types";
 import {
+  currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
   formatDateTime,
 } from "@/lib/time";
+
+const TIME_ZONE_ITEMS = TIME_ZONE_OPTIONS.map((option) => ({
+  value: option.value,
+  label: `${option.label} · ${option.offset}`,
+}));
 
 export function PolicyForm({ policy }: { policy: Policy }) {
   const router = useRouter();
@@ -41,6 +55,7 @@ export function PolicyForm({ policy }: { policy: Policy }) {
     requireDocumentation: policy.requireDocumentation,
     defaultRadiusMeters: policy.defaultRadiusMeters,
     maxGpsAccuracyMeters: policy.maxGpsAccuracyMeters,
+    timezone: policy.timezone,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +92,10 @@ export function PolicyForm({ policy }: { policy: Policy }) {
         return;
       }
       toast.success(data.message ?? "Kebijakan tersimpan.");
+      if (values.timezone !== policy.timezone) {
+        window.location.reload();
+        return;
+      }
       router.refresh();
     } catch {
       setError("Tidak dapat menghubungi server. Periksa koneksimu.");
@@ -91,6 +110,11 @@ export function PolicyForm({ policy }: { policy: Policy }) {
       [key]: raw === "" ? 0 : Number(raw),
     }));
   }
+
+  const selectedTimeZone =
+    TIME_ZONE_OPTIONS.find((option) => option.value === values.timezone) ??
+    TIME_ZONE_OPTIONS[0];
+  const timeZoneChanged = values.timezone !== policy.timezone;
 
   return (
     <Frame spacing="default">
@@ -230,6 +254,38 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             </div>
           </div>
 
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <Label htmlFor="timezone">Zona waktu</Label>
+            <Select
+              value={values.timezone}
+              onValueChange={(value) => {
+                if (!value) return;
+                setValues((current) => ({
+                  ...current,
+                  timezone: value,
+                }));
+              }}
+              items={TIME_ZONE_ITEMS}
+            >
+              <SelectTrigger id="timezone" className="w-full sm:max-w-xs">
+                <SelectValue placeholder="Pilih zona waktu" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIME_ZONE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label} · {option.offset}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {selectedTimeZone.description}. Jam, label waktu, dan batas
+              tanggal memakai zona ini.
+              {timeZoneChanged &&
+                " Menyimpan perubahan akan memuat ulang halaman; tanggal yang sudah tersimpan tidak diubah."}
+            </p>
+          </div>
+
           <div className="flex items-center justify-between gap-3 border-t border-border pt-4">
             <div className="flex min-w-0 flex-col gap-0.5">
               <Label htmlFor="require-documentation">Dokumentasi wajib</Label>
@@ -275,8 +331,8 @@ export function PolicyForm({ policy }: { policy: Policy }) {
 
           <p className="text-center text-xs text-muted-foreground">
             Terakhir diperbarui{" "}
-            {formatDateTime(policy.updatedAt, "d MMM yyyy, HH:mm")} WIB ·{" "}
-            {formatDateHuman(policy.updatedAt, "EEEE")}
+            {formatDateTime(policy.updatedAt, "d MMM yyyy, HH:mm")}{" "}
+            {currentTimeZoneLabel()} · {formatDateHuman(policy.updatedAt, "EEEE")}
           </p>
         </form>
       </FramePanel>

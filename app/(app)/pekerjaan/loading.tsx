@@ -3,6 +3,7 @@ import {
   FrameHeader,
   FramePanel,
 } from "@/components/reui/frame";
+import { MobileFabSkeleton } from "@/components/mobile-fab";
 import { MobileSummarySkeleton } from "@/components/mobile-summary-skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,12 +54,12 @@ export default function PekerjaanLoading() {
       <span className="sr-only">Memuat data pekerjaan harian…</span>
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
           <Skeleton className="h-3 w-28" />
           <Skeleton className="h-7 w-48" />
           <Skeleton className="hidden h-4 w-full max-w-xl sm:block" />
         </div>
-        <Skeleton className="h-9 w-36 rounded-md" />
+        <Skeleton className="hidden h-9 w-36 rounded-md md:block" />
       </div>
 
       <MobileSummarySkeleton className="md:hidden" />
@@ -89,6 +90,8 @@ export default function PekerjaanLoading() {
           ))}
         </FramePanel>
       </Frame>
+
+      <MobileFabSkeleton />
     </div>
   );
 }

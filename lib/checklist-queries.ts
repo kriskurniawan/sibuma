@@ -3,6 +3,7 @@ import type { QueryResultRow } from "pg";
 import { query } from "./db";
 import { rowToCamel } from "./db-model";
 import { clampPage, type PageRequest } from "./pagination";
+import { sqlTimeZone } from "./sql-time-zone";
 import { generateChecklistInspections } from "./checklist-generate";
 import { buildChecklistLocationOptions } from "./checklist-location-path";
 import {
@@ -234,7 +235,7 @@ export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTo
     `SELECT
        count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung'))::integer todo,
        count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND i.due_at<now())::integer overdue,
-       count(*) FILTER (WHERE i.status='selesai' AND i.completed_at>=date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta')::integer completed_this_month,
+       count(*) FILTER (WHERE i.status='selesai' AND i.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer completed_this_month,
        (SELECT count(*)::integer FROM checklist_follow_ups f JOIN checklist_inspections i2 ON i2.id=f.inspection_id
         WHERE f.status NOT IN ('selesai','dibatalkan') AND ${inspectionAccess("i2")}) open_follow_ups
      FROM checklist_inspections i
@@ -464,7 +465,7 @@ export async function getChecklistFollowUps(
   if (status === "aktif") {
     where += ` AND f.status IN ('terbuka','diproses','tertunda')`;
   } else if (status === "terlambat") {
-    where += ` AND f.status IN ('terbuka','diproses','tertunda') AND f.due_date<(now() AT TIME ZONE 'Asia/Jakarta')::date`;
+    where += ` AND f.status IN ('terbuka','diproses','tertunda') AND f.due_date<(now() AT TIME ZONE ${sqlTimeZone()})::date`;
   } else if (["terbuka", "diproses", "tertunda", "selesai", "dibatalkan"].includes(status)) {
     values.push(status);
     where += ` AND f.status=$${values.length}`;
@@ -505,8 +506,8 @@ export async function getChecklistFollowUpTotals(
     `SELECT
        count(*) FILTER (WHERE f.status IN ('terbuka','diproses','tertunda'))::integer open,
        count(*) FILTER (WHERE f.status='diproses')::integer in_progress,
-       count(*) FILTER (WHERE f.status IN ('terbuka','diproses','tertunda') AND f.due_date<(now() AT TIME ZONE 'Asia/Jakarta')::date)::integer overdue,
-       count(*) FILTER (WHERE f.status='selesai' AND f.completed_at>=date_trunc('month',now() AT TIME ZONE 'Asia/Jakarta') AT TIME ZONE 'Asia/Jakarta')::integer done_this_month
+       count(*) FILTER (WHERE f.status IN ('terbuka','diproses','tertunda') AND f.due_date<(now() AT TIME ZONE ${sqlTimeZone()})::date)::integer overdue,
+       count(*) FILTER (WHERE f.status='selesai' AND f.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer done_this_month
      FROM checklist_follow_ups f
      WHERE ${followUpAccess("f")}`,
     [userId, manager],
