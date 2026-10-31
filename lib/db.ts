@@ -1,5 +1,6 @@
 import pg from "pg";
 import type { PoolClient, QueryResultRow } from "pg";
+import { setActiveOvertimePeriodStartDay } from "./active-overtime-period";
 import { setActiveTimeZone } from "./active-time-zone";
 import { columns, decode, encode, models, snake, type Entity, type Model } from "./db-model";
 
@@ -58,5 +59,6 @@ export async function getPolicyRow(connection: Connection = pool()) {
   const [policy] = await select("policy", "id='policy'", [], connection);
   if (!policy) throw new Error("Database relasional belum diinisialisasi. Jalankan migrasi database.");
   setActiveTimeZone(policy.timezone);
+  setActiveOvertimePeriodStartDay(policy.overtimePeriodStartDay);
   return policy;
 }

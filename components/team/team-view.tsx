@@ -600,7 +600,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
             tone: "primary",
           },
           {
-            label: "Durasi bulan ini",
+            label: "Durasi periode ini",
             tone: "info",
             value: (
               <>
@@ -630,11 +630,11 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
           tone="primary"
         />
         <StatCard
-          label="Durasi bulan ini"
+          label="Durasi periode ini"
           value={Math.floor(totalMinutes / 60)}
           suffix="jam"
           icon={Clock3}
-          helper={`${totalMinutes % 60} menit tercatat`}
+          helper={`${totalMinutes % 60} menit · ${totals.periodLabel}`}
           tone="info"
         />
         <StatCard
@@ -642,7 +642,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
           value={totalSessions}
           suffix="sesi"
           icon={BadgeCheck}
-          helper="Absensi masuk bulan berjalan"
+          helper="Absensi masuk periode ini"
         />
         <StatCard
           label="Dokumentasi"

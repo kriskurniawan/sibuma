@@ -43,11 +43,14 @@ import {
   type ReportFilters,
 } from "@/lib/queries";
 import {
-  currentMonthRange,
   currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
 } from "@/lib/time";
+import {
+  currentOvertimePeriodLabel,
+  currentOvertimePeriodRange,
+} from "@/lib/active-overtime-period";
 
 export const metadata = {
   title: "Laporan & rekap",
@@ -85,7 +88,7 @@ export default async function ReportPage({
     return <ManualWorkReportScreen user={user} params={params} />;
   }
 
-  const fallback = currentMonthRange();
+  const fallback = currentOvertimePeriodRange();
   let from = first(params.from) ?? fallback.from;
   let to = first(params.to) ?? fallback.to;
   if (!DATE_PATTERN.test(from)) from = fallback.from;
@@ -208,7 +211,8 @@ export default async function ReportPage({
               Periode &amp; filter
             </FrameTitle>
             <FrameDescription className="text-xs">
-              Default bulan berjalan. Semua tanggal dalam{" "}
+              Default periode akumulasi lembur berjalan{" "}
+              ({currentOvertimePeriodLabel()}). Semua tanggal dalam{" "}
               {currentTimeZoneLabel()}.
             </FrameDescription>
           </div>

@@ -1,4 +1,5 @@
 import { can } from "@/lib/access";
+import { setActiveOvertimePeriodStartDay } from "@/lib/active-overtime-period";
 import { setActiveTimeZone } from "@/lib/active-time-zone";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
@@ -45,6 +46,7 @@ export async function PATCH(request: Request) {
     return db.policy;
   });
   setActiveTimeZone(policy.timezone);
+  setActiveOvertimePeriodStartDay(policy.overtimePeriodStartDay);
 
   return apiOk({
     policy,

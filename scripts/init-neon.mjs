@@ -99,6 +99,7 @@ try {
     "023_document_share_targets.sql",
     "024_checklist_item_locations.sql",
     "026_policy_timezone.sql",
+    "027_overtime_period.sql",
   ]) {
     await connection.query(await readFile(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
   }
@@ -114,10 +115,10 @@ try {
     [admin.id, admin.nik, admin.name, admin.phone, admin.email, "super_admin", null, null, true, now, now],
   );
 
-  const policyFields = ["id", "rounding_minutes", "daily_limit_minutes", "weekly_limit_minutes", "doc_grace_minutes", "require_documentation", "default_radius_meters", "max_gps_accuracy_meters", "default_location_latitude", "default_location_longitude", "default_location_address", "timezone", "updated_at", "updated_by"];
+  const policyFields = ["id", "rounding_minutes", "daily_limit_minutes", "weekly_limit_minutes", "doc_grace_minutes", "require_documentation", "default_radius_meters", "max_gps_accuracy_meters", "default_location_latitude", "default_location_longitude", "default_location_address", "timezone", "overtime_period_start_day", "updated_at", "updated_by"];
   await connection.query(
     `INSERT INTO policies(${policyFields.join(",")}) VALUES(${policyFields.map((_, i) => `$${i + 1}`).join(",")})`,
-    ["policy", 15, 480, 2400, 60, false, 120, 100, -6.2439, 106.7989, "Menara Sentraya, Jl. Iskandarsyah Raya No. 1, Jakarta Selatan", "Asia/Jakarta", now, admin.id],
+    ["policy", 15, 480, 2400, 60, false, 120, 100, -6.2439, 106.7989, "Menara Sentraya, Jl. Iskandarsyah Raya No. 1, Jakarta Selatan", "Asia/Jakarta", 1, now, admin.id],
   );
 
   // Titik absensi resmi pertama. Atasan hanya dapat memilih titik dari tabel ini.
@@ -139,7 +140,7 @@ try {
 
   await connection.query("SET CONSTRAINTS ALL IMMEDIATE");
   await connection.query("SELECT setval('spkl_number_sequence',1,false)");
-  for (const id of ["001_relational", "003_employee_email_otp", "004_checklists", "005_checklist_public", "006_checklist_item_groups", "007_remove_demo_status", "008_checklist_conditions", "009_super_admin", "010_employee_avatar", "011_employee_access_mode", "012_manual_works", "013_work_locations", "014_manual_work_locations", "015_manual_work_photo_capture", "016_work_location_radius", "018_follow_up_safety", "019_manual_work_safety", "020_work_documents", "021_photo_limits", "022_video_and_folders", "023_document_share_targets", "024_checklist_item_locations", "026_policy_timezone"]) {
+  for (const id of ["001_relational", "003_employee_email_otp", "004_checklists", "005_checklist_public", "006_checklist_item_groups", "007_remove_demo_status", "008_checklist_conditions", "009_super_admin", "010_employee_avatar", "011_employee_access_mode", "012_manual_works", "013_work_locations", "014_manual_work_locations", "015_manual_work_photo_capture", "016_work_location_radius", "018_follow_up_safety", "019_manual_work_safety", "020_work_documents", "021_photo_limits", "022_video_and_folders", "023_document_share_targets", "024_checklist_item_locations", "026_policy_timezone", "027_overtime_period"]) {
     await connection.query(
       "INSERT INTO schema_migrations(id,verification) VALUES($1,$2::jsonb)",
       [id, JSON.stringify({ initializedEmptyDatabase: true })],

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { Modal } from "@/components/modal";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,30 @@ interface BeforeInstallPromptEvent extends Event {
   }>;
 }
 
+interface RelatedApplication {
+  platform: string;
+  id?: string;
+  url?: string;
+  version?: string;
+}
+
 declare global {
+  interface Navigator {
+    /**
+     * Didukung Chrome/Edge (Android sejak 84, desktop sejak 140). Tidak ada di
+     * Safari/Firefox, sehingga hasilnya tidak bisa diandalkan di sana.
+     */
+    getInstalledRelatedApps?: () => Promise<RelatedApplication[]>;
+  }
+
   interface Window {
     __sibumaInstallPrompt?: BeforeInstallPromptEvent | null;
   }
 }
+
+const INSTALLED_STORAGE_KEY = "sibuma:pwa-installed";
+/** Jangan menahan tombol terlalu lama bila API deteksi tidak merespons. */
+const DETECTION_TIMEOUT_MS = 1200;
 
 function isStandalone() {
   return (
@@ -28,10 +47,42 @@ function isStandalone() {
   );
 }
 
+function readInstalledMarker() {
+  try {
+    return window.localStorage.getItem(INSTALLED_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Tombol pasang PWA di header mobile. Hanya tampil saat aplikasi belum dibuka
- * dalam mode terpasang. Browser yang mendukung beforeinstallprompt memakai
- * dialog bawaan; browser lain mendapat petunjuk manual.
+ * Penanda lokal dipakai saat API deteksi tidak tersedia (mis. Safari) atau
+ * saat aplikasi pernah dibuka dalam mode terpasang, agar tombol tidak muncul
+ * lagi di tab browser.
+ */
+function writeInstalledMarker(installed: boolean) {
+  try {
+    if (installed) window.localStorage.setItem(INSTALLED_STORAGE_KEY, "1");
+    else window.localStorage.removeItem(INSTALLED_STORAGE_KEY);
+  } catch {
+    // Penyimpanan bisa diblokir; deteksi per sesi tetap berjalan.
+  }
+}
+
+/** `true` hanya jika browser memastikan ada PWA terkait yang terpasang. */
+async function detectInstalledApp() {
+  if (typeof navigator.getInstalledRelatedApps !== "function") return false;
+  try {
+    const apps = await navigator.getInstalledRelatedApps();
+    return apps.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Tombol pasang PWA di header mobile. Hanya tampil saat aplikasi belum
+ * terpasang, baik saat dibuka di tab browser maupun di dalam aplikasi.
  */
 export function PwaInstallButton() {
   const [ready, setReady] = useState(false);
@@ -41,47 +92,82 @@ export function PwaInstallButton() {
   const [instructionsOpen, setInstructionsOpen] = useState(false);
   const [installing, setInstalling] = useState(false);
 
+  const markInstalled = useCallback(() => {
+    window.__sibumaInstallPrompt = null;
+    writeInstalledMarker(true);
+    setPromptEvent(null);
+    setInstalled(true);
+    setInstructionsOpen(false);
+  }, []);
+
   useEffect(() => {
     const media = window.matchMedia("(display-mode: standalone)");
+    let disposed = false;
 
-    function syncInstalled() {
-      const next = isStandalone();
-      setInstalled(next);
-      if (next) {
-        window.__sibumaInstallPrompt = null;
-        setPromptEvent(null);
-        setInstructionsOpen(false);
-      }
+    function syncDisplayMode() {
+      if (isStandalone()) markInstalled();
     }
 
     function capture(event: Event) {
       const installEvent = event as BeforeInstallPromptEvent;
       installEvent.preventDefault();
       window.__sibumaInstallPrompt = installEvent;
+      // Browser hanya menawarkan pemasangan bila PWA belum terpasang, jadi
+      // penanda lama (mis. setelah uninstall) harus dihapus.
+      writeInstalledMarker(false);
       setPromptEvent(installEvent);
+      setInstalled(false);
     }
 
     function handleInstalled() {
-      window.__sibumaInstallPrompt = null;
-      setPromptEvent(null);
-      setInstalled(true);
-      setInstructionsOpen(false);
+      markInstalled();
     }
 
-    syncInstalled();
-    setPromptEvent(window.__sibumaInstallPrompt ?? null);
-    setReady(true);
+    async function recheck() {
+      if (document.visibilityState === "hidden") return;
+      const detected = await detectInstalledApp();
+      if (!disposed && detected) markInstalled();
+    }
+
+    const earlyPrompt = window.__sibumaInstallPrompt ?? null;
+    syncDisplayMode();
+
+    if (earlyPrompt) {
+      setPromptEvent(earlyPrompt);
+      writeInstalledMarker(false);
+      setReady(true);
+    } else if (isStandalone()) {
+      setReady(true);
+    } else if (readInstalledMarker()) {
+      setInstalled(true);
+      setReady(true);
+    } else {
+      const timer = window.setTimeout(() => {
+        if (!disposed) setReady(true);
+      }, DETECTION_TIMEOUT_MS);
+      void detectInstalledApp().then((detected) => {
+        if (disposed) return;
+        window.clearTimeout(timer);
+        if (detected) markInstalled();
+        setReady(true);
+      });
+    }
 
     window.addEventListener("beforeinstallprompt", capture);
     window.addEventListener("appinstalled", handleInstalled);
-    media.addEventListener("change", syncInstalled);
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", recheck);
+    media.addEventListener("change", syncDisplayMode);
 
     return () => {
+      disposed = true;
       window.removeEventListener("beforeinstallprompt", capture);
       window.removeEventListener("appinstalled", handleInstalled);
-      media.removeEventListener("change", syncInstalled);
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", recheck);
+      media.removeEventListener("change", syncDisplayMode);
     };
-  }, []);
+  }, [markInstalled]);
 
   async function install() {
     if (installing) return;
@@ -96,10 +182,7 @@ export function PwaInstallButton() {
       const choice = await promptEvent.userChoice;
       window.__sibumaInstallPrompt = null;
       setPromptEvent(null);
-      if (choice.outcome === "accepted") {
-        setInstalled(true);
-        setInstructionsOpen(false);
-      }
+      if (choice.outcome === "accepted") markInstalled();
     } catch {
       setInstructionsOpen(true);
     } finally {

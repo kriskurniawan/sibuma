@@ -32,6 +32,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { MAX_DAILY_MINUTES, MAX_WEEKLY_MINUTES } from "@/lib/constants";
+import { overtimePeriodLabel, overtimePeriodRange } from "@/lib/overtime-period";
 import { TIME_ZONE_OPTIONS } from "@/lib/time-zone";
 import type { Policy } from "@/lib/types";
 import {
@@ -56,6 +57,7 @@ export function PolicyForm({ policy }: { policy: Policy }) {
     defaultRadiusMeters: policy.defaultRadiusMeters,
     maxGpsAccuracyMeters: policy.maxGpsAccuracyMeters,
     timezone: policy.timezone,
+    overtimePeriodStartDay: policy.overtimePeriodStartDay,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +75,14 @@ export function PolicyForm({ policy }: { policy: Policy }) {
     }
     if (values.weeklyLimitMinutes < values.dailyLimitMinutes) {
       setError("Batas mingguan harus lebih besar atau sama dengan batas harian.");
+      return;
+    }
+    if (
+      !Number.isInteger(values.overtimePeriodStartDay) ||
+      values.overtimePeriodStartDay < 1 ||
+      values.overtimePeriodStartDay > 31
+    ) {
+      setError("Tanggal mulai periode lembur harus antara 1 dan 31.");
       return;
     }
 
@@ -115,6 +125,16 @@ export function PolicyForm({ policy }: { policy: Policy }) {
     TIME_ZONE_OPTIONS.find((option) => option.value === values.timezone) ??
     TIME_ZONE_OPTIONS[0];
   const timeZoneChanged = values.timezone !== policy.timezone;
+  const previewStartDay =
+    Number.isInteger(values.overtimePeriodStartDay) &&
+    values.overtimePeriodStartDay >= 1 &&
+    values.overtimePeriodStartDay <= 31
+      ? values.overtimePeriodStartDay
+      : 1;
+  const periodPreview = overtimePeriodLabel(
+    overtimePeriodRange(new Date(), previewStartDay, selectedTimeZone.value),
+    selectedTimeZone.value,
+  );
 
   return (
     <Frame spacing="default">
@@ -252,6 +272,32 @@ export function PolicyForm({ policy }: { policy: Policy }) {
                 Meter toleransi sinyal
               </p>
             </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-border pt-4">
+            <Label htmlFor="overtime-period-start">
+              Tanggal mulai periode lembur
+            </Label>
+            <Input
+              id="overtime-period-start"
+              type="number"
+              min={1}
+              max={31}
+              step={1}
+              value={values.overtimePeriodStartDay}
+              onChange={(event) =>
+                numberValue("overtimePeriodStartDay", event.target.value)
+              }
+              className="tabular-nums sm:max-w-28"
+            />
+            <p className="text-xs text-muted-foreground">
+              Periode berjalan:{" "}
+              <span className="font-medium text-foreground">
+                {periodPreview}
+              </span>
+              . Isi 1 untuk bulan kalender. Tanggal 29–31 mengikuti hari
+              terakhir pada bulan yang lebih pendek.
+            </p>
           </div>
 
           <div className="flex flex-col gap-2 border-t border-border pt-4">

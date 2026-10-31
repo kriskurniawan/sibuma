@@ -3,7 +3,8 @@ import { decode } from "./db-model";
 import { query } from "./db";
 import { clampPage, type PageRequest } from "./pagination";
 import { effectiveMinutesSql, finalizeScope } from "./relational-reads";
-import { sqlTimeZone } from "./sql-time-zone";
+import { currentOvertimePeriodLabel } from "./active-overtime-period";
+import { sqlOvertimePeriod } from "./sql-overtime-period";
 
 export interface TeamFilters {
   search?: string;
@@ -11,26 +12,28 @@ export interface TeamFilters {
   status?: string;
 }
 
-const monthWhere = () => `s.created_by=$1 AND s.date>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()})::date
-  AND s.date<(date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()})+interval '1 month')::date`;
+function periodWhere(period: ReturnType<typeof sqlOvertimePeriod>) {
+  return `s.created_by=$1 AND s.date>=${period.fromSql} AND s.date<=${period.toSql}`;
+}
 const teamWhere = `e.supervisor_id=$1
   AND ($2::text IS NULL OR position(lower($2) in lower(e.name||' '||e.nik||' '||e.phone||' '||coalesce(e.email,'')||' '||coalesce(d.name,'tanpa divisi')))>0)
   AND ($3::text IS NULL OR ($3='tanpa' AND e.division_id IS NULL) OR e.division_id=$3)
   AND ($4::text IS NULL OR e.active=($4='aktif'))`;
-const teamStats = () => `LEFT JOIN LATERAL (
+const teamStats = (period: ReturnType<typeof sqlOvertimePeriod>) => `LEFT JOIN LATERAL (
   SELECT sum(${effectiveMinutesSql}) minutes,count(*) FILTER(WHERE a.check_in_at IS NOT NULL) sessions,
   coalesce(sum((SELECT count(*) FROM documentations doc WHERE doc.attendance_id=a.id AND doc.kind='photo')),0) documents
-  FROM attendances a JOIN spkls s ON s.id=a.spkl_id WHERE a.employee_id=e.id AND ${monthWhere()}
+  FROM attendances a JOIN spkls s ON s.id=a.spkl_id WHERE a.employee_id=e.id AND ${periodWhere(period)}
 ) t ON true`;
 
 export async function getTeamOverview(userId: string, filters: TeamFilters = {}, request?: PageRequest) {
-  await finalizeScope(`s.created_by=$1 AND s.date>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()})::date`, [userId]);
+  const period = sqlOvertimePeriod();
+  await finalizeScope(periodWhere(period), [userId]);
   const values = [userId, filters.search?.trim() || null, !filters.division || filters.division === "semua" ? null : filters.division,
     ["aktif", "nonaktif"].includes(filters.status ?? "") ? filters.status : null];
   const [count] = await query(`SELECT count(*)::integer total FROM employees e LEFT JOIN divisions d ON d.id=e.division_id WHERE ${teamWhere}`, values);
   const pagination = request ? clampPage(request, count.total) : undefined;
   const rows = await query(`SELECT e.*,coalesce(t.minutes,0)::integer monthly_minutes,coalesce(t.sessions,0)::integer sessions,
-    coalesce(t.documents,0)::integer documentation_count FROM employees e LEFT JOIN divisions d ON d.id=e.division_id ${teamStats()}
+    coalesce(t.documents,0)::integer documentation_count FROM employees e LEFT JOIN divisions d ON d.id=e.division_id ${teamStats(period)}
     WHERE ${teamWhere} ORDER BY e.active DESC,e.name,e.id ${pagination ? "LIMIT $5 OFFSET $6" : ""}`,
     pagination ? [...values, pagination.pageSize, pagination.pageIndex * pagination.pageSize] : values);
   return {
@@ -43,24 +46,26 @@ export async function getTeamOverview(userId: string, filters: TeamFilters = {},
 
 /** Global team KPIs and division counts, independent of the visible page/filter. */
 export async function getTeamTotals(userId: string) {
+  const period = sqlOvertimePeriod();
   const [members, attendance, divisions] = await Promise.all([
     query(`SELECT count(*)::integer total,count(*) FILTER(WHERE active)::integer active,
       count(*) FILTER(WHERE division_id IS NULL)::integer unassigned FROM employees WHERE supervisor_id=$1`, [userId]),
     query(`SELECT coalesce(sum(${effectiveMinutesSql}),0)::integer minutes,count(*) FILTER(WHERE a.check_in_at IS NOT NULL)::integer sessions,
       coalesce(sum((SELECT count(*) FROM documentations doc WHERE doc.attendance_id=a.id AND doc.kind='photo')),0)::integer documents
       FROM attendances a JOIN spkls s ON s.id=a.spkl_id JOIN employees e ON e.id=a.employee_id
-      WHERE e.supervisor_id=$1 AND ${monthWhere()}`, [userId]),
+      WHERE e.supervisor_id=$1 AND ${periodWhere(period)}`, [userId]),
     query(`SELECT division_id,count(*)::integer total,count(*) FILTER(WHERE active)::integer active FROM employees
       WHERE supervisor_id=$1 GROUP BY division_id`, [userId]),
   ]);
   return { total: Number(members[0].total), active: Number(members[0].active), unassigned: Number(members[0].unassigned),
     minutes: Number(attendance[0].minutes), sessions: Number(attendance[0].sessions), documents: Number(attendance[0].documents),
+    periodLabel: currentOvertimePeriodLabel(),
     divisions: divisions.map((row) => ({ id: row.division_id as string, total: Number(row.total), active: Number(row.active) })) };
 }
 
 export async function getTeamLoad(userId: string) {
   const rows = await query(`SELECT e.*,coalesce(t.minutes,0)::integer monthly_minutes,coalesce(t.sessions,0)::integer sessions,
-    coalesce(t.documents,0)::integer documentation_count FROM employees e ${teamStats()}
+    coalesce(t.documents,0)::integer documentation_count FROM employees e ${teamStats(sqlOvertimePeriod())}
     WHERE e.supervisor_id=$1 AND e.active ORDER BY monthly_minutes DESC,e.name,e.id LIMIT 20`, [userId]);
   return rows.map((row) => ({ employee: decode("employees", row), minutes: Number(row.monthly_minutes),
     sessions: Number(row.sessions), documentationCount: Number(row.documentation_count) }));

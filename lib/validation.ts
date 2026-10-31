@@ -226,6 +226,11 @@ export const policySchema = z
     timezone: z.enum(TIME_ZONE_VALUES, {
       error: "Zona waktu tidak valid.",
     }),
+    overtimePeriodStartDay: z
+      .number()
+      .int("Tanggal mulai periode harus bilangan bulat.")
+      .min(1, "Tanggal mulai periode minimal 1.")
+      .max(31, "Tanggal mulai periode maksimal 31."),
   })
   .superRefine((value, ctx) => {
     if (value.weeklyLimitMinutes < value.dailyLimitMinutes) {

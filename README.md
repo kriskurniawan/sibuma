@@ -42,7 +42,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, 
 - Laporan dan rekap dengan filter tanggal, pekerja, SPKL, status, dan pencarian.
 - Form jadwal SPKL, koreksi absensi, dan filter laporan memakai pemilih tanggal/jam ReUI (bukan input native).
 - Ekspor **Excel (`.xlsx`)** dan **CSV**, serta cetak **PDF** melalui dialog cetak browser.
-- Mengelola tim (tambah, ubah, nonaktifkan pekerja) terpisah dari kebijakan lembur, yang diatur di halaman **Pengaturan**.
+- Mengelola tim (tambah, ubah, nonaktifkan pekerja) terpisah dari kebijakan lembur, yang diatur di halaman **Pengaturan**, termasuk zona waktu dan **tanggal mulai periode akumulasi lembur** (mis. tanggal 26).
 - Mengelola **checklist operasional**: lokasi/area bertingkat (mis. **Lantai 2 → Ruang Hydrant**), template berversi dengan grup + sub-item (maksimal 2 tingkat, 100 item dan 30 grup per template; grup wajib punya minimal satu sub-item), panduan, wajib isi, kebijakan foto, dan catatan wajib, serta jadwal fleksibel—harian, mingguan, 2 mingguan, bulanan, 3 bulanan, atau kustom setiap N hari/minggu/bulan. Jadwal mengikuti kalender tetap: keterlambatan tidak menggeser tanggal berikutnya dan tanggal 29–31 memakai hari terakhir bulan. Pemilih anggota jadwal dikelompokkan per divisi dan tetap nyaman untuk tim besar: pencarian nama/NIK, filter divisi, preview 20 anggota per divisi dengan **Tampilkan 20 lagi**, pilih semua hasil filter, ringkasan jumlah per divisi, serta penggabungan anggota lintas divisi secara custom. Maksimal **500 anggota per jadwal** (disimpan dengan insert massal); tim yang lebih besar dibagi ke beberapa jadwal.
 - Memantau checklist yang dikerjakan tim bersama, membuka kembali checklist selesai dengan alasan, serta meninjau tindak lanjut temuan. Status temuan terpisah dari status checklist, dan **terlambat** dihitung otomatis dari deadline.
 - Menerbitkan **QR area publik**—satu QR umum untuk memilih area atau QR khusus satu area—yang dapat dipindai pengunjung tanpa login. Visibilitas diatur per area dan per item dengan default **nonpublik**; catatan, foto, dan identitas petugas tidak pernah ditampilkan.
@@ -135,6 +135,8 @@ Folder Dokumen Kerja dan video bukti pekerjaan memakai migrasi `npm run db:migra
 Pemilihan penerima berbagi Dokumen Kerja memakai migrasi `npm run db:migrate:document-shares` (DDL `db/migrations/023_document_share_targets.sql`). Migrasi ini menambah `work_document_share_targets` dan `work_document_folder_share_targets` dengan kunci `(document_id|folder_id, audience, target_id)`; `audience` bernilai `division` atau `supervisor`. Tabel lama `work_document_shares`/`work_document_folder_shares` tetap dipertahankan sebagai fallback agar akses yang sudah terbuka tidak hilang. Saat pemilik menyimpan pilihan baru, target eksplisit menggantikan baris lama secara atomik. Target hanya berlaku selama divisi/atasan masih aktif, dan atasan yang bukan lagi berperan `atasan` tidak lagi diberi akses. Migrasi idempoten dan aman dijalankan ulang.
 
 Zona waktu kini menjadi pengaturan admin. Terapkan `npm run db:migrate:policy-timezone` (DDL `db/migrations/026_policy_timezone.sql`) agar constraint `policies.timezone` menerima `Asia/Jakarta`, `Asia/Makassar`, dan `Asia/Jayapura`. Setelah migrasi, super admin dapat mengganti zona di **Pengaturan → Kebijakan**; jam, label WIB/WITA/WIT, buka absen 00:00, serta batas hari/bulan laporan mengikuti zona tersebut. Tanggal kalender yang sudah tersimpan tidak diubah.
+
+Periode akumulasi lembur diatur lewat `npm run db:migrate:overtime-period` (DDL `db/migrations/027_overtime_period.sql`) yang menambah `policies.overtime_period_start_day` (`1`–`31`, default `1` = bulan kalender). Super admin mengisi **tanggal mulai periode** di **Pengaturan → Kebijakan**; misalnya `26` membuat periode berjalan `26 Okt – 25 Nov`. KPI dashboard, riwayat, tim, serta default laporan dan ekspor lembur memakai rentang tersebut. Tanggal `29`–`31` mengikuti hari terakhir pada bulan yang lebih pendek.
 
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
@@ -347,6 +349,7 @@ scripts/
   migrate-manual-work-safety.mjs  Terapkan migrasi 019 (Petugas safety pekerjaan harian)
   migrate-manual-work-public.mjs  Terapkan migrasi 025 (Publikasi pekerjaan harian ke pengunjung)
   migrate-policy-timezone.mjs  Terapkan migrasi 026 (Allowlist zona waktu kebijakan)
+  migrate-overtime-period.mjs  Terapkan migrasi 027 (Tanggal mulai periode lembur)
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB

@@ -4,6 +4,7 @@ import { addDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
 import { getActiveTimeZone } from "./active-time-zone";
+import { currentOvertimePeriodLabel } from "./active-overtime-period";
 import { CHECKOUT_GRACE_MINUTES } from "./constants";
 import { getPolicyRow, query, select } from "./db";
 import { getTeamLoad, getTeamTotals } from "./team-queries";
@@ -46,6 +47,7 @@ export interface WorkerOverview {
   };
   recentDocuments: Array<Documentation & { employee: Employee; spkl: Spkl }>;
   monthlyTargetMinutes: number;
+  periodLabel: string;
 }
 
 export interface SupervisorSpotlight {
@@ -231,6 +233,7 @@ export async function getWorkerOverview(user: SessionUser): Promise<WorkerOvervi
     },
     recentDocuments: metrics.recent,
     monthlyTargetMinutes: 20 * 60,
+    periodLabel: currentOvertimePeriodLabel(),
   };
 }
 

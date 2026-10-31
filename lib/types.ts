@@ -141,6 +141,7 @@ export interface Policy {
   maxGpsAccuracyMeters: number;
   defaultLocation: GeoPoint;
   timezone: string;
+  overtimePeriodStartDay: number;
   updatedAt: string;
   updatedBy: string;
 }

@@ -191,7 +191,7 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
         columns={3}
         items={[
           {
-            label: "Bulan ini",
+            label: "Periode ini",
             tone: "info",
             value: (
               <span className="flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-0.5">
@@ -225,11 +225,11 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
 
       <div className="hidden grid-cols-1 gap-3 md:grid md:grid-cols-3">
         <StatCard
-          label="Total bulan ini"
+          label="Total periode ini"
           value={Math.floor(overview.stats.monthlyMinutes / 60)}
           suffix="jam"
           icon={Clock3}
-          helper={`${overview.stats.monthlyMinutes % 60} menit · target 20 jam`}
+          helper={`${overview.stats.monthlyMinutes % 60} menit · ${overview.periodLabel}`}
           tone="info"
         />
         <StatCard
@@ -245,7 +245,7 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
           value={overview.stats.documentationCount}
           suffix="foto"
           icon={Camera}
-          helper="Bukti kerja yang kamu unggah bulan ini"
+          helper="Bukti kerja yang kamu unggah pada periode ini"
           tone="info"
         />
       </div>

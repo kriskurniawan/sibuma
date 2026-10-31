@@ -6,12 +6,12 @@ import { apiError } from "@/lib/http";
 import { pdfFileResponse } from "@/lib/pdf";
 import { getReportData } from "@/lib/queries";
 import {
-  currentMonthRange,
   currentTimeZoneLabel,
   durationLabel,
   formatDateHuman,
   formatTime,
 } from "@/lib/time";
+import { currentOvertimePeriodRange } from "@/lib/active-overtime-period";
 import type { Attendance } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const range = currentMonthRange();
+  const range = currentOvertimePeriodRange();
   const from = url.searchParams.get("from") || range.from;
   const to = url.searchParams.get("to") || range.to;
   if (

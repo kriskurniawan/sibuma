@@ -7,11 +7,22 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Checklist operasional building management dengan temuan, tindak lanjut, dan pemantauan area.",
     start_url: "/",
+    id: "/",
+    scope: "/",
     display: "standalone",
     background_color: "#f7f7fb",
     theme_color: "#623bbd",
     lang: "id",
     orientation: "portrait",
+    // Membuat PWA bisa mendeteksi dirinya sendiri lewat
+    // navigator.getInstalledRelatedApps(), termasuk saat dibuka di tab browser.
+    related_applications: [
+      {
+        platform: "webapp",
+        url: "/manifest.webmanifest",
+        id: "/",
+      },
+    ],
     icons: [
       {
         src: "/icons/icon-192.png",
