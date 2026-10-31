@@ -23,6 +23,7 @@
     "db:migrate:photo-limits": "node scripts/migrate-photo-limits.mjs",
     "db:migrate:video-folders": "node scripts/migrate-video-and-folders.mjs",
     "db:migrate:document-shares": "node scripts/migrate-document-share-targets.mjs",
+    "db:migrate:attendance-review": "node scripts/migrate-attendance-review.mjs",
     "db:promote:super-admin": "tsx scripts/promote-super-admin.mjs",
     "auth:test": "node --conditions=react-server --import tsx scripts/test-email-otp.mjs",
     "db:verify": "tsx scripts/verify-relational.mjs",

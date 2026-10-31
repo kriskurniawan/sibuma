@@ -130,6 +130,8 @@ Dokumen kerja memakai migrasi terpisah: `npm run db:migrate:work-documents` (DDL
 
 Folder Dokumen Kerja dan video bukti pekerjaan memakai migrasi `npm run db:migrate:video-folders` (DDL `db/migrations/022_video_and_folders.sql`). Migrasi ini menambah `work_document_folders`, `work_document_folder_shares`, kolom `work_documents.folder_id` (`ON DELETE SET NULL`), kolom video pada `documentations`/`checklist_photos`/`manual_work_photos` (`kind`, `duration_seconds`, `storage_etag`, serta `poster_key` pada dokumentasi), dan kolom batas video pada `photo_limit_settings`. Migrasi idempoten dan aman dijalankan ulang.
 
+Persetujuan sesi absensi yang ditutup otomatis memakai migrasi `npm run db:migrate:attendance-review` (DDL `db/migrations/024_attendance_review.sql`). Migrasi ini menambah `attendances.reviewed_at`, `attendances.reviewed_by`, dan indeks parsial `attendances_review_pending`. Baris absensi lama tidak diubah; sesi `ditutup_otomatis` yang sudah ada tampil sebagai menunggu tinjauan sampai disetujui atasan pembuat. Migrasi idempoten dan aman dijalankan ulang.
+
 Pemilihan penerima berbagi Dokumen Kerja memakai migrasi `npm run db:migrate:document-shares` (DDL `db/migrations/023_document_share_targets.sql`). Migrasi ini menambah `work_document_share_targets` dan `work_document_folder_share_targets` dengan kunci `(document_id|folder_id, audience, target_id)`; `audience` bernilai `division` atau `supervisor`. Tabel lama `work_document_shares`/`work_document_folder_shares` tetap dipertahankan sebagai fallback agar akses yang sudah terbuka tidak hilang. Saat pemilik menyimpan pilihan baru, target eksplisit menggantikan baris lama secara atomik. Target hanya berlaku selama divisi/atasan masih aktif, dan atasan yang bukan lagi berperan `atasan` tidak lagi diberi akses. Migrasi idempoten dan aman dijalankan ulang.
 
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
@@ -244,7 +246,7 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Akurasi GPS | Tidak boleh melebihi `maxGpsAccuracyMeters` (default 100 m). |
 | Durasi | Dihitung dari waktu server sejak `max(checkInAt, startAt)` sampai `checkOutAt`/`endAt`, lalu dibulatkan sesuai kebijakan (default 15 menit). Absen lebih awal tidak menambah durasi. |
 | Absen pulang | Wajib di dalam radius. Jika SPKL mewajibkan dokumentasi, minimal satu dokumentasi harus sudah diunggah. |
-| Penutupan otomatis | Sesi `berjalan` ditutup saat `endAt` terlewati; pekerja tanpa absen masuk dicatat `tidak_hadir`. |
+| Penutupan otomatis | Sesi `berjalan` ditutup saat `endAt` terlewati; pekerja tanpa absen masuk dicatat `tidak_hadir`. Sesi otomatis berstatus `ditutup_otomatis` dengan `reviewed_at` kosong dan menunggu persetujuan atasan pembuat. Persetujuan tidak mengubah waktu pulang/durasi; pembatalan SPKL menandai sesi sudah ditinjau. |
 | Dokumentasi | Batas foto default 12 per sesi (dapat diubah super admin, maksimal 50), 1,5 MB per file, format JPG/PNG/WEBP. Unggah hanya setelah absen masuk dan maksimal `docGraceMinutes` setelah `endAt` (default 60 menit). Foto dari kamera atau galeri (boleh beberapa sekaligus) dikompresi di perangkat dan diberi cap **nomor SPKL + waktu foto WIB**. Waktu diambil dari EXIF `DateTimeOriginal` bila ada, jika tidak dari jam perangkat. Server menolak file tanpa penanda cap waktu SIBUMA, waktu foto lebih dari 10 menit di masa depan, atau lebih dari 24 jam sebelum `startAt`. `takenAt` menyimpan waktu foto dan `createdAt` menyimpan waktu unggah server. Penanda dibuat di klien sehingga menutup jalur unggah normal, bukan bukti anti-palsu. Server tidak melakukan OCR terhadap teks yang terlihat; validasi memakai penanda JPEG tersembunyi. |
 | Dokumentasi: video | Video MP4/WEBM/MOV hanya dari galeri (tidak ada rekaman dalam aplikasi dan tidak ada cap waktu di berkas). Kuota video terpisah dari foto; default 3 per sesi, dapat diubah super admin (0 menonaktifkan). Ukuran default 50 MB dan batas keras 100 MB. Server memverifikasi tipe yang ditandatangani, ukuran objek, magic bytes (`ftyp`/EBML), dan menyimpan ETag sebagai sidik jari. Video tidak memenuhi kewajiban foto. Pemutaran memakai redirect `302` ke URL baca bertanda tangan 15 menit agar byte dan `Range` tidak melewati Vercel. |
 | Koreksi | Hanya atasan pembuat SPKL. Alasan 10–500 karakter. Jam masuk boleh lebih awal dari `startAt`; durasi tetap dihitung sejak jam mulai. Durasi dihitung ulang dan status menjadi `dikoreksi`. |
@@ -269,7 +271,7 @@ Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di o
 | Checklist: akses petugas | Scan QR bukan izin tulis. Petugas wajib login dan hanya mendapat tautan pengisian untuk inspection yang ditugaskan; atasan pemilik melihat semua tugas terbuka. |
 | Checklist: laporan | Periode memakai tanggal occurrence/jatuh tempo, bukan tanggal selesai, sehingga checklist yang belum selesai tetap dihitung. Tersedia rekap, rincian item, tindak lanjut, Excel, CSV, dan cetak. |
 
-Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikoreksi`.
+Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikoreksi`. Status `ditutup_otomatis` dengan `reviewed_at` kosong berarti sesi masih **perlu tinjauan**; atasan pembuat dapat menyetujui atau mengoreksinya.
 
 ---
 
@@ -288,7 +290,7 @@ Status absensi: `berjalan`, `selesai`, `ditutup_otomatis`, `tidak_hadir`, `dikor
 11. Buka tab **Checklist** dan **Tindak lanjut** di **Laporan**, lalu unduh Excel/CSV rekap atau rincian, atau cetak PDF.
 12. Periksa **Log audit** dan **Outbox WhatsApp**.
 
-Untuk menguji check-in, browser harus diberi izin lokasi. Titik default kebijakan berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 WIB tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai.
+Untuk menguji check-in, browser harus diberi izin lokasi. Titik default kebijakan berada di **Menara Sentraya, Jakarta Selatan** (`-6.2439, 106.7989`). Di Chrome DevTools, gunakan *Sensors → Location* untuk menyuntikkan koordinat tersebut. Absen masuk dapat dilakukan sebelum jam mulai (mulai 00:00 WIB tanggal SPKL); durasi lembur tetap dihitung sejak jam mulai. Untuk menguji fallback, biarkan sesi tanpa absen pulang melewati `endAt`: detail SPKL akan menutupnya otomatis, lalu atasan pembuat dapat menekan **Setujui** atau **Koreksi** pada daftar pekerja.
 
 ---
 

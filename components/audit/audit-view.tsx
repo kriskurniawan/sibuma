@@ -112,6 +112,7 @@ const ACTION_LABEL: Record<string, string> = {
   absen_masuk: "Absen masuk",
   absen_pulang: "Absen pulang",
   absensi_dikoreksi: "Absensi dikoreksi",
+  absensi_disetujui: "Absensi disetujui",
   karyawan_ditambahkan: "Pekerja ditambahkan",
   karyawan_diubah: "Data pekerja diubah",
   atasan_ditambahkan: "Akun atasan dibuat",

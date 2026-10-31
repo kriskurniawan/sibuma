@@ -177,6 +177,14 @@ export function SpklDetailView({
           {earlyCheckIn && (
             <Badge variant="info-light">Absen lebih awal</Badge>
           )}
+          {myAttendance?.status === "ditutup_otomatis" &&
+            (myAttendance.reviewedAt ? (
+              <Badge variant="success-light">Disetujui atasan</Badge>
+            ) : (
+              <Badge variant="warning-light" dot>
+                Menunggu persetujuan
+              </Badge>
+            ))}
         </div>
       </div>
 
@@ -487,7 +495,9 @@ export function SpklDetailView({
                     </p>
                     {myAttendance.status === "ditutup_otomatis" && (
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Ditutup otomatis saat SPKL berakhir.
+                        {myAttendance.reviewedAt
+                          ? "Ditutup otomatis dan sudah disetujui atasan."
+                          : "Ditutup otomatis saat SPKL berakhir. Menunggu persetujuan atasan."}
                       </p>
                     )}
                   </div>
@@ -632,6 +642,11 @@ export function SpklDetailView({
                 <li>
                   Absen lebih awal diperbolehkan; durasi lembur tetap dihitung
                   sejak jam mulai SPKL.
+                </li>
+                <li>
+                  Absen pulang wajib dilakukan di dalam radius{" "}
+                  {spkl.radiusMeters} m sebelum jam selesai. Jika terlewat, sesi
+                  ditutup otomatis dan menunggu persetujuan atasan.
                 </li>
                 <li>Waktu absensi memakai jam server, bukan jam perangkat.</li>
                 <li>

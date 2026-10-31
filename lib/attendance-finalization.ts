@@ -77,6 +77,8 @@ export function finalizeExpired(db: Database, targetId?: string) {
           correctionReason: null,
           correctedBy: null,
           correctedAt: null,
+          reviewedAt: null,
+          reviewedBy: null,
           createdAt: now.toISOString(),
           updatedAt: now.toISOString(),
         };

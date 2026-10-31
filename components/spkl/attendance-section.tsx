@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Camera,
+  Check,
   CheckCircle2,
   Clock3,
   CornerDownRight,
@@ -322,10 +323,12 @@ export function AttendanceSection({
   documentation: Documentation[];
   canManage: boolean;
 }) {
+  const router = useRouter();
   const [correction, setCorrection] = useState<{
     employee: Employee;
     attendance: Attendance;
   } | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const present = attendances.filter(
     (row) => row.attendance?.checkInAt,
@@ -336,6 +339,36 @@ export function AttendanceSection({
   const running = attendances.filter(
     (row) => row.attendance?.status === "berjalan",
   ).length;
+  const pendingReview = attendances.filter(
+    (row) =>
+      row.attendance?.status === "ditutup_otomatis" &&
+      !row.attendance.reviewedAt,
+  ).length;
+
+  async function approve(attendance: Attendance) {
+    if (reviewingId) return;
+    setReviewingId(attendance.id);
+    try {
+      const response = await fetch(`/api/attendance/${attendance.id}/review`, {
+        method: "PATCH",
+      });
+      const data = (await response.json().catch(() => null)) as {
+        ok?: boolean;
+        message?: string;
+      } | null;
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.message || "Gagal menyetujui absensi.");
+      }
+      toast.success(data.message || "Absensi disetujui.");
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menyetujui absensi.",
+      );
+    } finally {
+      setReviewingId(null);
+    }
+  }
 
   return (
     <Frame id="kehadiran">
@@ -351,6 +384,11 @@ export function AttendanceSection({
           {running > 0 && (
             <Badge variant="warning-light" dot>
               {running} aktif
+            </Badge>
+          )}
+          {pendingReview > 0 && (
+            <Badge variant="warning-light" dot>
+              {pendingReview} perlu tinjauan
             </Badge>
           )}
           {absent > 0 && (
@@ -382,7 +420,7 @@ export function AttendanceSection({
                 key={employee.id}
                 className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-2.5">
                     <Avatar name={employee.name} seed={employee.id} size="sm" />
                     <div className="min-w-0">
@@ -394,7 +432,7 @@ export function AttendanceSection({
                       </p>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     {attendance ? (
                       <AttendanceBadge status={attendance.status} />
                     ) : (
@@ -402,6 +440,31 @@ export function AttendanceSection({
                         Belum absen
                       </Badge>
                     )}
+                    {attendance?.status === "ditutup_otomatis" &&
+                      (attendance.reviewedAt ? (
+                        <Badge variant="success-light">Disetujui</Badge>
+                      ) : (
+                        <Badge variant="warning-light" dot>
+                          Perlu tinjauan
+                        </Badge>
+                      ))}
+                    {canManage &&
+                      attendance?.status === "ditutup_otomatis" &&
+                      !attendance.reviewedAt && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => approve(attendance)}
+                          disabled={Boolean(reviewingId)}
+                        >
+                          {reviewingId === attendance.id ? (
+                            <Spinner />
+                          ) : (
+                            <Check />
+                          )}
+                          Setujui
+                        </Button>
+                      )}
                     {canManage && attendance && (
                       <Button
                         type="button"
@@ -466,6 +529,17 @@ export function AttendanceSection({
                   </div>
                 </div>
 
+                {attendance?.status === "ditutup_otomatis" && (
+                  <p className="flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                    <ShieldAlert className="mt-0.5 size-3 shrink-0" />
+                    <span>
+                      {attendance.reviewedAt
+                        ? "Penutupan otomatis sudah disetujui atasan."
+                        : "Tidak ada absen pulang. Sesi ditutup otomatis dan menunggu persetujuan atasan."}
+                    </span>
+                  </p>
+                )}
+
                 {attendance?.status === "dikoreksi" &&
                   attendance.correctionReason && (
                     <p
@@ -493,7 +567,7 @@ export function AttendanceSection({
         </span>
         <span className="flex items-center gap-1.5">
           <CheckCircle2 className="size-3" />
-          Sesi ditutup otomatis saat SPKL berakhir
+          Sesi tanpa absen pulang ditutup otomatis dan perlu persetujuan atasan
         </span>
         {canManage && (
           <span className="flex items-center gap-1.5">

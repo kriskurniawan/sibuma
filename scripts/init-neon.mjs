@@ -97,6 +97,7 @@ try {
     "021_photo_limits.sql",
     "022_video_and_folders.sql",
     "023_document_share_targets.sql",
+    "024_attendance_review.sql",
   ]) {
     await connection.query(await readFile(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
   }
@@ -137,7 +138,7 @@ try {
 
   await connection.query("SET CONSTRAINTS ALL IMMEDIATE");
   await connection.query("SELECT setval('spkl_number_sequence',1,false)");
-  for (const id of ["001_relational", "003_employee_email_otp", "004_checklists", "005_checklist_public", "006_checklist_item_groups", "007_remove_demo_status", "008_checklist_conditions", "009_super_admin", "010_employee_avatar", "011_employee_access_mode", "012_manual_works", "013_work_locations", "014_manual_work_locations", "015_manual_work_photo_capture", "016_work_location_radius", "018_follow_up_safety", "019_manual_work_safety", "020_work_documents", "021_photo_limits", "022_video_and_folders", "023_document_share_targets"]) {
+  for (const id of ["001_relational", "003_employee_email_otp", "004_checklists", "005_checklist_public", "006_checklist_item_groups", "007_remove_demo_status", "008_checklist_conditions", "009_super_admin", "010_employee_avatar", "011_employee_access_mode", "012_manual_works", "013_work_locations", "014_manual_work_locations", "015_manual_work_photo_capture", "016_work_location_radius", "018_follow_up_safety", "019_manual_work_safety", "020_work_documents", "021_photo_limits", "022_video_and_folders", "023_document_share_targets", "024_attendance_review"]) {
     await connection.query(
       "INSERT INTO schema_migrations(id,verification) VALUES($1,$2::jsonb)",
       [id, JSON.stringify({ initializedEmptyDatabase: true })],

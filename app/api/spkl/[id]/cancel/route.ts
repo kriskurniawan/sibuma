@@ -71,6 +71,10 @@ export async function POST(
         attendance.status = "ditutup_otomatis";
         attendance.updatedAt = now.toISOString();
         attendance.checkOutLocation = null;
+        // Pembatalan sudah merupakan keputusan atasan; sesi tidak perlu
+        // ditinjau lagi sebagai penutupan otomatis yang terlewat.
+        attendance.reviewedAt = now.toISOString();
+        attendance.reviewedBy = user.id;
       }
 
       const workers = db.employees.filter(
