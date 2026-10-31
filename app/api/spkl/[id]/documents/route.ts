@@ -218,6 +218,7 @@ export async function POST(
         description,
         takenAt: capture.takenAt,
         location,
+        kind: "photo",
         createdAt: now.toISOString(),
       };
 

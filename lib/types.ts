@@ -124,7 +124,7 @@ export interface Documentation {
   description: string;
   takenAt: string;
   location: GeoPoint | null;
-  kind?: "photo" | "video";
+  kind: "photo" | "video";
   durationSeconds?: number | null;
   posterKey?: string | null;
   storageEtag?: string | null;
