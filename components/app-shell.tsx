@@ -32,6 +32,7 @@ import {
   Settings2,
   ShieldCheck,
   SlidersHorizontal,
+  StickyNote,
   Sun,
   UserRound,
   UsersRound,
@@ -108,6 +109,7 @@ function navigationFor(
         { href: "/", label: "Beranda", icon: Home, exact: true },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
         { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
+        { href: "/catatan", label: "Catatan", icon: StickyNote },
       ],
       manage: [
         { href: "/tim", label: "Akun atasan", icon: UsersRound },
@@ -128,7 +130,7 @@ function navigationFor(
           href: "/menu",
           label: "Menu",
           icon: LayoutGrid,
-          match: ["/pengaturan"],
+          match: ["/pengaturan", "/catatan"],
         },
       ],
     };
@@ -141,6 +143,7 @@ function navigationFor(
         { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
         { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
         { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
+        { href: "/catatan", label: "Catatan", icon: StickyNote },
         { href: "/lembur", label: "Lembur", icon: Clock3 },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
       ],
@@ -171,7 +174,7 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan"]
+            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan", "/catatan"]
             : [
                 "/tim",
                 "/checklist/template",
@@ -180,6 +183,7 @@ function navigationFor(
                 "/checklist/tindak-lanjut",
                 "/audit",
                 "/laporan",
+                "/catatan",
               ],
         },
       ],
@@ -192,6 +196,7 @@ function navigationFor(
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
       { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
       { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
+      { href: "/catatan", label: "Catatan", icon: StickyNote },
       { href: "/riwayat", label: "Lembur", icon: Clock3 },
     ],
     manage: [],
@@ -199,6 +204,7 @@ function navigationFor(
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
       { href: "/pekerjaan", label: "Pekerjaan", icon: Hammer },
+      { href: "/catatan", label: "Catatan", icon: StickyNote },
       {
         href: "/riwayat",
         label: "Lembur",
@@ -250,6 +256,9 @@ function mobileBackLink(
   if (pathname.startsWith("/dokumen/")) {
     return { href: "/dokumen", label: "Dokumen kerja" };
   }
+  if (pathname.startsWith("/catatan/")) {
+    return { href: "/catatan", label: "Catatan" };
+  }
   if (pathname === "/spkl/baru") return { href: "/lembur", label: "Lembur" };
   const edit = /^\/spkl\/([^/]+)\/edit$/.exec(pathname);
   if (edit) return { href: `/spkl/${edit[1]}`, label: "Detail SPKL" };
@@ -295,6 +304,8 @@ function currentSectionLabel(
   if (pathname.startsWith("/pekerjaan/")) return "Detail pekerjaan";
   if (pathname.startsWith("/dokumen/")) return "Detail dokumen";
   if (pathname === "/dokumen") return "Dokumen kerja";
+  if (pathname === "/catatan") return "Catatan";
+  if (pathname.startsWith("/catatan/")) return "Detail catatan";
   if (pathname.startsWith("/spkl/baru")) return "Buat SPKL";
   if (/^\/spkl\/[^/]+\/edit$/.test(pathname)) return "Ubah SPKL";
   if (pathname.startsWith("/spkl/")) return "Detail SPKL";
@@ -745,7 +756,9 @@ export function AppShell({
               ? "grid-cols-3"
               : mobileNav.length === 4
                 ? "grid-cols-4"
-                : "grid-cols-5",
+                : mobileNav.length === 6
+                  ? "grid-cols-6"
+                  : "grid-cols-5",
           )}
         >
           {mobileNav.map((item) => {
@@ -759,7 +772,7 @@ export function AppShell({
                       onClick={openScanner}
                       aria-label="Scan QR area"
                       aria-haspopup="dialog"
-                      className="group -mt-4 flex flex-col items-center gap-1 rounded-lg px-2 pb-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                      className="group -mt-4 flex flex-col items-center gap-1 rounded-lg px-1 pb-2 text-xs font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                     >
                       <span className="flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-card transition-colors group-hover:bg-primary/80 group-active:translate-y-px">
                         <QrCode
@@ -800,7 +813,7 @@ export function AppShell({
                     aria-hidden="true"
                   />
                 </span>
-                {item.label}
+                <span className="max-w-full truncate">{item.label}</span>
               </Link>
             );
           })}

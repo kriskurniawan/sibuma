@@ -10,6 +10,7 @@ import {
   ScrollText,
   Settings2,
   SlidersHorizontal,
+  StickyNote,
   UsersRound,
 } from "lucide-react";
 import { ProfileActions } from "@/components/profile/profile-actions";
@@ -78,6 +79,12 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
           description: "Temuan yang masih terbuka atau diproses.",
           icon: ListChecks,
         },
+        {
+          href: "/catatan",
+          label: "Catatan",
+          description: "Catatan singkat untuk satu atau beberapa divisi, atau rekan kerja.",
+          icon: StickyNote,
+        },
       ],
     },
     {
@@ -134,6 +141,12 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
           label: "Log audit",
           description: "Riwayat perubahan dan aktivitas penting.",
           icon: ScrollText,
+        },
+        {
+          href: "/catatan",
+          label: "Catatan",
+          description: "Catatan singkat untuk satu atau beberapa divisi, atau rekan kerja.",
+          icon: StickyNote,
         },
       ],
     },

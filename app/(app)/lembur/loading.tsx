@@ -19,8 +19,9 @@ function SpklCardSkeleton() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Skeleton className="h-3 w-36 max-w-full" />
-          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-3 w-24 max-w-full" />
+          <Skeleton className="h-3 w-32 max-w-full" />
+          <Skeleton className="h-3 w-16" />
         </div>
 
         <div className="flex min-w-0 items-center justify-between gap-3">
@@ -74,6 +75,7 @@ export default function LemburLoading() {
                 <Skeleton className="h-8 w-20 rounded-md" />
                 <Skeleton className="h-8 w-20 rounded-md" />
                 <Skeleton className="h-8 w-16 rounded-md" />
+                <Skeleton className="h-8 w-20 rounded-md" />
               </div>
             </div>
             <Skeleton className="h-8 w-full rounded-md lg:w-72" />

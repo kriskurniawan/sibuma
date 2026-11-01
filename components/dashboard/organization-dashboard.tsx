@@ -40,6 +40,7 @@ const OBJECT_LABEL: Record<AuditLog["objectType"], string> = {
   tindak_lanjut: "Tindak lanjut",
   pekerjaan: "Pekerjaan harian",
   dokumen: "Dokumen kerja",
+  catatan: "Catatan",
 };
 
 export function OrganizationDashboard({

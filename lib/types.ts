@@ -200,7 +200,8 @@ export interface AuditLog {
     | "checklist"
     | "tindak_lanjut"
     | "pekerjaan"
-    | "dokumen";
+    | "dokumen"
+    | "catatan";
   objectId: string;
   summary: string;
   before: unknown;

@@ -100,6 +100,28 @@ export async function deleteObject(
   );
 }
 
+/**
+ * Objek yang tidak ada bersifat terminal (404); gangguan storage lain bersifat
+ * sementara dan harus memakai 502 agar klien dapat mencoba lagi.
+ */
+export function storageErrorStatus(error: unknown): 404 | 502 {
+  const candidate = error as {
+    name?: string;
+    code?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  if (
+    candidate?.$metadata?.httpStatusCode === 404 ||
+    candidate?.name === "NoSuchKey" ||
+    candidate?.name === "NotFound" ||
+    candidate?.code === "NoSuchKey" ||
+    candidate?.code === "NotFound"
+  ) {
+    return 404;
+  }
+  return 502;
+}
+
 /** Video dokumentasi: unggah langsung dari browser, tidak lewat Vercel. */
 export const VIDEO_UPLOAD_URL_TTL_SECONDS = 15 * 60;
 /** Pemutaran: URL pendek, diterbitkan ulang setiap kali pemutaran dimulai. */

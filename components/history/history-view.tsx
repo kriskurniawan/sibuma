@@ -3,18 +3,16 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  CalendarDays,
   Camera,
   CheckCircle2,
-  ChevronRight,
   Clock3,
   History,
-  MapPin,
   Search,
   TimerReset,
   X,
 } from "lucide-react";
 import { MobileSummary } from "@/components/mobile-summary";
+import { SpklCard } from "@/components/spkl/spkl-card";
 import {
   Frame,
   FrameFooter,
@@ -22,14 +20,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import {
-  AttendanceBadge,
-  Avatar,
-  EmptyState,
-  PageHeader,
-  SpklStatusBadge,
-  StatCard,
-} from "@/components/ui";
+import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import {
   InputGroup,
@@ -41,8 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SPKL_STATUS_LABEL } from "@/lib/constants";
 import type { SpklListItem, SpklStatus } from "@/lib/types";
 import type { WorkerOverview } from "@/lib/queries";
-import { currentTimeZoneLabel, durationLabel, formatDateHuman, formatTime } from "@/lib/time";
-import { cn } from "@/lib/utils";
+import { currentTimeZoneLabel, formatDateHuman } from "@/lib/time";
 
 const FILTERS: Array<{ value: "semua" | SpklStatus; label: string }> = [
   { value: "semua", label: "Semua" },
@@ -51,84 +41,6 @@ const FILTERS: Array<{ value: "semua" | SpklStatus; label: string }> = [
   { value: "selesai", label: SPKL_STATUS_LABEL.selesai },
   { value: "dibatalkan", label: SPKL_STATUS_LABEL.dibatalkan },
 ];
-
-function HistoryRow({ item }: { item: SpklListItem }) {
-  const { spkl, status, myAttendance, documentationCount, creator } = item;
-
-  return (
-    <Link
-      href={`/spkl/${spkl.id}`}
-      className={cn(
-        "group flex min-w-0 items-start gap-3 py-3 transition-colors hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none",
-        status === "dibatalkan" && "opacity-70",
-      )}
-    >
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="line-clamp-2 text-sm font-medium text-foreground">
-              {spkl.title}
-            </span>
-            <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-              <MapPin className="size-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">
-                {spkl.location.address || "Titik lokasi kerja"}
-              </span>
-            </span>
-            <span className="hidden text-xs text-muted-foreground md:block">
-              {spkl.number}
-            </span>
-          </div>
-          {myAttendance ? (
-            <AttendanceBadge
-              status={myAttendance.status}
-              checkOutAt={myAttendance.checkOutAt}
-            />
-          ) : (
-            <SpklStatusBadge status={status} />
-          )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
-            {formatDateHuman(spkl.startAt, "d MMM yyyy")}
-          </span>
-          <span className="tabular-nums">
-            {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)}{" "}
-            {currentTimeZoneLabel()}
-          </span>
-          <span className="inline-flex items-center gap-1 tabular-nums">
-            <TimerReset className="size-4 shrink-0" aria-hidden="true" />
-            <span className="sr-only">Durasi </span>
-            {myAttendance?.status === "ditutup_otomatis" &&
-            !myAttendance.checkOutAt
-              ? "Belum pulang"
-              : durationLabel(myAttendance?.durationMinutes ?? null)}
-          </span>
-          <span className="text-xs tabular-nums md:hidden">{spkl.number}</span>
-        </div>
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          {creator ? (
-            <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-              <Avatar name={creator.name} seed={creator.id} size="xs" />
-              <span className="truncate">
-                <span className="sr-only">PIC </span>
-                {creator.name}
-              </span>
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground">Tanpa PIC</span>
-          )}
-          <span className="inline-flex shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">
-            <Camera className="size-4" aria-hidden="true" />
-            {documentationCount} foto
-            <ChevronRight className="size-4" aria-hidden="true" />
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
 
 export function HistoryView({ overview }: { overview: WorkerOverview }) {
   const [filter, setFilter] = useState<"semua" | SpklStatus>("semua");
@@ -316,9 +228,9 @@ export function HistoryView({ overview }: { overview: WorkerOverview }) {
                     {items.length} SPKL
                   </span>
                 </div>
-                <div className="flex flex-col divide-y divide-border/70">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {items.map((item) => (
-                    <HistoryRow key={item.spkl.id} item={item} />
+                    <SpklCard key={item.spkl.id} item={item} context="worker" />
                   ))}
                 </div>
               </section>

@@ -21,6 +21,7 @@ import {
   Send,
   Settings2,
   ShieldCheck,
+  StickyNote,
   UserRound,
   X,
 } from "lucide-react";
@@ -77,6 +78,7 @@ const OBJECT_LABEL: Record<AuditType, string> = {
   tindak_lanjut: "Tindak lanjut",
   pekerjaan: "Pekerjaan harian",
   dokumen: "Dokumen kerja",
+  catatan: "Catatan",
 };
 
 const OBJECT_VARIANT = {
@@ -90,6 +92,7 @@ const OBJECT_VARIANT = {
   tindak_lanjut: "info-light",
   pekerjaan: "warning-light",
   dokumen: "info-light",
+  catatan: "primary-light",
 } as const;
 
 const OBJECT_ICON_TONE = {
@@ -103,6 +106,7 @@ const OBJECT_ICON_TONE = {
   tindak_lanjut: "text-info",
   pekerjaan: "text-warning",
   dokumen: "text-info",
+  catatan: "text-primary",
 } as const;
 
 const ACTION_LABEL: Record<string, string> = {
@@ -172,6 +176,8 @@ const ACTION_LABEL: Record<string, string> = {
   folder_dokumen_berbagi_diubah: "Berbagi folder diubah",
   pengaturan_dokumen_diubah: "Pengaturan dokumen diubah",
   pengaturan_batas_foto_diubah: "Batas foto diubah",
+  catatan_dibuat: "Catatan dibuat",
+  catatan_dihapus: "Catatan dihapus",
 };
 
 const OBJECT_ICON = {
@@ -185,6 +191,7 @@ const OBJECT_ICON = {
   tindak_lanjut: ListChecks,
   pekerjaan: Hammer,
   dokumen: FolderLock,
+  catatan: StickyNote,
 } as const;
 
 const NOTIFICATION_LABEL: Record<NotificationLog["type"], string> = {

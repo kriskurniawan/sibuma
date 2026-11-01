@@ -4,11 +4,21 @@ import {
   Camera,
   ChevronRight,
   MapPin,
+  TimerReset,
   UsersRound,
 } from "lucide-react";
-import { Badge, Avatar, SpklStatusBadge } from "@/components/ui";
+import {
+  AttendanceBadge,
+  Avatar,
+  SpklStatusBadge,
+} from "@/components/ui";
 import { Frame, FramePanel } from "@/components/reui/frame";
-import { currentTimeZoneLabel, dayLabel, formatTime } from "@/lib/time";
+import {
+  currentTimeZoneLabel,
+  durationLabel,
+  formatDateHuman,
+  formatTime,
+} from "@/lib/time";
 import type { SpklListItem } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -23,16 +33,6 @@ export function SpklCard({
 }) {
   const { spkl, status, workers, documentationCount, creator } = item;
   const attendance = item.myAttendance;
-  const attendanceHint =
-    context !== "worker"
-      ? null
-      : attendance?.status === "berjalan"
-        ? "Sesi aktif"
-        : item.canCheckIn && !attendance
-          ? status === "terjadwal"
-            ? "Absen dibuka"
-            : "Belum absen"
-          : null;
 
   return (
     <Link
@@ -57,19 +57,34 @@ export function SpklCard({
                 </span>
               </span>
             </div>
-            <SpklStatusBadge status={status} />
+            {attendance ? (
+              <AttendanceBadge
+                status={attendance.status}
+                checkOutAt={attendance.checkOutAt}
+              />
+            ) : (
+              <SpklStatusBadge status={status} />
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1 tabular-nums">
               <CalendarDays className="size-4 shrink-0" aria-hidden="true" />
-              {dayLabel(spkl.startAt)}, {formatTime(spkl.startAt)}–
-              {formatTime(spkl.endAt)} {currentTimeZoneLabel()}
+              {formatDateHuman(spkl.startAt, "d MMM yyyy")}
             </span>
-            {attendanceHint && (
-              <Badge variant="warning-light" dot>
-                {attendanceHint}
-              </Badge>
+            <span className="tabular-nums">
+              {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)}{" "}
+              {currentTimeZoneLabel()}
+            </span>
+            {attendance && (
+              <span className="inline-flex items-center gap-1 tabular-nums">
+                <TimerReset className="size-4 shrink-0" aria-hidden="true" />
+                <span className="sr-only">Durasi </span>
+                {attendance.status === "ditutup_otomatis" &&
+                !attendance.checkOutAt
+                  ? "Belum pulang"
+                  : durationLabel(attendance.durationMinutes)}
+              </span>
             )}
             <span className="text-xs tabular-nums">{spkl.number}</span>
           </div>
@@ -87,11 +102,13 @@ export function SpklCard({
               <span className="text-xs text-muted-foreground">Tanpa PIC</span>
             )}
             <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground tabular-nums">
-              <span className="inline-flex items-center gap-1">
-                <UsersRound className="size-4" aria-hidden="true" />
-                {workers.length}
-                <span className="sr-only"> pekerja</span>
-              </span>
+              {context !== "worker" && (
+                <span className="inline-flex items-center gap-1">
+                  <UsersRound className="size-4" aria-hidden="true" />
+                  {workers.length}
+                  <span className="sr-only"> pekerja</span>
+                </span>
+              )}
               <span className="inline-flex items-center gap-1">
                 <Camera className="size-4" aria-hidden="true" />
                 {documentationCount}
