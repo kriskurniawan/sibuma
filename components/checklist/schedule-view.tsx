@@ -63,9 +63,14 @@ import {
   type ChecklistTemplateItem,
 } from "@/lib/checklist-types";
 import {
+  checklistDueFor,
   checklistIntervalLabel,
+  checklistOpensAt,
   checklistScheduleDaysSummary,
   resolvedScheduleDays,
+  scheduleDayFor,
+  scheduleOccurrences,
+  shiftDate,
   weekdayOf,
 } from "@/lib/checklist-schedule";
 import { formatDateHuman, todayLocal } from "@/lib/time";
@@ -612,6 +617,29 @@ function ScheduleDialog({
       .sort((left, right) => left.path.localeCompare(right.path, "id"));
   }, [effectiveLocationId, leafLocations, setup.locations]);
 
+  const scheduleWindowPreview = useMemo(() => {
+    const resolved = resolvedScheduleDays(days);
+    const from = todayLocal();
+    const [nextDate] = scheduleOccurrences(
+      {
+        anchorDate,
+        intervalUnit,
+        intervalCount,
+        active: true,
+        days: resolved,
+      },
+      from,
+      shiftDate(from, 366),
+    );
+    if (!nextDate) return null;
+    const day = scheduleDayFor(resolved, nextDate);
+    if (!day?.enabled) return null;
+    return {
+      opensAt: checklistOpensAt(nextDate, day.startTime),
+      dueAt: checklistDueFor(nextDate, dueDays, resolved).dueAt,
+    };
+  }, [anchorDate, days, dueDays, intervalCount, intervalUnit]);
+
   const divisionGroups = useMemo(
     () => groupEmployeesByDivision(setup.employees),
     [setup.employees],
@@ -1085,8 +1113,9 @@ function ScheduleDialog({
         </div>
 
         <p className="text-xs text-muted-foreground">
-          {checklistIntervalLabel(intervalUnit, intervalCount)}; deadline +{dueDays} hari.
-          Jadwal berikutnya tetap meski terlambat. Tanggal 29–31 mengikuti akhir bulan.
+          {checklistIntervalLabel(intervalUnit, intervalCount)}; deadline +{dueDays} hari
+          (hari libur dilewati). Jadwal berikutnya tetap meski terlambat. Tanggal
+          29–31 mengikuti akhir bulan.
         </p>
 
         <div className="flex flex-col gap-2">
@@ -1194,6 +1223,36 @@ function ScheduleDialog({
           <p className="text-xs text-muted-foreground">
             {checklistScheduleDaysSummary(days)}
           </p>
+          {scheduleWindowPreview && (
+            <div className="flex flex-col gap-1 rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">
+                Jendela berikutnya
+              </span>
+              <span className="inline-flex flex-wrap items-center gap-1.5">
+                <Clock3 className="size-3.5 shrink-0" aria-hidden="true" />
+                Buka
+                <span className="font-medium text-foreground">
+                  {formatDateHuman(
+                    scheduleWindowPreview.opensAt,
+                    "EEEE, d MMM yyyy, HH:mm",
+                  )}
+                </span>
+              </span>
+              <span className="inline-flex flex-wrap items-center gap-1.5">
+                <CalendarClock
+                  className="size-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                Deadline
+                <span className="font-medium text-foreground">
+                  {formatDateHuman(
+                    scheduleWindowPreview.dueAt,
+                    "EEEE, d MMM yyyy, HH:mm",
+                  )}
+                </span>
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2">

@@ -39,11 +39,15 @@ export default function DokumenLoading() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
-        <Frame className="order-2 min-w-0 max-md:order-1 xl:order-1">
+        <Frame
+          stacked
+          spacing="sm"
+          className="order-2 min-w-0 max-md:order-1 xl:order-1"
+        >
           <FrameHeader className="flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="hidden flex-col gap-1 md:flex">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-44" />
+            <div className="flex min-w-0 flex-col gap-1">
+              <Skeleton className="hidden h-4 w-32 md:block" />
+              <Skeleton className="h-3 w-44 max-w-full" />
             </div>
             <Skeleton className="h-8 w-72 max-w-full rounded-lg" />
           </FrameHeader>
@@ -51,6 +55,10 @@ export default function DokumenLoading() {
             <Skeleton className="h-9 w-full rounded-md" />
           </FramePanel>
           <FramePanel className="divide-y divide-border/70 p-0">
+            <div className="flex items-center justify-between gap-3 bg-muted/40 px-4 py-2.5 md:hidden">
+              <Skeleton className="h-3 w-44 max-w-full" />
+              <Skeleton className="size-4 shrink-0 rounded-sm" />
+            </div>
             {Array.from({ length: 6 }, (_, index) => (
               <DocumentRowSkeleton key={index} />
             ))}

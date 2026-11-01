@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -225,6 +225,7 @@ export function DocumentList({
   tab,
   readOnly,
   trashRetentionDays,
+  mobileFab,
 }: {
   rows: WorkDocumentRow[];
   total: number;
@@ -232,6 +233,8 @@ export function DocumentList({
   tab: WorkDocumentTab;
   readOnly: boolean;
   trashRetentionDays: number;
+  /** Aksi unggah melayang; hanya tampil saat belum ada dokumen terpilih. */
+  mobileFab?: ReactNode;
 }) {
   const router = useRouter();
   const actionOptions = BULK_ACTIONS[tab];
@@ -260,6 +263,7 @@ export function DocumentList({
 
   const selectedRows = table.getSelectedRowModel().rows;
   const selectedCount = selectedRows.length;
+  const allPageRowsSelected = table.getIsAllPageRowsSelected();
   const currentAction = actionOptions.find(
     (option) => option.value === bulkAction,
   );
@@ -409,6 +413,14 @@ export function DocumentList({
         </DataGridContainer>
 
         <div className="divide-y divide-border/70 md:hidden">
+          {selectable ? (
+            <div className="flex items-center justify-between gap-3 bg-muted/40 px-4 py-2.5">
+              <span className="text-xs font-medium text-muted-foreground">
+                Pilih semua di halaman ini
+              </span>
+              <DataGridTableRowSelectAll />
+            </div>
+          ) : null}
           {rows.map((row) => {
             const tableRow = table.getRow(row.id);
             const selected = Boolean(rowSelection[row.id]);
@@ -487,6 +499,17 @@ export function DocumentList({
             clearLabel="Bersihkan"
             onClear={() => setBulkAction("")}
           >
+            {!allPageRowsSelected && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                onClick={() => table.toggleAllPageRowsSelected(true)}
+              >
+                Pilih semua
+              </Button>
+            )}
             {bulkControls}
           </DataGridSelectionBar>
         </div>
@@ -501,6 +524,8 @@ export function DocumentList({
           </DataGridSelectionBar>
         </div>
       </DataGrid>
+
+      {selectedCount === 0 ? mobileFab : null}
 
       <AlertDialog
         open={confirmOpen}

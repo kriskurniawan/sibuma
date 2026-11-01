@@ -131,6 +131,18 @@ export default async function DocumentsPage({
         />
       </div>
     ) : undefined;
+  const mobileUploadFab =
+    storageReady && !readOnly ? (
+      <DocumentUploadDialog
+        trigger="fab"
+        settings={settings}
+        usedBytes={usage.usedBytes}
+        folders={folders}
+        currentFolderId={
+          typeof folderFilter === "string" ? folderFilter : null
+        }
+      />
+    ) : null;
   const ownEmptyAction = readOnly ? (
     <Button
       size="sm"
@@ -289,6 +301,7 @@ export default async function DocumentsPage({
                 tab={tab}
                 readOnly={readOnly}
                 trashRetentionDays={settings.trashRetentionDays}
+                mobileFab={mobileUploadFab}
               />
             )}
           </FramePanel>
@@ -317,17 +330,7 @@ export default async function DocumentsPage({
         </div>
       </div>
 
-      {storageReady && !readOnly && (
-        <DocumentUploadDialog
-          trigger="fab"
-          settings={settings}
-          usedBytes={usage.usedBytes}
-          folders={folders}
-          currentFolderId={
-            typeof folderFilter === "string" ? folderFilter : null
-          }
-        />
-      )}
+      {data.rows.length === 0 ? mobileUploadFab : null}
     </div>
   );
 }

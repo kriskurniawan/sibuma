@@ -125,6 +125,31 @@ export function checklistDueAt(
 }
 
 /**
+ * Tenggat mengikuti hari aktif jadwal. `dueDays` tetap dihitung sebagai hari
+ * kalender, lalu hari libur dilewati agar deadline tidak pernah jatuh pada hari
+ * nonaktif. Jam selesai diambil dari hari tenggat, bukan hari occurrence.
+ */
+export function checklistDueFor(
+  occurrenceDate: string,
+  dueDays: number,
+  days: ChecklistScheduleDay[] | null | undefined,
+) {
+  const resolved = resolvedScheduleDays(days);
+  let dueDate = shiftDate(occurrenceDate, Math.max(0, Math.trunc(dueDays)));
+  let endTime = "23:59";
+  // Bounded so a schedule with no active day cannot loop forever.
+  for (let step = 0; step < 366; step += 1) {
+    const day = resolved[weekdayOf(dueDate) - 1];
+    if (day?.enabled) {
+      endTime = day.endTime;
+      break;
+    }
+    dueDate = shiftDate(dueDate, 1);
+  }
+  return { dueDate, endTime, dueAt: checklistDueAt(dueDate, 0, endTime) };
+}
+
+/**
  * Pemeriksaan dibuat beberapa hari lebih awal agar terlihat di daftar, tetapi
  * baru boleh diisi sejak jam mulai jadwal pada tanggal occurrence tiba.
  */

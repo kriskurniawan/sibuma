@@ -4,7 +4,7 @@ import type { QueryResultRow } from "pg";
 import {
   CHECKLIST_GENERATION_DAYS_AHEAD,
   CHECKLIST_GENERATION_DAYS_BACK,
-  checklistDueAt,
+  checklistDueFor,
   checklistIntervalLabel,
   checklistOpensAt,
   resolvedScheduleDays,
@@ -225,7 +225,7 @@ export async function generateChecklistInspections(ownerId: string) {
       if (!day?.enabled) continue;
 
       const opensAt = checklistOpensAt(date, day.startTime);
-      const dueAt = checklistDueAt(date, schedule.due_days, day.endTime);
+      const dueAt = checklistDueFor(date, schedule.due_days, scheduleDays).dueAt;
       const base = {
         scheduleId: schedule.id,
         templateId: schedule.template_id,
