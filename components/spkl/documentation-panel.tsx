@@ -124,6 +124,7 @@ export function DocumentationPanel({
     null,
   );
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [deleteTarget, setDeleteTarget] =
     useState<DocumentationWithEmployee | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -451,6 +452,37 @@ export function DocumentationPanel({
       toast.error(`Gagal menghapus ${label}. Coba lagi.`);
     } finally {
       setDeleting(false);
+    }
+  }
+
+  async function downloadPhoto() {
+    if (!selectedPhoto || downloading) return;
+    setDownloading(true);
+    try {
+      const response = await fetch(
+        `${documentSrc(selectedPhoto.storageKey)}?download=1`,
+      );
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        toast.error(data?.message ?? "Gagal mengunduh foto.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = selectedPhoto.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      toast.success("Foto dokumentasi diunduh.");
+    } catch {
+      toast.error("Gagal mengunduh foto. Periksa koneksi.");
+    } finally {
+      setDownloading(false);
     }
   }
 
@@ -973,16 +1005,20 @@ export function DocumentationPanel({
                   variant="ghost"
                   size="icon-lg"
                   className="text-white hover:bg-white/10 hover:text-white"
-                  nativeButton={false}
-                  render={
-                    <a
-                      href={`${documentSrc(selectedPhoto.storageKey)}?download=1`}
-                      download={selectedPhoto.fileName}
-                    />
+                  onClick={downloadPhoto}
+                  disabled={downloading}
+                  aria-busy={downloading}
+                  aria-label={
+                    downloading
+                      ? "Sedang mengunduh foto dokumentasi"
+                      : "Unduh foto dokumentasi"
                   }
-                  aria-label="Unduh foto dokumentasi"
                 >
-                  <Download aria-hidden="true" />
+                  {downloading ? (
+                    <Spinner aria-label="Mengunduh foto" />
+                  ) : (
+                    <Download aria-hidden="true" />
+                  )}
                 </Button>
                 <Button
                   type="button"

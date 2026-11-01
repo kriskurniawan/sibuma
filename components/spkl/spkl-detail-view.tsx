@@ -10,7 +10,6 @@ import {
   Camera,
   CheckCircle2,
   Clock3,
-  Info,
   LogIn,
   LogOut,
   MapPin,
@@ -740,15 +739,6 @@ export function SpklDetailView({
               </FramePanel>
             </Frame>
           )}
-
-          <div className="flex items-start gap-2 px-1 text-xs leading-relaxed text-muted-foreground">
-            <Info className="mt-0.5 size-3.5 shrink-0" />
-            <p>
-              Data pribadi, koordinat, dan dokumentasi hanya dapat diakses
-              pekerja pada SPKL ini serta atasan pembuatnya. Setiap tindakan
-              tercatat di audit log.
-            </p>
-          </div>
         </aside>
       </div>
 
