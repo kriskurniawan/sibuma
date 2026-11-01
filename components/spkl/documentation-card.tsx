@@ -55,7 +55,7 @@ export function DocumentationCard({
         ) : (
           <img
             src={documentSrc(doc.storageKey)}
-            alt={doc.description}
+            alt={doc.description || "Dokumentasi pekerjaan"}
             className="size-full object-cover transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.02] motion-reduce:transform-none"
             loading="lazy"
           />
@@ -87,8 +87,15 @@ export function DocumentationCard({
             {spkl.title}
           </p>
         )}
-        <p className="line-clamp-2 text-sm font-medium leading-relaxed text-foreground">
-          {doc.description}
+        <p
+          className={cn(
+            "line-clamp-2 text-sm leading-relaxed",
+            doc.description
+              ? "font-medium text-foreground"
+              : "italic text-muted-foreground",
+          )}
+        >
+          {doc.description || "Tanpa deskripsi"}
         </p>
         <div className="mt-1 flex items-center gap-2">
           {employee && (

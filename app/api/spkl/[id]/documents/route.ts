@@ -102,9 +102,6 @@ export async function POST(
   if (!(file instanceof File)) {
     return apiError("Pilih foto yang akan diunggah.");
   }
-  if (description.length < 3) {
-    return apiError("Tambahkan deskripsi minimal 3 karakter.");
-  }
   if (description.length > 600) {
     return apiError("Deskripsi maksimal 600 karakter.");
   }

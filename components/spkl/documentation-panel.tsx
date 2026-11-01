@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import {
   Camera,
   Clock3,
+  Download,
   ImagePlus,
   MapPin,
   ShieldCheck,
+  Trash2,
   UploadCloud,
   X,
 } from "lucide-react";
@@ -30,7 +32,23 @@ import {
 import { IconTile } from "@/components/reui/icon-tile";
 import { DocumentationCard } from "@/components/spkl/documentation-card";
 import { Avatar, Badge, EmptyState } from "@/components/ui";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -59,6 +77,8 @@ interface DocumentationPanelProps {
   spklNumber: string;
   documents: DocumentationWithEmployee[];
   canUpload: boolean;
+  canDeleteDocuments: boolean;
+  currentUserId: string;
   uploadBlockedReason?: string;
   maxUploads: number;
   remainingUploads: number;
@@ -86,6 +106,8 @@ export function DocumentationPanel({
   spklNumber,
   documents,
   canUpload,
+  canDeleteDocuments,
+  currentUserId,
   uploadBlockedReason,
   maxUploads,
   remainingUploads,
@@ -101,6 +123,10 @@ export function DocumentationPanel({
   const [selected, setSelected] = useState<DocumentationWithEmployee | null>(
     null,
   );
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] =
+    useState<DocumentationWithEmployee | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [queue, setQueue] = useState<PendingDocumentation[]>([]);
   const [description, setDescription] = useState("");
   const [location, setLocation] = useState<GeoPoint | null>(null);
@@ -312,10 +338,6 @@ export function DocumentationPanel({
       setError("Pilih minimal satu foto terlebih dahulu.");
       return;
     }
-    if (description.trim().length < 3) {
-      setError("Tambahkan deskripsi minimal 3 karakter.");
-      return;
-    }
     if (snapshot.length > remainingUploads) {
       setError(
         `Hanya ${remainingUploads} foto lagi yang dapat diunggah pada sesi ini.`,
@@ -398,12 +420,61 @@ export function DocumentationPanel({
     if (success > 0) router.refresh();
   }
 
+  async function removeDocumentation() {
+    if (!deleteTarget) return;
+    const isVideo =
+      deleteTarget.kind === "video" ||
+      deleteTarget.mimeType.startsWith("video/");
+    const label = isVideo ? "video" : "foto";
+    setDeleting(true);
+    try {
+      const response = await fetch(
+        `/api/spkl/${spklId}/documents/${deleteTarget.id}`,
+        { method: "DELETE" },
+      );
+      const data = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+      };
+      if (!response.ok || !data.ok) {
+        toast.error(data.message ?? `Gagal menghapus ${label}.`);
+        return;
+      }
+      toast.success(
+        isVideo ? "Video dokumentasi dihapus." : "Foto dokumentasi dihapus.",
+      );
+      setPhotoOpen(false);
+      setSelected(null);
+      setDeleteTarget(null);
+      router.refresh();
+    } catch {
+      toast.error(`Gagal menghapus ${label}. Coba lagi.`);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const remainingSlots = Math.max(0, remainingUploads - queue.length);
   const exifLocationCount = queue.filter((photo) => photo.exifLocation).length;
   const photoItems = documents.filter((doc) => doc.kind !== "video");
   const videoItems = documents.filter((doc) => doc.kind === "video");
   const photoAtLimit = remainingUploads <= 0;
   const videoAvailable = videoEnabled && videoLimit > 0;
+  const selectedIsVideo = Boolean(
+    selected &&
+      (selected.kind === "video" || selected.mimeType.startsWith("video/")),
+  );
+  const selectedPhoto = selected && !selectedIsVideo ? selected : null;
+  const canDeleteSelected = Boolean(
+    selected &&
+      canDeleteDocuments &&
+      selected.employeeId === currentUserId,
+  );
+  const deleteTargetIsVideo = Boolean(
+    deleteTarget &&
+      (deleteTarget.kind === "video" ||
+        deleteTarget.mimeType.startsWith("video/")),
+  );
 
   return (
     <Frame id="dokumentasi">
@@ -488,7 +559,12 @@ export function DocumentationPanel({
                 key={doc.id}
                 doc={doc}
                 employee={doc.employee}
-                onClick={() => setSelected(doc)}
+                onClick={() => {
+                  setSelected(doc);
+                  setPhotoOpen(
+                    doc.kind !== "video" && !doc.mimeType.startsWith("video/"),
+                  );
+                }}
               />
             ))}
           </div>
@@ -668,17 +744,15 @@ export function DocumentationPanel({
                 {processingLabel ?? "Mencetak cap waktu…"}
               </p>
             )}
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              JPG, PNG, atau WEBP, otomatis dikompresi hingga{" "}
-              {fileSizeLabel(maxBytes)}. Foto kamera memakai waktu tombol ambil;
-              foto galeri memakai EXIF bila tersedia, jika tidak waktu unggah
-              dicetak dan ditandai &quot;Diunggah&quot;. Waktu unggah di server
-              tetap disimpan terpisah untuk audit.
-            </p>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="doc-description">Deskripsi pekerjaan</Label>
+            <Label htmlFor="doc-description">
+              Deskripsi pekerjaan{" "}
+              <span className="font-normal text-muted-foreground">
+                (opsional)
+              </span>
+            </Label>
             <Textarea
               id="doc-description"
               value={description}
@@ -772,13 +846,13 @@ export function DocumentationPanel({
       </Modal>
 
       <Modal
-        open={Boolean(selected)}
+        open={selectedIsVideo}
         onClose={() => setSelected(null)}
         title="Detail dokumentasi"
-        description={selected ? selected.description : undefined}
+        description={selected?.description || undefined}
         size="xl"
         footer={
-          selected ? (
+          selectedIsVideo && selected ? (
             <div className="flex w-full flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Avatar
@@ -791,65 +865,63 @@ export function DocumentationPanel({
                     {selected.employee?.name ?? "Pekerja"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {selected.kind === "video" ? "Diunggah" : "Waktu foto"}{" "}
-                    {formatDateHuman(selected.takenAt, "d MMM yyyy")} ·{" "}
-                    {formatTime(selected.takenAt)} {currentTimeZoneLabel()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
                     Diunggah {formatDateHuman(selected.createdAt, "d MMM yyyy")} ·{" "}
                     {formatTime(selected.createdAt)}{" "}
                     {currentTimeZoneLabel()}
                   </p>
                 </div>
               </div>
-              {selected.location && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  nativeButton={false}
-                  render={
-                    <a
-                      href={`https://www.openstreetmap.org/?mlat=${selected.location.latitude}&mlon=${selected.location.longitude}#map=17/${selected.location.latitude}/${selected.location.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    />
-                  }
-                >
-                  <MapPin />
-                  Buka lokasi
-                </Button>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {selected.location && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    nativeButton={false}
+                    render={
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${selected.location.latitude}&mlon=${selected.location.longitude}#map=17/${selected.location.latitude}/${selected.location.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    }
+                  >
+                    <MapPin />
+                    Buka lokasi
+                  </Button>
+                )}
+                {canDeleteSelected && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteTarget(selected)}
+                  >
+                    <Trash2 aria-hidden="true" />
+                    Hapus video
+                  </Button>
+                )}
+              </div>
             </div>
           ) : undefined
         }
       >
-        {selected && (
+        {selectedIsVideo && selected && (
           <div className="flex flex-col gap-3">
             <div className="overflow-hidden rounded-lg bg-muted">
-              {selected.kind === "video" ? (
-                <video
-                  src={documentSrc(selected.storageKey)}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  className="max-h-[60vh] w-full rounded-lg bg-black"
-                />
-              ) : (
-                <img
-                  src={documentSrc(selected.storageKey)}
-                  alt={selected.description}
-                  className="max-h-[60vh] w-full object-contain"
-                />
-              )}
+              <video
+                src={documentSrc(selected.storageKey)}
+                controls
+                playsInline
+                preload="metadata"
+                className="max-h-[60vh] w-full rounded-lg bg-black"
+              />
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge variant="outline">
                 {fileSizeLabel(selected.sizeBytes)}
               </Badge>
               <Badge variant="outline">
-                {selected.kind === "video"
-                  ? `Video · ${formatVideoDuration(selected.durationSeconds) ?? "durasi tidak tercatat"}`
-                  : selected.mimeType.replace("image/", "").toUpperCase()}
+                {`Video · ${formatVideoDuration(selected.durationSeconds) ?? "durasi tidak tercatat"}`}
               </Badge>
               {selected.location && (
                 <Badge variant="outline">
@@ -858,12 +930,200 @@ export function DocumentationPanel({
                 </Badge>
               )}
             </div>
-            <p className="rounded-md bg-muted/50 px-3.5 py-3 text-sm leading-relaxed text-foreground">
-              {selected.description}
-            </p>
+            {selected.description ? (
+              <p className="rounded-md bg-muted/50 px-3.5 py-3 text-sm leading-relaxed text-foreground">
+                {selected.description}
+              </p>
+            ) : (
+              <p className="rounded-md bg-muted/50 px-3.5 py-3 text-sm italic leading-relaxed text-muted-foreground">
+                Tanpa deskripsi
+              </p>
+            )}
           </div>
         )}
       </Modal>
+
+      <Dialog
+        open={photoOpen && Boolean(selectedPhoto)}
+        onOpenChange={(open) => {
+          if (!open) setPhotoOpen(false);
+        }}
+      >
+        <DialogContent
+          showCloseButton={false}
+          className="top-0 left-0 z-[1000000000] flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-black p-0 text-white ring-0 outline-none sm:max-w-none"
+        >
+          {selectedPhoto && (
+            <>
+              <div className="flex shrink-0 items-start gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <DialogTitle className="truncate text-sm text-white">
+                    Dokumentasi pekerjaan
+                  </DialogTitle>
+                  <DialogDescription className="truncate text-xs text-white/70">
+                    {selectedPhoto.employee?.name ?? "Pekerja"} ·{" "}
+                    {formatDateHuman(
+                      selectedPhoto.takenAt,
+                      "d MMM yyyy, HH.mm",
+                    )}
+                  </DialogDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  className="text-white hover:bg-white/10 hover:text-white"
+                  nativeButton={false}
+                  render={
+                    <a
+                      href={`${documentSrc(selectedPhoto.storageKey)}?download=1`}
+                      download={selectedPhoto.fileName}
+                    />
+                  }
+                  aria-label="Unduh foto dokumentasi"
+                >
+                  <Download aria-hidden="true" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  onClick={() => setPhotoOpen(false)}
+                  aria-label="Tutup pratinjau foto"
+                  className="text-white hover:bg-white/10 hover:text-white"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+
+              <div
+                className="flex min-h-0 flex-1 items-center justify-center p-2"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) setPhotoOpen(false);
+                }}
+              >
+                <img
+                  src={documentSrc(selectedPhoto.storageKey)}
+                  alt={selectedPhoto.description || "Dokumentasi pekerjaan"}
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+
+              <div className="shrink-0 border-t border-white/10 bg-black/80 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div className="flex flex-col gap-2">
+                  <p
+                    className={
+                      selectedPhoto.description
+                        ? "text-sm leading-relaxed text-white"
+                        : "text-sm italic leading-relaxed text-white/60"
+                    }
+                  >
+                    {selectedPhoto.description || "Tanpa deskripsi"}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
+                    <span className="font-medium text-white">
+                      {selectedPhoto.employee?.name ?? "Pekerja"}
+                    </span>
+                    <span>
+                      Diambil{" "}
+                      {formatDateHuman(
+                        selectedPhoto.takenAt,
+                        "d MMM yyyy, HH.mm",
+                      )}{" "}
+                      {currentTimeZoneLabel()}
+                    </span>
+                    <span>
+                      Diunggah{" "}
+                      {formatDateHuman(
+                        selectedPhoto.createdAt,
+                        "d MMM yyyy, HH.mm",
+                      )}{" "}
+                      {currentTimeZoneLabel()}
+                    </span>
+                    <span className="tabular-nums">
+                      {fileSizeLabel(selectedPhoto.sizeBytes)}
+                    </span>
+                    <span>
+                      {selectedPhoto.mimeType
+                        .replace("image/", "")
+                        .toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {selectedPhoto.location && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        nativeButton={false}
+                        className="w-fit text-white hover:bg-white/10 hover:text-white"
+                        render={
+                          <a
+                            href={`https://www.openstreetmap.org/?mlat=${selectedPhoto.location.latitude}&mlon=${selectedPhoto.location.longitude}#map=17/${selectedPhoto.location.latitude}/${selectedPhoto.location.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        }
+                      >
+                        <MapPin aria-hidden="true" />
+                        {selectedPhoto.location.latitude.toFixed(5)},{" "}
+                        {selectedPhoto.location.longitude.toFixed(5)} · Buka
+                        lokasi
+                      </Button>
+                    )}
+                    {canDeleteSelected && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-fit text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => {
+                          setDeleteTarget(selectedPhoto);
+                          setPhotoOpen(false);
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        Hapus foto
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Hapus {deleteTargetIsVideo ? "video" : "foto"} dokumentasi ini?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTargetIsVideo ? "Video" : "Foto"} akan dihapus dari
+              dokumentasi SPKL dan penyimpanan privat. Tindakan ini tidak dapat
+              dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={removeDocumentation}
+              disabled={deleting}
+            >
+              {deleting
+                ? "Menghapus…"
+                : `Hapus ${deleteTargetIsVideo ? "video" : "foto"}`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <CameraCaptureDialog
         open={cameraOpen}

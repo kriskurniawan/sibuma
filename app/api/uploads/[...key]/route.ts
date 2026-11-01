@@ -16,7 +16,7 @@ const CONTENT_TYPES: Record<string, string> = {
 };
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ key: string[] }> },
 ) {
   const user = await getCurrentUser();
@@ -24,6 +24,8 @@ export async function GET(
 
   const { key } = await params;
   const storageKey = key.join("/");
+  const wantsDownload =
+    new URL(request.url).searchParams.get("download") === "1";
 
   // Seed objects can be shared by several documentation rows. Authorize any
   // matching accessible row, not merely whichever row the database returns first.
@@ -68,7 +70,7 @@ export async function GET(
         ),
         // Documentation can contain faces, locations, and work evidence.
         "Cache-Control": "private, no-store",
-        "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(doc.fileName)}`,
+        "Content-Disposition": `${wantsDownload ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(doc.fileName)}`,
         "X-Content-Type-Options": "nosniff",
       },
     });

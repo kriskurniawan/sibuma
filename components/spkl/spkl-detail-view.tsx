@@ -14,7 +14,6 @@ import {
   LogIn,
   LogOut,
   MapPin,
-  Navigation,
   Ruler,
   ShieldCheck,
   UsersRound,
@@ -503,7 +502,7 @@ export function SpklDetailView({
           )}
 
           <Frame>
-            <FrameHeader className="flex-row flex-wrap items-start justify-between gap-3">
+            <FrameHeader>
               <div className="flex min-w-0 flex-col gap-1">
                 <FrameTitle>Titik absen & radius</FrameTitle>
                 <FrameDescription className="text-xs">
@@ -511,21 +510,6 @@ export function SpklDetailView({
                     `${spkl.location.latitude}, ${spkl.location.longitude}`}
                 </FrameDescription>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={`https://www.openstreetmap.org/?mlat=${spkl.location.latitude}&mlon=${spkl.location.longitude}#map=17/${spkl.location.latitude}/${spkl.location.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  />
-                }
-              >
-                <Navigation />
-                Petunjuk arah
-              </Button>
             </FrameHeader>
             <FramePanel className="flex flex-col gap-3">
               <div className="relative isolate h-[250px] w-full overflow-hidden rounded-lg bg-muted sm:h-[330px]">
@@ -568,6 +552,10 @@ export function SpklDetailView({
             spklNumber={spkl.number}
             documents={detail.documentation}
             canUpload={detail.canUpload}
+            canDeleteDocuments={
+              detail.canUpload && status !== "dibatalkan"
+            }
+            currentUserId={user.id}
             uploadBlockedReason={uploadBlockedReason}
             maxUploads={photoLimit}
             remainingUploads={Math.max(
