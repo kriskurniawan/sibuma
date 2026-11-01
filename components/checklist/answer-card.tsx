@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check, ImageIcon, ListChecks, Loader2 } from "lucide-react";
+import { AlertCircle, Check, ImageIcon, ListChecks, Loader2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -507,10 +507,11 @@ export function AnswerCard({
               <Button
                 type="button"
                 size="sm"
-                variant="ghost"
+                variant="destructive"
                 onClick={useServerVersion}
                 disabled={saving}
               >
+                <Undo2 aria-hidden="true" />
                 Batalkan draf
               </Button>
             )}
