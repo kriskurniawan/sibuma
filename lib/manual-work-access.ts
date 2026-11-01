@@ -1,4 +1,5 @@
 import "server-only";
+import { isObserver } from "./access";
 import { query, type Connection } from "./db";
 import { rowToCamel } from "./db-model";
 import type { ManualWork } from "./manual-work-types";
@@ -35,6 +36,8 @@ export async function canAccessManualWork(
   user: SessionUser,
   work: Pick<ManualWork, "id" | "ownerId" | "createdBy">,
 ) {
+  // Pengamat hanya-lihat membuka seluruh pekerjaan perusahaan, termasuk bukti.
+  if (isObserver(user)) return true;
   if (user.role === "atasan" && work.ownerId === user.id) return true;
   // Pelapor tetap dapat melihat laporan sendiri walau atasan sudah
   // menyesuaikan tim pelaksana.

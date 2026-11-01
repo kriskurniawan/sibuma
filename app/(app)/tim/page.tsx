@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { isReadOnly } from "@/lib/access";
+import { isReadOnly, readOwnerId } from "@/lib/access";
 import { SupervisorsView } from "@/components/supervisors/supervisors-view";
 import { TeamView } from "@/components/team/team-view";
 import { getCurrentUser } from "@/lib/auth";
@@ -24,8 +24,9 @@ export default async function TeamPage({ searchParams }: {
   const filters = { search: first(params.search) ?? "", division: first(params.division) ?? "semua",
     status: status === "aktif" || status === "nonaktif" ? status : "semua" } as const;
   const printing = first(params.print) === "1";
-  const team = await getTeamOverview(user.id, filters, printing ? undefined : pageRequest(first(params.page), first(params.size)));
-  const [divisions, totals] = await Promise.all([getDivisions(user.id), getTeamTotals(user.id)]);
+  const ownerId = readOwnerId(user);
+  const team = await getTeamOverview(ownerId, filters, printing ? undefined : pageRequest(first(params.page), first(params.size)));
+  const [divisions, totals] = await Promise.all([getDivisions(ownerId), getTeamTotals(ownerId)]);
   return <TeamView team={team.rows} total={team.total} pagination={team.pagination ?? { pageIndex: 0, pageSize: Math.max(10, team.total) }}
     totals={totals} filters={filters} printRows={printing ? team.rows : undefined} divisions={divisions}
     readOnly={isReadOnly(user)} />;

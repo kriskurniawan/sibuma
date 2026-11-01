@@ -143,7 +143,7 @@ export function ChecklistFollowUpUpdateDialog({
                 ? ` · Petugas safety ${row.followUp.safetyName}`
                 : ""}
               {row.followUp.dueDate
-                ? ` · Deadline ${formatDateTime(`${row.followUp.dueDate}T23:59:59+07:00`, "d MMM yyyy")}`
+                ? ` · Deadline ${formatDateTime(`${row.followUp.dueDate}T00:00:00+07:00`, "d MMM yyyy")}`
                 : ""}
             </p>
           </div>

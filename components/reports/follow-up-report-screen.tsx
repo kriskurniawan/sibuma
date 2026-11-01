@@ -23,6 +23,7 @@ import { FollowUpReportGrid } from "@/components/reports/follow-up-report-grid";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
 import { isSuperAdmin } from "@/lib/access";
+import { checklistReadOwner } from "@/lib/checklist-access";
 import {
   getChecklistFollowUpReportData,
   getChecklistReportOptions,
@@ -80,7 +81,7 @@ export async function FollowUpReportScreen({
   };
 
   const printing = first(params.print) === "1";
-  const ownerId = isSuperAdmin(user) ? null : user.id;
+  const ownerId = checklistReadOwner(user);
   const [data, options] = await Promise.all([
     getChecklistFollowUpReportData(
       ownerId,

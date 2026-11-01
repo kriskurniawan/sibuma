@@ -21,6 +21,7 @@ import {
   ChecklistOverdueBadge,
   ChecklistStatusBadge,
 } from "@/components/checklist/checklist-badges";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateTime, formatDateHuman } from "@/lib/time";
 import type {
   ChecklistInspectionRow,
@@ -74,6 +75,7 @@ function AssigneeStack({
             <Avatar
               name={person.name}
               seed={person.id}
+              src={avatarUrl(person.id, person.avatarKey)}
               size="xs"
               className="ring-2 ring-card"
             />

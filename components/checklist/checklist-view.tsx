@@ -158,7 +158,7 @@ export function ChecklistView({
           suffix="checklist"
           icon={ClipboardList}
           tone="primary"
-          helper="Belum dimulai atau sedang berlangsung"
+          helper="Belum diisi atau sedang berlangsung"
         />
         <StatCard
           label="Terlambat"

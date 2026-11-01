@@ -18,7 +18,7 @@ import { ReportPrintButton } from "@/components/reports/report-print-button";
 import { ChecklistReportScreen } from "@/components/reports/checklist-report-screen";
 import { FollowUpReportScreen } from "@/components/reports/follow-up-report-screen";
 import { ManualWorkReportScreen } from "@/components/reports/manual-work-report-screen";
-import { isSuperAdmin } from "@/lib/access";
+import { isSuperAdmin, readOwnerId } from "@/lib/access";
 import {
   Frame,
   FrameDescription,
@@ -104,7 +104,7 @@ export default async function ReportPage({
   };
 
   const printing = first(params.print) === "1";
-  const ownerId = isSuperAdmin(user) ? null : user.id;
+  const ownerId = readOwnerId(user);
   const [data, options] = await Promise.all([
     getReportData(ownerId, filters, printing ? undefined : pageRequest(first(params.page), first(params.size))),
     getReportOptions(ownerId),

@@ -1,8 +1,7 @@
-import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk } from "@/lib/http";
-import { notifySpkl } from "@/lib/notifications";
+import { enqueueSpklNotifications } from "@/lib/notification-outbox";
 import { mutateDb, pushAudit } from "@/lib/store";
 import { attendanceMinutes, spklStatus } from "@/lib/time";
 import type { Employee } from "@/lib/types";
@@ -92,16 +91,16 @@ export async function POST(
       });
 
       return { spkl: { ...spkl }, workers: workers as Employee[] };
-    });
-
-    after(async () => {
-      // `after` memastikan notifikasi tetap selesai di Vercel setelah respons dikirim.
-      await notifySpkl(
-        "spkl_dibatalkan",
-        result.spkl,
-        result.workers,
-        `Alasan: ${result.spkl.cancelReason ?? "Dibatalkan oleh atasan."}`,
-      ).catch(() => undefined);
+    }, {
+      afterPersist: async (connection, result) => {
+        await enqueueSpklNotifications(
+          connection,
+          "spkl_dibatalkan",
+          result.spkl,
+          result.workers,
+          `Alasan: ${result.spkl.cancelReason ?? "Dibatalkan oleh atasan."}`,
+        );
+      },
     });
 
     return apiOk({

@@ -1,8 +1,9 @@
 export type EmployeeRole = "pekerja" | "atasan" | "super_admin";
 
 /**
- * Atasan "read_only" hanya dapat melihat data timnya sendiri. Nilai ini tidak
- * mengubah cakupan data, hanya menghapus seluruh kemampuan menulis.
+ * Atasan "read_only" berperan sebagai pengamat: cakupan bacanya seluruh
+ * perusahaan, dan penulisan data operasional ditolak. Pengecualiannya QR area,
+ * karena QR pengamat hanya menerbitkan tautan publik lintas area.
  */
 export type AccessMode = "full" | "read_only";
 

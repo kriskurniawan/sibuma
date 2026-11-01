@@ -1,9 +1,11 @@
 import "server-only";
 
 import { randomBytes } from "node:crypto";
+import { isObserver } from "./access";
 import { query, transaction } from "./db";
 import { rowToCamel } from "./db-model";
 import { insertChecklistAudit } from "./checklist-audit";
+import { buildChecklistLocationOptions } from "./checklist-location-path";
 import { getChecklistLocationScope } from "./checklist-location-scope";
 import type {
   ChecklistLocation,
@@ -46,9 +48,15 @@ function qrTargetPath(code: Pick<ChecklistQrCode, "token" | "mode" | "locationId
 
 export { qrTargetPath };
 
+/**
+ * QR milik atasan biasa hanya mencakup areanya sendiri. Atasan pengamat
+ * membuat QR untuk seluruh area publik perusahaan, sehingga pilihan areanya
+ * lintas pemilik; QR tetap tercatat atas nama pembuatnya.
+ */
 export async function getChecklistQrSetup(
-  userId: string,
+  user: Pick<SessionUser, "id" | "role" | "accessMode">,
 ): Promise<ChecklistQrSetup> {
+  const companyWide = isObserver(user);
   const [codes, locations] = await Promise.all([
     query(
       `SELECT q.*,l.name location_name
@@ -56,19 +64,34 @@ export async function getChecklistQrSetup(
        LEFT JOIN checklist_locations l ON l.id=q.location_id
        WHERE q.owner_id=$1
        ORDER BY q.active DESC,q.created_at DESC,q.id`,
-      [userId],
+      [user.id],
     ),
-    query(
-      `SELECT * FROM checklist_locations WHERE owner_id=$1 ORDER BY active DESC,name,id`,
-      [userId],
-    ),
+    companyWide
+      ? query(
+          `SELECT l.*,o.name owner_name
+           FROM checklist_locations l
+           JOIN employees o ON o.id=l.owner_id
+           WHERE l.active AND l.public_enabled
+           ORDER BY o.name,l.name,l.id`,
+        )
+      : query(
+          `SELECT * FROM checklist_locations WHERE owner_id=$1 ORDER BY active DESC,name,id`,
+          [user.id],
+        ),
   ]);
   return {
     codes: codes.map((row) => ({
       ...mapRow<ChecklistQrCode>(row),
       locationName: (row.location_name as string | null) ?? null,
     })),
-    locations: locations.map((row) => mapRow<ChecklistLocation>(row)),
+    locations: companyWide
+      ? buildChecklistLocationOptions(
+          locations.map((row) => ({
+            ...mapRow<ChecklistLocation>(row),
+            ownerName: (row.owner_name as string | null) ?? null,
+          })),
+        )
+      : locations.map((row) => mapRow<ChecklistLocation>(row)),
   };
 }
 
@@ -76,6 +99,12 @@ export interface ResolvedChecklistQr extends ChecklistQrCode {
   locationName: string | null;
   locationPublicEnabled: boolean | null;
   locationActive: boolean | null;
+  /**
+   * QR buatan atasan pengamat menampilkan seluruh area publik perusahaan.
+   * Diturunkan dari mode akses pemilik saat QR dipindai, sehingga perubahan
+   * mode akses langsung ikut mengubah cakupan tanpa membuat QR baru.
+   */
+  companyWide: boolean;
 }
 
 export async function resolveChecklistQrToken(
@@ -83,9 +112,11 @@ export async function resolveChecklistQrToken(
 ): Promise<ResolvedChecklistQr | null> {
   if (!/^[A-Za-z0-9_-]{16,80}$/.test(token)) return null;
   const [row] = await query(
-    `SELECT q.*,l.name location_name,l.public_enabled location_public_enabled,l.active location_active
+    `SELECT q.*,l.name location_name,l.public_enabled location_public_enabled,l.active location_active,
+       o.role owner_role,o.access_mode owner_access_mode
      FROM checklist_qr_codes q
      LEFT JOIN checklist_locations l ON l.id=q.location_id
+     JOIN employees o ON o.id=q.owner_id
      WHERE q.token=$1`,
     [token],
   );
@@ -99,6 +130,8 @@ export async function resolveChecklistQrToken(
         : Boolean(row.location_public_enabled),
     locationActive:
       row.location_active === null ? null : Boolean(row.location_active),
+    companyWide:
+      row.owner_role === "atasan" && row.owner_access_mode === "read_only",
   };
 }
 
@@ -128,13 +161,13 @@ function publicLocationSelect(scopeFilter: string) {
        ORDER BY (i.status='selesai') DESC,i.occurrence_date DESC,i.due_at DESC,i.id DESC
        LIMIT 1
      ) li ON true
-     WHERE l.owner_id=$1 AND l.active AND l.public_enabled
+     WHERE ($1::text IS NULL OR l.owner_id=$1) AND l.active AND l.public_enabled
        ${scopeFilter}
      ORDER BY (li.occurrence_date IS NULL),li.occurrence_date DESC,l.name,l.id`;
 }
 
 async function getChecklistPublicInspection(
-  ownerId: string,
+  ownerId: string | null,
   locationId: string,
   inspectionId: string,
 ) {
@@ -153,7 +186,7 @@ async function getChecklistPublicInspection(
      FROM checklist_inspections i
      JOIN checklist_locations l ON l.id=i.location_id AND l.owner_id=i.owner_id
      LEFT JOIN checklist_locations p ON p.id=l.parent_id
-     WHERE i.owner_id=$1 AND i.location_id=$2 AND i.id=$3
+     WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.location_id=$2 AND i.id=$3
        AND l.active AND l.public_enabled
      LIMIT 1`,
     [ownerId, locationId, inspectionId],
@@ -189,7 +222,7 @@ function mapPublicLocation(row: Record<string, unknown>): ChecklistPublicLocatio
 }
 
 export async function listChecklistPublicLocations(
-  ownerId: string,
+  ownerId: string | null,
   rootId?: string | null,
 ) {
   const scope = rootId ? await getChecklistLocationScope(ownerId, rootId) : null;
@@ -210,7 +243,7 @@ const TIMELINE_LABEL: Record<string, string> = {
 };
 
 export async function getChecklistPublicArea(
-  ownerId: string,
+  ownerId: string | null,
   locationId: string,
   inspectionId?: string | null,
 ): Promise<ChecklistPublicArea | null> {
@@ -247,7 +280,7 @@ export async function getChecklistPublicArea(
     query(
       `SELECT id,occurrence_date,status,completed_at,period_label,template_name
        FROM checklist_inspections
-       WHERE owner_id=$1 AND location_id=$2
+       WHERE ($1::text IS NULL OR owner_id=$1) AND location_id=$2
        ORDER BY occurrence_date DESC,due_at DESC,id DESC
        LIMIT 24`,
       [ownerId, locationId],
@@ -257,7 +290,7 @@ export async function getChecklistPublicArea(
          count(*) FILTER (WHERE f.status='selesai')::integer done
        FROM checklist_follow_ups f
        JOIN checklist_inspections i ON i.id=f.inspection_id
-       WHERE i.owner_id=$1 AND i.location_id=$2`,
+       WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.location_id=$2`,
       [ownerId, locationId],
     ),
     displayedInspectionId
@@ -275,7 +308,7 @@ export async function getChecklistPublicArea(
               w.start_date,w.target_date,w.completed_at
        FROM manual_works w
        JOIN checklist_locations l ON l.id=w.location_id AND l.owner_id=w.owner_id
-       WHERE w.owner_id=$1 AND w.location_id=$2
+       WHERE ($1::text IS NULL OR w.owner_id=$1) AND w.location_id=$2
          AND w.public_visible AND w.status<>'dibatalkan'
          AND l.active AND l.public_enabled
        ORDER BY CASE w.status WHEN 'dikerjakan' THEN 0 WHEN 'terbuka' THEN 1 ELSE 2 END,
@@ -364,7 +397,7 @@ export async function getChecklistPublicArea(
 
 export async function getChecklistPublicStaff(
   user: SessionUser | null,
-  ownerId: string,
+  ownerId: string | null,
   locationId: string,
 ): Promise<{
   loggedIn: boolean;
@@ -373,11 +406,12 @@ export async function getChecklistPublicStaff(
   tasks: ChecklistPublicStaffTask[];
 }> {
   if (!user) return { loggedIn: false, name: null, canFill: false, tasks: [] };
-  const manager = user.role === "atasan";
+  // Pengamat tidak boleh menerima tugas isi walau sedang membuka area publik.
+  const manager = user.role === "atasan" && user.accessMode === "full";
   const rows = await query(
     `SELECT i.id,i.template_name,i.period_label,i.status,i.due_at,i.occurrence_date
      FROM checklist_inspections i
-     WHERE i.owner_id=$1 AND i.location_id=$2
+     WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.location_id=$2
        AND i.status IN ('belum_dimulai','berlangsung')
        AND i.opens_at<=now()
        AND (($3::boolean AND i.owner_id=$4) OR EXISTS(
@@ -408,24 +442,31 @@ export interface ChecklistQrInput {
   active: boolean;
 }
 
-async function assertLocation(ownerId: string, locationId: string | null) {
+async function assertLocation(
+  ownerId: string | null,
+  locationId: string | null,
+) {
   if (!locationId) return;
   const [row] = await query(
-    `SELECT id FROM checklist_locations WHERE id=$1 AND owner_id=$2`,
+    `SELECT id FROM checklist_locations WHERE id=$1 AND ($2::text IS NULL OR owner_id=$2)`,
     [locationId, ownerId],
   );
   if (!row) throw new Error("Lokasi tujuan tidak ditemukan.");
 }
 
 export async function createChecklistQr(
-  user: Pick<SessionUser, "id" | "name">,
+  user: Pick<SessionUser, "id" | "name" | "role" | "accessMode">,
   input: ChecklistQrInput,
 ) {
   const id = `qr_${crypto.randomUUID()}`;
   const token = randomBytes(18).toString("base64url");
   const now = new Date().toISOString();
+  const locationOwner = isObserver(user) ? null : user.id;
   await transaction(async (connection) => {
-    await assertLocation(user.id, input.mode === "langsung" ? input.locationId : null);
+    await assertLocation(
+      locationOwner,
+      input.mode === "langsung" ? input.locationId : null,
+    );
     await query(
       `INSERT INTO checklist_qr_codes
         (id,owner_id,token,name,mode,location_id,active,created_by,created_at,updated_at)
@@ -469,10 +510,11 @@ export async function createChecklistQr(
 }
 
 export async function updateChecklistQr(
-  user: Pick<SessionUser, "id" | "name">,
+  user: Pick<SessionUser, "id" | "name" | "role" | "accessMode">,
   id: string,
   input: Partial<ChecklistQrInput>,
 ) {
+  const locationOwner = isObserver(user) ? null : user.id;
   const updated = await transaction(async (connection) => {
     const [current] = await query(
       `SELECT * FROM checklist_qr_codes WHERE id=$1 AND owner_id=$2 FOR UPDATE`,
@@ -489,7 +531,10 @@ export async function updateChecklistQr(
       throw new Error("Pilih area tujuan untuk QR langsung.");
     }
     if (input.locationId !== undefined || input.mode !== undefined) {
-      await assertLocation(user.id, mode === "langsung" ? locationId : null);
+      await assertLocation(
+        locationOwner,
+        mode === "langsung" ? locationId : null,
+      );
     }
     const nextLocation = mode === "langsung" ? locationId : null;
     const now = new Date().toISOString();

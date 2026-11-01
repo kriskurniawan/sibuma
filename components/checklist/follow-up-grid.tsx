@@ -25,6 +25,7 @@ import {
   ChecklistPriorityBadge,
 } from "@/components/checklist/checklist-badges";
 import { ChecklistFollowUpUpdateDialog } from "@/components/checklist/follow-up-update-dialog";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateHuman } from "@/lib/time";
 import {
   CHECKLIST_PRIORITY_LABEL,
@@ -53,7 +54,9 @@ const gridI18n = {
 };
 
 function dueIso(date: string) {
-  return `${date}T23:59:59+07:00`;
+  // Tengah malam lokal aman untuk menampilkan tanggal di WIB/WITA/WIT,
+  // sedangkan 23:59:59+07:00 bergeser ke hari berikutnya di WITA/WIT.
+  return `${date}T00:00:00+07:00`;
 }
 
 const columns = (
@@ -106,6 +109,7 @@ const columns = (
             <Avatar
               name={row.original.pic.name}
               seed={row.original.pic.id}
+              src={avatarUrl(row.original.pic.id, row.original.pic.avatarKey)}
               size="xs"
             />
             {row.original.pic.name}
@@ -290,7 +294,12 @@ export function ChecklistFollowUpGrid({
                     <div className="flex min-w-0 flex-col gap-0.5">
                       {row.pic ? (
                         <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                          <Avatar name={row.pic.name} seed={row.pic.id} size="xs" />
+                          <Avatar
+                            name={row.pic.name}
+                            seed={row.pic.id}
+                            src={avatarUrl(row.pic.id, row.pic.avatarKey)}
+                            size="xs"
+                          />
                           <span className="truncate">{row.pic.name}</span>
                         </span>
                       ) : (

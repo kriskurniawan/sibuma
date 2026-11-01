@@ -51,7 +51,13 @@ import {
 
 type QrRow = ChecklistQrCode & { locationName: string | null };
 
-export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
+export function ChecklistQrView({
+  setup,
+  readOnly = false,
+}: {
+  setup: ChecklistQrSetup;
+  readOnly?: boolean;
+}) {
   const router = useRouter();
   const [origin, setOrigin] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -96,10 +102,10 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
           size="sm"
           variant="ghost"
           nativeButton={false}
-          render={<Link href="/checklist/template" />}
+          render={<Link href={readOnly ? "/checklist" : "/checklist/template"} />}
         >
           <ArrowLeft aria-hidden="true" />
-          Template & lokasi
+          {readOnly ? "Checklist" : "Template & lokasi"}
         </Button>
       </div>
 
@@ -122,8 +128,9 @@ export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
       <Alert>
         <ShieldCheck />
         <AlertDescription>
-          Hanya area dan item publik tampil ke pengunjung. Data internal tetap
-          privat; petugas tetap perlu penugasan untuk mengisi.
+          {readOnly
+            ? "QR dari akun pengamat mencakup seluruh area publik perusahaan. Hanya area dan item publik tampil ke pengunjung; data internal tetap privat."
+            : "Hanya area dan item publik tampil ke pengunjung. Data internal tetap privat; petugas tetap perlu penugasan untuk mengisi."}
         </AlertDescription>
       </Alert>
 
@@ -381,7 +388,9 @@ function QrFormDialog({
         .filter((location) => location.active)
         .map((location) => ({
           value: location.id,
-          label: `${location.name}${location.publicEnabled ? "" : " (belum publik)"}`,
+          label: `${location.path ?? location.name}${
+            location.ownerName ? ` · ${location.ownerName}` : ""
+          }${location.publicEnabled ? "" : " (belum publik)"}`,
         })),
     [locations],
   );

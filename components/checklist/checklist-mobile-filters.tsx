@@ -45,7 +45,7 @@ const QUICK_STATUS = [
 const DETAILED_STATUS = [
   { value: "aktif", label: "Perlu dikerjakan" },
   { value: "terlambat", label: "Terlambat" },
-  { value: "belum_dimulai", label: "Belum dimulai" },
+  { value: "belum_dimulai", label: "Belum diisi" },
   { value: "berlangsung", label: "Berlangsung" },
   { value: "selesai", label: "Selesai" },
   { value: "semua", label: "Semua status" },

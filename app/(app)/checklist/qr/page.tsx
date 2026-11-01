@@ -12,8 +12,9 @@ export default async function ChecklistQrPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=%2Fchecklist%2Fqr");
   if (user.role !== "atasan") redirect("/checklist");
-  if (isReadOnly(user)) redirect("/checklist");
 
-  const setup = await getChecklistQrSetup(user.id);
-  return <ChecklistQrView setup={setup} />;
+  // QR area satu-satunya aksi tulis yang tetap tersedia bagi atasan pengamat;
+  // QR yang dibuatnya mencakup seluruh area publik perusahaan.
+  const setup = await getChecklistQrSetup(user);
+  return <ChecklistQrView setup={setup} readOnly={isReadOnly(user)} />;
 }

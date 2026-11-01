@@ -1,13 +1,12 @@
 import "server-only";
 
-import { mutateDb } from "./store";
-import type {
-  Employee,
-  NotificationLog,
-  NotificationStatus,
-  Spkl,
-} from "./types";
+import type { Employee, NotificationStatus, Spkl } from "./types";
 import { formatDateHuman, formatTime } from "./time";
+
+export type SpklNotificationType =
+  | "spkl_baru"
+  | "spkl_diubah"
+  | "spkl_dibatalkan";
 
 interface DeliveryResult {
   status: NotificationStatus;
@@ -15,7 +14,7 @@ interface DeliveryResult {
   error?: string;
 }
 
-async function deliverWhatsApp(
+export async function deliverWhatsApp(
   phone: string,
   message: string,
 ): Promise<DeliveryResult> {
@@ -77,7 +76,7 @@ export async function sendOtpWhatsApp(phone: string, code: string) {
 }
 
 function spklMessage(
-  type: "spkl_baru" | "spkl_diubah" | "spkl_dibatalkan",
+  type: SpklNotificationType,
   employee: Employee,
   spkl: Spkl,
   extra?: string,
@@ -93,36 +92,19 @@ function spklMessage(
   return `Halo ${firstName}, ${intro}\n\n${spkl.title}\n${spkl.number}\n${schedule}\n\n${extra ? `${extra}\n\n` : ""}Buka aplikasi SIBUMA untuk melihat detail dan melakukan absensi.`;
 }
 
-export async function notifySpkl(
-  type: "spkl_baru" | "spkl_diubah" | "spkl_dibatalkan",
+/**
+ * Pesan per penerima dipakai baik oleh outbox (pengiriman tertunda) maupun
+ * pengujian. Isi pesan dibentuk di satu tempat agar perubahan format tidak
+ * berbeda antar jalur.
+ */
+export function spklMessages(
+  type: SpklNotificationType,
   spkl: Spkl,
   employees: Employee[],
   extra?: string,
 ) {
-  const results = await Promise.all(
-    employees.map(async (employee) => {
-      const message = spklMessage(type, employee, spkl, extra);
-      const delivery = await deliverWhatsApp(employee.phone, message);
-      return { employee, message, delivery };
-    }),
-  );
-
-  await mutateDb({ kind: "notification" }, (db) => {
-    for (const item of results) {
-      const log: NotificationLog = {
-        id: crypto.randomUUID(),
-        recipientId: item.employee.id,
-        recipientPhone: item.employee.phone,
-        type,
-        message: item.message,
-        status: item.delivery.status,
-        providerMessageId: item.delivery.providerMessageId,
-        error: item.delivery.error,
-        createdAt: new Date().toISOString(),
-      };
-      db.notifications.unshift(log);
-    }
-  });
-
-  return results;
+  return employees.map((employee) => ({
+    employee,
+    message: spklMessage(type, employee, spkl, extra),
+  }));
 }

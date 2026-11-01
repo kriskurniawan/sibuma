@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { ManualWorkReportGrid } from "@/components/reports/manual-work-report-grid";
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
-import { isSuperAdmin } from "@/lib/access";
+import { isSuperAdmin, readOwnerId } from "@/lib/access";
 import {
   getManualWorkReportData,
   getManualWorkReportOptions,
@@ -82,7 +82,7 @@ export async function ManualWorkReportScreen({
   };
 
   const printing = first(params.print) === "1";
-  const ownerId = isSuperAdmin(user) ? null : user.id;
+  const ownerId = readOwnerId(user);
   const [data, options, photoLimits] = await Promise.all([
     getManualWorkReportData(
       ownerId,

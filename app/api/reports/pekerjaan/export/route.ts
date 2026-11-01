@@ -1,4 +1,4 @@
-import { isSuperAdmin } from "@/lib/access";
+import { isSuperAdmin, readOwnerId } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import {
   excelDate,
@@ -116,7 +116,7 @@ export async function GET(request: Request) {
 
   const [data, photoLimits] = await Promise.all([
     getManualWorkReportData(
-      isSuperAdmin(user) ? null : user.id,
+      readOwnerId(user),
       filters,
     ),
     getPhotoLimits(),

@@ -22,6 +22,7 @@ import {
 } from "@/components/checklist/checklist-badges";
 import type { ChecklistFollowUpRow } from "@/lib/checklist-types";
 import type { PageRequest } from "@/lib/pagination";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
 
 const columns: ColumnDef<DataGridFeatures, ChecklistFollowUpRow>[] = [
@@ -115,6 +116,10 @@ const columns: ColumnDef<DataGridFeatures, ChecklistFollowUpRow>[] = [
             <Avatar
               name={row.original.pic.name}
               seed={row.original.pic.id}
+              src={avatarUrl(
+                row.original.pic.id,
+                row.original.pic.avatarKey,
+              )}
               size="xs"
             />
             <span className="truncate text-xs text-foreground">

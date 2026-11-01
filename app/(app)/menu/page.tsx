@@ -199,10 +199,10 @@ export default async function MenuPage() {
 
   const role = user.role as Extract<SessionUser["role"], "atasan" | "super_admin">;
   const readOnly = isReadOnly(user);
+  // QR area tetap tampil untuk pengamat: hanya menerbitkan tautan publik.
   const hiddenReadOnlyLinks = new Set([
     "/checklist/template",
     "/checklist/jadwal",
-    "/checklist/qr",
     "/audit",
   ]);
   const groups = GROUPS[role]
@@ -210,7 +210,7 @@ export default async function MenuPage() {
       ...group,
       description:
         readOnly && group.title === "Tim & operasional"
-          ? "Lihat pekerja, area, dan jadwal pemeriksaan."
+          ? "Lihat pekerja dan area; kelola QR untuk pengunjung."
           : group.description,
       items: group.items.filter(
         (item) => !readOnly || !hiddenReadOnlyLinks.has(item.href),

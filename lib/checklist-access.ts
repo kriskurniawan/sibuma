@@ -1,4 +1,5 @@
 import "server-only";
+import { isObserver, readOwnerId } from "./access";
 import { query, type Connection } from "./db";
 import { rowToCamel } from "./db-model";
 import type { SessionUser } from "./types";
@@ -14,6 +15,18 @@ export function isChecklistManager(user: SessionUser) {
 
 export function checklistOwnerFor(user: SessionUser) {
   return user.role === "atasan" ? user.id : user.supervisorId;
+}
+
+/** Atasan hanya-lihat berperan sebagai pengamat lintas tim. */
+export function checklistReadsAll(
+  user: Pick<SessionUser, "role" | "accessMode">,
+) {
+  return isObserver(user);
+}
+
+/** Cakupan pemilik untuk pembacaan checklist; null berarti seluruh perusahaan. */
+export function checklistReadOwner(user: SessionUser): string | null {
+  return readOwnerId(user);
 }
 
 export async function loadInspection(

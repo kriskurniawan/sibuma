@@ -3,6 +3,7 @@ import "server-only";
 import { addDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
+import { isObserver, readOwnerId } from "./access";
 import { getActiveTimeZone } from "./active-time-zone";
 import { currentOvertimePeriodLabel } from "./active-overtime-period";
 import { CHECKOUT_GRACE_MINUTES } from "./constants";
@@ -268,9 +269,10 @@ export async function getSupervisorOverview(
   user: SessionUser,
 ): Promise<SupervisorOverview> {
   const db = await overviewData(user);
-  const [metrics, teamLoad, teamTotals] = await Promise.all([overviewMetrics(user), getTeamLoad(user.id), getTeamTotals(user.id)]);
+  const owner = readOwnerId(user);
+  const [metrics, teamLoad, teamTotals] = await Promise.all([overviewMetrics(user), getTeamLoad(owner), getTeamTotals(owner)]);
   const map = employeeMap(db);
-  const owned = ownSpkls(db, user.id);
+  const owned = owner ? ownSpkls(db, owner) : db.spkls;
   const items = sortOwned(
     owned.map((spkl) => buildListItem(db, spkl, user.id)),
   );
@@ -343,7 +345,7 @@ export async function getSpklDetail(
   user: SessionUser,
 ): Promise<SpklDetail | null> {
   const [spkl] =
-    user.role === "super_admin"
+    user.role === "super_admin" || isObserver(user)
       ? await select("spkls", "id=$1", [spklId])
       : await select("spkls", "id=$1 AND (created_by=$2 OR EXISTS(SELECT 1 FROM spkl_workers w WHERE w.spkl_id=spkls.id AND w.employee_id=$2))", [spklId,user.id]);
   if (!spkl) return null;
@@ -354,7 +356,13 @@ export async function getSpklDetail(
     (item) => item.spklId === spkl.id && item.employeeId === user.id,
   );
   const isCreator = user.role === "atasan" && spkl.createdBy === user.id;
-  if (user.role !== "super_admin" && !assigned && !isCreator) return null;
+  if (
+    user.role !== "super_admin" &&
+    !isObserver(user) &&
+    !assigned &&
+    !isCreator
+  )
+    return null;
 
   const base = buildListItem(db, spkl, user.id);
   const map = employeeMap(db);
@@ -427,8 +435,8 @@ export async function getTeam(userId: string) {
  return select("employees", "supervisor_id=$1", [userId], undefined, "ORDER BY name,id");
 }
 
-export async function getDivisions(userId: string): Promise<Division[]> {
- return select("divisions", "supervisor_id=$1", [userId], undefined, "ORDER BY active DESC,name,id");
+export async function getDivisions(userId: string | null): Promise<Division[]> {
+ return select("divisions", "($1::text IS NULL OR supervisor_id=$1)", [userId], undefined, "ORDER BY active DESC,name,id");
 }
 
 export async function getPolicy(): Promise<Policy> { return getPolicyRow(); }

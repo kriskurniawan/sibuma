@@ -70,6 +70,7 @@ import {
   type ChecklistFollowUpRow,
   type ChecklistInspectionDetail,
 } from "@/lib/checklist-types";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +79,9 @@ function occurrenceIso(date: string) {
 }
 
 function dueIso(date: string) {
-  return `${date}T23:59:59+07:00`;
+  // Tengah malam lokal aman untuk menampilkan tanggal di WIB/WITA/WIT,
+  // sedangkan 23:59:59+07:00 bergeser ke hari berikutnya di WITA/WIT.
+  return `${date}T00:00:00+07:00`;
 }
 
 const ASSIGNEE_CHIP_LIMIT = 8;
@@ -631,6 +634,7 @@ export function ChecklistDetail({
                           <Avatar
                             name={person.name}
                             seed={person.id}
+                            src={avatarUrl(person.id, person.avatarKey)}
                             size="xs"
                           />
                           {person.name}

@@ -73,6 +73,7 @@ import {
   shiftDate,
   weekdayOf,
 } from "@/lib/checklist-schedule";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateHuman, todayLocal } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -407,6 +408,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
                           <Avatar
                             name={person.name}
                             seed={person.id}
+                            src={avatarUrl(person.id, person.avatarKey)}
                             size="xs"
                             className="ring-2 ring-card"
                           />
@@ -1463,6 +1465,7 @@ function ScheduleDialog({
                                 <Avatar
                                   name={person.name}
                                   seed={person.id}
+                                  src={avatarUrl(person.id, person.avatarKey)}
                                   size="xs"
                                 />
                                 <span className="min-w-0 flex-1 truncate">

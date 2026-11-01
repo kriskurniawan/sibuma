@@ -21,6 +21,7 @@ import {
 } from "@/components/checklist/checklist-badges";
 import type { ChecklistReportRow } from "@/lib/checklist-types";
 import type { PageRequest } from "@/lib/pagination";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
 
 const columns: ColumnDef<DataGridFeatures, ChecklistReportRow>[] = [
@@ -154,7 +155,12 @@ const columns: ColumnDef<DataGridFeatures, ChecklistReportRow>[] = [
               key={person.id}
               className="flex min-w-0 items-center gap-1.5"
             >
-              <Avatar name={person.name} seed={person.id} size="xs" />
+              <Avatar
+                name={person.name}
+                seed={person.id}
+                src={avatarUrl(person.id, person.avatarKey)}
+                size="xs"
+              />
               <span className="truncate text-xs text-foreground">
                 {person.name}
               </span>

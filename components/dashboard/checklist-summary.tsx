@@ -6,6 +6,7 @@ import {
   ChecklistStatusBadge,
 } from "@/components/checklist/checklist-badges";
 import { Avatar, ProgressBar } from "@/components/ui";
+import { avatarUrl } from "@/lib/avatar-url";
 import { formatDateHuman, formatDateTime } from "@/lib/time";
 import {
   CHECKLIST_PRIORITY_LABEL,
@@ -47,6 +48,7 @@ export function ChecklistAssigneeStack({
           <Avatar
             name={person.name}
             seed={person.id}
+            src={avatarUrl(person.id, person.avatarKey)}
             size="xs"
             className="ring-2 ring-card"
           />
@@ -114,7 +116,12 @@ export function ChecklistSummaryRow({ row }: { row: ChecklistInspectionRow }) {
         <span className="inline-flex min-w-0 max-w-36 items-center gap-2 text-xs text-muted-foreground">
           {assignee ? (
             <>
-              <Avatar name={assignee.name} seed={assignee.id} size="xs" />
+              <Avatar
+                name={assignee.name}
+                seed={assignee.id}
+                src={avatarUrl(assignee.id, assignee.avatarKey)}
+                size="xs"
+              />
               <span className="truncate">
                 {assignee.name.split(" ")[0]}
                 {row.assignees.length > 1 ? ` +${row.assignees.length - 1}` : ""}
@@ -172,7 +179,12 @@ export function FollowUpSummaryRow({ row }: { row: ChecklistFollowUpRow }) {
       <div className="flex min-w-0 items-center justify-between gap-3">
         {row.pic ? (
           <span className="inline-flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-            <Avatar name={row.pic.name} seed={row.pic.id} size="xs" />
+            <Avatar
+              name={row.pic.name}
+              seed={row.pic.id}
+              src={avatarUrl(row.pic.id, row.pic.avatarKey)}
+              size="xs"
+            />
             <span className="truncate">{row.pic.name}</span>
           </span>
         ) : (

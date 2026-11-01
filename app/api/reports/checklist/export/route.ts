@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { isSuperAdmin } from "@/lib/access";
+import { checklistReadOwner } from "@/lib/checklist-access";
 import { listChecklistConditions } from "@/lib/checklist-conditions";
 import {
   CHECKLIST_FOLLOW_UP_LABEL,
@@ -197,7 +198,7 @@ export async function GET(request: Request) {
   const formatParam = url.searchParams.get("format");
   const format =
     formatParam === "xlsx" ? "xlsx" : formatParam === "pdf" ? "pdf" : "csv";
-  const ownerId = isSuperAdmin(user) ? null : user.id;
+  const ownerId = checklistReadOwner(user);
   const filters: ChecklistReportFilters = {
     from,
     to,

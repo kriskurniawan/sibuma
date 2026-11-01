@@ -36,6 +36,8 @@ export default async function PublicChecklistPage({
     );
   }
 
+  // QR pengamat mencakup seluruh area publik perusahaan.
+  const ownerId = qr.companyWide ? null : qr.ownerId;
   const user = await getCurrentUser();
 
   if (qr.mode === "langsung" && qr.locationId) {
@@ -48,7 +50,7 @@ export default async function PublicChecklistPage({
       );
     }
     const area = await getChecklistPublicArea(
-      qr.ownerId,
+      ownerId,
       qr.locationId,
       inspectionId,
     );
@@ -69,7 +71,7 @@ export default async function PublicChecklistPage({
       );
     }
     const [staff, conditions] = await Promise.all([
-      getChecklistPublicStaff(user, qr.ownerId, qr.locationId),
+      getChecklistPublicStaff(user, ownerId, qr.locationId),
       listChecklistConditions({ includeInactive: true }),
     ]);
     return (
@@ -85,7 +87,7 @@ export default async function PublicChecklistPage({
     );
   }
 
-  const locations = await listChecklistPublicLocations(qr.ownerId);
+  const locations = await listChecklistPublicLocations(ownerId);
   return (
     <PublicAreaList
       qrName={qr.name}

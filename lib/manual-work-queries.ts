@@ -1,5 +1,6 @@
 import "server-only";
 import type { QueryResultRow } from "pg";
+import { isObserver, readOwnerId } from "./access";
 import { query } from "./db";
 import { rowToCamel } from "./db-model";
 import { listManualWorkLocations } from "./manual-work-locations";
@@ -81,20 +82,23 @@ function pickWork(row: Record<string, unknown>): ManualWork {
 }
 
 function roleParams(user: SessionUser) {
-  return [user.id, user.role === "atasan"] as const;
+  return [user.id, user.role === "atasan", isObserver(user)] as const;
 }
 
 /**
  * Atasan melihat pekerjaan miliknya; pekerja melihat pekerjaan yang
- * ditugaskan kepadanya dan laporan yang ia buat sendiri. Super admin tidak
- * memakai modul operasional ini.
+ * ditugaskan kepadanya dan laporan yang ia buat sendiri. Pengamat hanya-lihat
+ * melihat seluruh pekerjaan perusahaan. Super admin tidak memakai modul
+ * operasional ini.
  */
 function workAccess(
   alias: string,
   employeeParam = "$1",
   managerParam = "$2",
+  allParam = "$3",
 ) {
-  return `((${managerParam}::boolean AND ${alias}.owner_id=${employeeParam})
+  return `((${allParam}::boolean)
+    OR (${managerParam}::boolean AND ${alias}.owner_id=${employeeParam})
     OR ${alias}.created_by=${employeeParam}
     OR EXISTS(
     SELECT 1 FROM manual_work_assignees mwa
@@ -148,7 +152,7 @@ export function mapManualWorkRow(row: Record<string, unknown>): ManualWorkRow {
 export async function getManualWorkTotals(
   user: SessionUser,
 ): Promise<ManualWorkTotals> {
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   const [row] = await query(
     `SELECT
        count(*) FILTER (WHERE w.status IN ('terbuka','dikerjakan'))::integer active,
@@ -157,7 +161,7 @@ export async function getManualWorkTotals(
        count(*) FILTER (WHERE w.status='selesai' AND w.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer completed_this_month
      FROM manual_works w
      WHERE ${workAccess("w")}`,
-    [userId, manager],
+    [userId, manager, all],
   );
   return {
     active: Number(row.active),
@@ -174,18 +178,13 @@ export async function getManualWorkTotals(
 export async function getManualWorkFilterOptions(
   user: SessionUser,
 ): Promise<ManualWorkFilterOptions> {
-  const ownerId =
-    user.role === "atasan"
-      ? user.id
-      : user.role === "pekerja"
-        ? user.supervisorId
-        : null;
-  if (!ownerId) return { divisions: [], workers: [] };
+  const ownerId = readOwnerId(user);
+  if (!ownerId && user.role === "pekerja") return { divisions: [], workers: [] };
 
   const [divisions, workers] = await Promise.all([
     query<{ id: string; name: string; active: boolean }>(
       `SELECT id,name,active FROM divisions
-       WHERE supervisor_id=$1
+       WHERE ($1::text IS NULL OR supervisor_id=$1)
        ORDER BY active DESC,name,id`,
       [ownerId],
     ),
@@ -199,7 +198,7 @@ export async function getManualWorkFilterOptions(
       `SELECT e.id,e.name,e.nik,e.division_id,d.name division_name
        FROM employees e
        LEFT JOIN divisions d ON d.id=e.division_id
-       WHERE e.supervisor_id=$1 AND e.active AND e.access_mode='full'
+       WHERE ($1::text IS NULL OR e.supervisor_id=$1) AND e.role='pekerja' AND e.active AND e.access_mode='full'
        ORDER BY d.name NULLS LAST,e.name,e.id`,
       [ownerId],
     ),
@@ -222,8 +221,8 @@ export async function getManualWorks(
   filters: ManualWorkFilters = {},
   request?: PageRequest,
 ) {
-  const [userId, manager] = roleParams(user);
-  const values: unknown[] = [userId, manager];
+  const [userId, manager, all] = roleParams(user);
+  const values: unknown[] = [userId, manager, all];
   let where = `WHERE ${workAccess("w")}`;
 
   const status = filters.status ?? "aktif";
@@ -294,7 +293,7 @@ export async function getManualWorkDashboard(
   user: SessionUser,
   limit = 3,
 ): Promise<{ items: ManualWorkRow[]; totals: ManualWorkTotals }> {
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   const [rows, totals] = await Promise.all([
     query(
       `SELECT ${MANUAL_WORK_ROW_SELECT}
@@ -305,8 +304,8 @@ export async function getManualWorkDashboard(
        ORDER BY
          CASE WHEN w.target_date < ${TODAY_SQL()} THEN 0 ELSE 1 END,
          w.target_date NULLS LAST,w.updated_at DESC,w.id
-       LIMIT $3`,
-      [userId, manager, Math.max(1, Math.min(limit, 10))],
+       LIMIT $4`,
+      [userId, manager, all, Math.max(1, Math.min(limit, 10))],
     ),
     getManualWorkTotals(user),
   ]);
@@ -317,15 +316,15 @@ export async function getManualWorkDetail(
   user: SessionUser,
   id: string,
 ): Promise<ManualWorkDetail | null> {
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   const [row] = await query(
     `SELECT ${MANUAL_WORK_ROW_SELECT},cb.name completed_by_name,rb.name reopened_by_name
      FROM manual_works w
      ${MANUAL_WORK_ROW_JOINS}
      LEFT JOIN employees cb ON cb.id=w.completed_by
      LEFT JOIN employees rb ON rb.id=w.reopened_by
-     WHERE w.id=$3 AND ${workAccess("w")}`,
-    [userId, manager, id],
+     WHERE w.id=$1 AND ${workAccess("w", "$2", "$3", "$4")}`,
+    [id, userId, manager, all],
   );
   if (!row) return null;
 

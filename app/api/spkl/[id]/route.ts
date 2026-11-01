@@ -1,8 +1,7 @@
-import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
-import { notifySpkl } from "@/lib/notifications";
+import { enqueueSpklNotifications } from "@/lib/notification-outbox";
 import { scheduleWarnings } from "@/lib/schedule";
 import { mutateDb, pushAudit } from "@/lib/store";
 import { durationLabel, minutesBetween, spklStatus, zonedToIso } from "@/lib/time";
@@ -259,25 +258,26 @@ export async function PATCH(
         warnings,
         addedIds,
       };
-    });
-
-    after(async () => {
-      // `after` memastikan notifikasi tetap selesai di Vercel setelah respons dikirim.
-      await notifySpkl(
-        "spkl_diubah",
-        result.spkl,
-        result.team,
-        "Periksa kembali jadwal, lokasi, dan detail pekerjaanmu.",
-      ).catch(() => undefined);
-
-      if (result.removedEmployees.length > 0) {
-        await notifySpkl(
+    }, {
+      afterPersist: async (connection, result) => {
+        await enqueueSpklNotifications(
+          connection,
           "spkl_diubah",
           result.spkl,
-          result.removedEmployees,
-          "Kamu tidak lagi ditugaskan pada SPKL ini. Abaikan pesan ini jika kamu sudah tidak memiliki penugasan.",
-        ).catch(() => undefined);
-      }
+          result.team,
+          "Periksa kembali jadwal, lokasi, dan detail pekerjaanmu.",
+        );
+
+        if (result.removedEmployees.length > 0) {
+          await enqueueSpklNotifications(
+            connection,
+            "spkl_diubah",
+            result.spkl,
+            result.removedEmployees,
+            "Kamu tidak lagi ditugaskan pada SPKL ini. Abaikan pesan ini jika kamu sudah tidak memiliki penugasan.",
+          );
+        }
+      },
     });
 
     return apiOk({

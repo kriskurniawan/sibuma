@@ -1,8 +1,7 @@
-import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
-import { notifySpkl } from "@/lib/notifications";
+import { enqueueSpklNotifications } from "@/lib/notification-outbox";
 import { scheduleWarnings } from "@/lib/schedule";
 import { mutateDb, pushAudit } from "@/lib/store";
 import { durationLabel, minutesBetween, zonedToIso } from "@/lib/time";
@@ -159,13 +158,15 @@ export async function POST(request: Request) {
       });
 
       return { spkl, team, warnings };
-    });
-
-    after(async () => {
-      // `after` memastikan notifikasi tetap selesai di Vercel setelah respons dikirim.
-      await notifySpkl("spkl_baru", result.spkl, result.team).catch(() => {
-        // Notifikasi masuk ke outbox dan tidak boleh menggagalkan pembuatan SPKL.
-      });
+    }, {
+      afterPersist: async (connection, result) => {
+        await enqueueSpklNotifications(
+          connection,
+          "spkl_baru",
+          result.spkl,
+          result.team,
+        );
+      },
     });
 
     return apiOk({

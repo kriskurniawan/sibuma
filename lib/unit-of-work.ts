@@ -104,7 +104,7 @@ export async function persistChanges(before: Database, after: Database, connecti
   }
   if (JSON.stringify(before.policy) !== JSON.stringify(after.policy)) await update("policy", after.policy, connection);
 }
-export async function mutateDb<T>(scope: MutationScope, operation: (db: Database) => T | Promise<T>): Promise<T> {
+export async function mutateDb<T>(scope: MutationScope, operation: (db: Database) => T | Promise<T>, options?: { afterPersist?: (connection: Connection, result: T) => Promise<void> | void }): Promise<T> {
   return transaction(async (connection) => {
     const db = await loadScope(scope, connection);
     const before = structuredClone(db);
@@ -115,6 +115,9 @@ export async function mutateDb<T>(scope: MutationScope, operation: (db: Database
     }
     const result = await operation(db);
     await persistChanges(before, db, connection);
+    // Pekerjaan turunan (mis. outbox notifikasi) ikut transaksi yang sama agar
+    // perubahan data dan pesan yang akan dikirim tidak pernah terpisah.
+    await options?.afterPersist?.(connection, result);
     return result;
   });
 }

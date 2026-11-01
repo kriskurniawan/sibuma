@@ -5,6 +5,7 @@ import { rowToCamel } from "./db-model";
 import { getChecklistLocationPathMap, getChecklistLocationScopeIds, listChecklistLocationOptions } from "./checklist-location-scope";
 import { clampPage, type PageRequest } from "./pagination";
 import { sqlTimeZone } from "./sql-time-zone";
+import { todayLocal } from "./time";
 import type {
   ChecklistFollowUp,
   ChecklistFollowUpReportTotals,
@@ -147,7 +148,7 @@ export async function getChecklistReportData(
        WHERE f.inspection_id=i.id AND f.status NOT IN ('selesai','dibatalkan')
      ) f ON true
      LEFT JOIN LATERAL (
-       SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik) ORDER BY e.name,e.id) assignees
+       SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik,'avatarKey',e.avatar_key) ORDER BY e.name,e.id) assignees
        FROM checklist_inspection_assignees ia JOIN employees e ON e.id=ia.employee_id
        WHERE ia.inspection_id=i.id
      ) asg ON true
@@ -366,7 +367,7 @@ export async function getChecklistFollowUpReportData(
 
   const [rows, totalsRow] = await Promise.all([
     query(
-      `SELECT f.*,a.prompt,p.name pic_name,p.nik pic_nik,c.name creator_name,
+      `SELECT f.*,a.prompt,p.name pic_name,p.nik pic_nik,p.avatar_key pic_avatar_key,c.name creator_name,
          i.id source_inspection_id,i.template_name,i.category,i.location_id,i.location_name,i.occurrence_date,
          i.due_at source_due_at,i.status source_status,i.period_label
        FROM checklist_follow_ups f
@@ -400,7 +401,7 @@ export async function getChecklistFollowUpReportData(
     ),
   ]);
 
-  const now = Date.now();
+  const today = todayLocal();
   const items: ChecklistFollowUpRow[] = rows.map((row) => {
     const followUp = pickFollowUp(row);
     const inspection: ChecklistInspectionRef = {
@@ -423,14 +424,15 @@ export async function getChecklistFollowUpReportData(
             id: followUp.picId as string,
             name: row.pic_name as string,
             nik: row.pic_nik as string,
+            avatarKey: (row.pic_avatar_key as string | null) ?? null,
           }
         : null,
       creatorName: (row.creator_name as string | null) ?? null,
       events: [],
       overdue:
         ["terbuka", "diproses", "tertunda"].includes(followUp.status) &&
-        Boolean(followUp.dueDate) &&
-        new Date(`${followUp.dueDate}T23:59:59+07:00`).getTime() < now,
+        typeof followUp.dueDate === "string" &&
+        followUp.dueDate < today,
     };
   });
 

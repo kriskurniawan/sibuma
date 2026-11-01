@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ChecklistView } from "@/components/checklist/checklist-view";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
+import { checklistReadOwner } from "@/lib/checklist-access";
 import {
   getChecklistDashboard,
   getChecklistLocations,
@@ -30,7 +31,7 @@ export default async function ChecklistPage({
     includeSubLocations: first(params.includeSub) !== "0",
   };
   const request = pageRequest(first(params.page), first(params.size));
-  const ownerId = user.role === "atasan" ? user.id : user.supervisorId;
+  const ownerId = checklistReadOwner(user);
   const [data, locations] = await Promise.all([
     getChecklistDashboard(user, filters, request),
     getChecklistLocations(ownerId),

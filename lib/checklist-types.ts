@@ -94,7 +94,7 @@ export const CHECKLIST_STATUS_LABEL: Record<
   ChecklistInspectionStatus,
   string
 > = {
-  belum_dimulai: "Belum dimulai",
+  belum_dimulai: "Belum diisi",
   berlangsung: "Berlangsung",
   selesai: "Selesai",
   dilewati: "Dilewati",
@@ -167,6 +167,8 @@ export interface ChecklistLocation {
   updatedAt: string;
   /** Label hierarki dari akar, diisi saat data lokasi dimuat untuk UI. */
   path?: string;
+  /** Nama atasan pemilik, diisi saat lokasi ditampilkan lintas pemilik. */
+  ownerName?: string | null;
 }
 
 export interface ChecklistTemplate {
@@ -231,6 +233,7 @@ export interface ChecklistPerson {
   id: string;
   name: string;
   nik?: string;
+  avatarKey?: string | null;
   active?: boolean;
 }
 

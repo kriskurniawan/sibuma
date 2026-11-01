@@ -164,6 +164,7 @@ try {
    const employeeIds=(await connection.query('SELECT id FROM employees WHERE id=$1 OR supervisor_id=$1',[supervisorId])).rows.map(r=>r.id);
    const spklIds=(await connection.query('SELECT id FROM spkls WHERE created_by=$1',[supervisorId])).rows.map(r=>r.id);
    const attendanceIds=(await connection.query('SELECT id FROM attendances WHERE spkl_id=ANY($1::text[])',[spklIds])).rows.map(r=>r.id);
+   await connection.query('DELETE FROM notification_outbox WHERE recipient_id=ANY($1::text[]) OR spkl_id=ANY($2::text[])',[employeeIds,spklIds]);
    await connection.query('DELETE FROM notification_logs WHERE recipient_id=ANY($1::text[])',[employeeIds]);
    await connection.query('DELETE FROM otp_records WHERE employee_id=ANY($1::text[])',[employeeIds]);
    await connection.query('DELETE FROM audit_logs WHERE actor_id=ANY($1::text[]) OR object_id=ANY($2::text[])',[employeeIds,[...fixtureIds,...spklIds,...attendanceIds]]);

@@ -454,7 +454,7 @@ export function SupervisorsView({ rows }: { rows: SupervisorRow[] }) {
             </Select>
             <p className="text-xs leading-relaxed text-muted-foreground">
               {form.accessMode === "read_only"
-                ? "Hanya melihat data tim sendiri; semua perubahan dinonaktifkan."
+                ? "Pengamat lintas tim: dapat melihat seluruh data operasional perusahaan; perubahan dinonaktifkan kecuali membuat QR area."
                 : "Mengelola SPKL, tim, absensi, dan checklist tim sendiri."}
             </p>
           </div>

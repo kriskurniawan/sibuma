@@ -1,4 +1,4 @@
-import { isSuperAdmin } from "@/lib/access";
+import { isSuperAdmin, readOwnerId } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { ATTENDANCE_STATUS_LABEL } from "@/lib/constants";
 import { excelDate, excelFileResponse } from "@/lib/excel";
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     return apiError("Rentang tanggal tidak valid.");
   }
 
-  const data = await getReportData(isSuperAdmin(user) ? null : user.id, {
+  const data = await getReportData(readOwnerId(user), {
     from,
     to,
     employeeId: url.searchParams.get("employeeId") || undefined,

@@ -28,6 +28,7 @@ import { ChecklistReportGrid } from "@/components/reports/checklist-report-grid"
 import { ReportFilterBar } from "@/components/reports/report-filter-bar";
 import { ReportPrintButton } from "@/components/reports/report-print-button";
 import { isSuperAdmin } from "@/lib/access";
+import { checklistReadOwner } from "@/lib/checklist-access";
 import {
   getChecklistReportData,
   getChecklistReportOptions,
@@ -49,7 +50,7 @@ const STATUS_OPTIONS = [
   { value: "", label: "Semua status" },
   { value: "aktif", label: "Belum selesai" },
   { value: "terlambat", label: "Terlambat" },
-  { value: "belum_dimulai", label: "Belum dimulai" },
+  { value: "belum_dimulai", label: "Belum diisi" },
   { value: "berlangsung", label: "Berlangsung" },
   { value: "selesai", label: "Selesai" },
   { value: "dilewati", label: "Dilewati" },
@@ -85,7 +86,7 @@ export async function ChecklistReportScreen({
   };
 
   const printing = first(params.print) === "1";
-  const ownerId = isSuperAdmin(user) ? null : user.id;
+  const ownerId = checklistReadOwner(user);
   const [data, options] = await Promise.all([
     getChecklistReportData(
       ownerId,

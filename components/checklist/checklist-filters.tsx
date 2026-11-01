@@ -27,7 +27,7 @@ import type { ChecklistLocationOption } from "@/lib/checklist-location-path";
 const STATUS_OPTIONS = [
   { value: "aktif", label: "Perlu dikerjakan" },
   { value: "terlambat", label: "Terlambat" },
-  { value: "belum_dimulai", label: "Belum dimulai" },
+  { value: "belum_dimulai", label: "Belum diisi" },
   { value: "berlangsung", label: "Berlangsung" },
   { value: "selesai", label: "Selesai" },
   { value: "semua", label: "Semua status" },

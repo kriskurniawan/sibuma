@@ -48,11 +48,12 @@ Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, 
 - Menerbitkan **QR area publik**—satu QR umum untuk memilih area atau QR khusus satu area—yang dapat dipindai pengunjung tanpa login. Visibilitas diatur per area dan per item dengan default **nonpublik**; catatan, foto, dan identitas petugas tidak pernah ditampilkan.
 - Melaporkan **checklist dan tindak lanjut** selain lembur melalui tab terpisah, lengkap dengan filter, Excel (rekap + rincian item), CSV rekap, CSV rincian item, CSV tindak lanjut, serta cetak/PDF.
 - Melihat **log audit** dan **outbox WhatsApp** untuk notifikasi SPKL, dibatasi pada dirinya, timnya, dan catatan yang ia miliki. Kode OTP tidak dicatat di outbox.
+- Atasan mode **Hanya lihat** berperan sebagai pengamat lintas tim: membaca dashboard, lembur/SPKL, absensi, checklist, tindak lanjut, pekerjaan harian, tim/divisi, laporan, cetak, dan ekspor seluruh perusahaan tanpa dapat mengubah data operasional. Pengecualian: **QR area** boleh dibuat dan diubah (QR pengamat mencakup seluruh area publik perusahaan), **dokumen kerja** tetap mengikuti berbagi eksplisit pemilik, dan **log audit** tetap hanya untuk atasan penuh.
 
 ### Sistem
 
 - Stempel waktu dibuat di server, bukan dari jam perangkat.
-- Penutupan sesi otomatis dan pencatatan **tidak hadir** dijalankan secara *lazy* saat data dibaca/diubah.
+- Penutupan sesi otomatis, pencatatan **tidak hadir**, pembuatan checklist, purge dokumen, dan pengiriman notifikasi berjalan lewat cron terjadwal; fallback *lazy* tetap aktif saat data dibaca/diubah.
 - Pembatasan OTP: kirim ulang 60 detik, maksimal 5 percobaan, kunci 15 menit.
 - Sesi login ditandatangani HMAC dan berlaku 30 hari.
 - Validasi peran di setiap API dan halaman.
@@ -118,7 +119,7 @@ Buka `http://localhost:3000`.
 
 `npm run db:init` hanya untuk database kosong; membuat tabel relasional dan satu akun super admin awal dari environment. Semua tabel harus kosong dan `--force` ditolak. Super admin membuat akun atasan lewat menu **Akun atasan**; atasan kemudian menambahkan pekerja dan divisi lewat menu **Tim**. Untuk instalasi lama gunakan `npm run db:migrate:relational -- --apply`, bukan init/reset.
 
-Mode akses atasan memakai migrasi terpisah: `npm run db:migrate:access-mode` (DDL `db/migrations/011_employee_access_mode.sql`) menambahkan kolom `employees.access_mode` dengan nilai `full` atau `read_only`. Atasan `read_only` tetap dapat melihat dashboard, SPKL, absensi, checklist, temuan, foto, laporan, cetak, serta ekspor Excel/CSV timnya sendiri, tetapi seluruh perubahan operasional (SPKL, tim/divisi, checklist, tindak lanjut, foto, koreksi absensi, profil) ditolak server dengan HTTP 403. Super admin mengatur mode ini lewat **Akun atasan → Hak akses**; perubahan berlaku pada request berikutnya tanpa perlu login ulang. Database baru lewat `db:init` sudah memuat kolom ini.
+Mode akses atasan memakai migrasi terpisah: `npm run db:migrate:access-mode` (DDL `db/migrations/011_employee_access_mode.sql`) menambahkan kolom `employees.access_mode` dengan nilai `full` atau `read_only`. Atasan `read_only` berperan sebagai pengamat lintas tim: dashboard, SPKL/lembur, absensi, temuan, foto, checklist, tindak lanjut, pekerjaan harian, tim/divisi, laporan, cetak, serta ekspor Excel/CSV/PDF mencakup seluruh perusahaan. Pengecualian: dokumen kerja tetap mengikuti berbagi eksplisit pemilik, dan log audit tetap hanya untuk atasan penuh. Seluruh perubahan operasional (SPKL, tim/divisi, checklist, tindak lanjut, foto, koreksi absensi, profil) ditolak server dengan HTTP 403; satu-satunya pengecualian adalah pembuatan/pengubahan **QR area**, yang hanya menerbitkan tautan publik dan QR-nya mencakup seluruh area publik perusahaan. Super admin mengatur mode ini lewat **Akun atasan → Hak akses**; perubahan berlaku pada request berikutnya tanpa perlu login ulang. Database baru lewat `db:init` sudah memuat kolom ini.
 
 Modul checklist memakai migrasi terpisah: `npm run db:migrate:checklists` (DDL `db/migrations/004_checklists.sql`, `005_checklist_public.sql`, `006_checklist_item_groups.sql`, dan `008_checklist_conditions.sql`). Migrasi `007_remove_demo_status.sql` menghapus status `demo` dari OTP dan notifikasi; terapkan dengan `npm run db:migrate:remove-demo`. Database baru yang dibuat lewat `db:init` sudah memuat seluruh skema ini; database lama cukup menjalankan migrasi tersebut. Migrasi checklist menambah tabel/indeks checklist, kolom visibilitas publik, tabel QR, kolom grup item (`item_type`, `parent_item_id`, `group_path`), tabel status checklist (`checklist_conditions`), dan label audit baru, tanpa mengubah baris lama. Item/answer lama otomatis bernilai `item_type='item'` dan `group_path=''`; status lama (`baik`, `perlu_perhatian`, `tidak_baik`, `tidak_berlaku`) diisi sebagai status awal, sehingga inspection historis tetap valid. Status checklist dapat ditambah, diubah, diurutkan, dinonaktifkan, atau dihapus lewat **Pengaturan**; status yang sudah dipakai pada jawaban tidak dapat dihapus. Seluruh migrasi idempoten dan aman diulang.
 
@@ -149,9 +150,9 @@ Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL
 ### Deploy ke Vercel
 
 1. Hubungkan repositori ke Vercel dengan framework preset **Next.js**.
-2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada. Zona waktu diatur dari **Pengaturan → Kebijakan**, bukan environment.
-3. `vercel.json` menetapkan **Function Region Singapore (`sin1`)** agar fungsi Vercel dekat dengan Neon.
-4. Jalankan `npm run storage:init` dan `npm run storage:init:documents` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
+2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `CRON_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada. Zona waktu diatur dari **Pengaturan → Kebijakan**, bukan environment.
+3. `vercel.json` menetapkan **Function Region Singapore (`sin1`)** agar fungsi Vercel dekat dengan Neon. Berkas itu juga memasang cron harian `0 17 * * *` sebagai jaring pengaman; pemicu per menit berasal dari scheduler eksternal (lihat [Otomasi terjadwal](#otomasi-terjadwal-cron)).
+4. Jalankan `npm run storage:init`, `npm run storage:init:documents`, dan `npm run db:migrate:automation` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
 5. Buka `https://<domain>/api/health`; `database` harus `neon-postgres`, `schema` harus `relational-v1`, dan `storage` harus `neon-object-storage`.
 6. Pastikan bucket `NEON_STORAGE_BUCKET` dan `DOCUMENTS_S3_BUCKET` privat dan berbeda. URL unggah dokumen ditandatangani sementara dan hanya untuk `PUT`; pratinjau/unduhan tetap melalui route aplikasi. Jangan menambahkan URL publik, presigned URL unduhan, atau kredensial storage ke klien.
 7. Unggahan dokumen dan video dikirim langsung dari browser ke bucket, sehingga tidak terkena batas body 4.5 MB Vercel Functions. Bucket dokumen wajib mengizinkan `PUT` dari origin aplikasi dengan header `content-type` (dipasang oleh `npm run storage:init:documents` bila didukung). Bucket utama juga harus mengizinkan `PUT` dari origin aplikasi untuk video bukti pekerjaan; atur CORS lewat konsol penyedia bila belum ada. Pemutaran video memakai redirect ke URL baca bertanda tangan, jadi `Range`/`206` ditangani storage, bukan fungsi Vercel.
@@ -236,8 +237,9 @@ Salin `.env.example` menjadi `.env.local`.
 | `DOCUMENTS_S3_SECRET_ACCESS_KEY` | Tidak | Secret key khusus dokumen; fallback ke `AWS_SECRET_ACCESS_KEY`. |
 | `DOCUMENTS_S3_FORCE_PATH_STYLE` | Tidak | Default `true`; isi `false` hanya untuk penyedia virtual-hosted. |
 | `DOCUMENTS_S3_CORS_ORIGINS` | Tidak | Origin yang diizinkan mengunggah langsung ke bucket, dipisah koma (mis. `https://app.example.com,http://localhost:3000`). Fallback ke `NEXT_PUBLIC_APP_URL`. |
+| `CRON_SECRET` | Otomasi | Rahasia Bearer untuk `/api/cron/automation`. Vercel Cron mengirimkannya otomatis; scheduler eksternal harus menambahkan header `Authorization: Bearer <nilai>`. Tanpa nilai ini endpoint menolak berjalan (HTTP 500). |
 
-Untuk notifikasi SPKL, jika tiga variabel `CHATERY_*` kosong, pesan dicatat di outbox dengan status `gagal` dan alasan konfigurasi. Jika diisi, aplikasi memanggil `POST {CHATERY_API_URL}/chats/send-text` dengan body `sessionId`, `chatId`, `message`, dan `typingTime`. Khusus OTP, WA tidak tersedia/gagal otomatis mencoba email Resend; jika dua kanal gagal maka permintaan ditolak.
+Untuk notifikasi SPKL, pesan selalu ditulis lebih dulu ke `notification_outbox` di transaksi yang sama dengan perubahan SPKL. Pekerjaan `notification_outbox` mengirim pesan yang jatuh tempo setiap menit dan mengulang kegagalan sementara dengan jeda bertahap (maksimum 5 percobaan). Jika tiga variabel `CHATERY_*` kosong, pesan langsung ditandai `gagal` dengan alasan konfigurasi. Jika diisi, aplikasi memanggil `POST {CHATERY_API_URL}/chats/send-text` dengan body `sessionId`, `chatId`, `message`, dan `typingTime`. Khusus OTP, WA tidak tersedia/gagal otomatis mencoba email Resend; jika dua kanal gagal maka permintaan ditolak.
 
 ---
 
@@ -500,7 +502,27 @@ Google Sheets/Drive tidak dipakai. Jika suatu saat diperlukan arsip tambahan, sa
 
 ### Chatery (WhatsApp)
 
-Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta notifikasi SPKL. Status tersimpan di outbox (`terkirim`, `gagal`). Bila `CHATERY_*` belum diisi, notifikasi dicatat `gagal` beserta alasannya. Pengiriman nyata **belum diverifikasi** karena kredensial tidak tersedia. Format API mengikuti endpoint `POST /chats/send-text`; sesuaikan jika kontrak Chatery berbeda.
+Alur pengiriman ada di `lib/notifications.ts` dan `lib/notification-outbox.ts`, dipakai untuk OTP serta notifikasi SPKL. Notifikasi SPKL masuk ke `notification_outbox` (`pending`, `processing`, `sent`, `failed`) dan dikirim oleh cron dengan percobaan ulang bertahap; hasil akhirnya terlihat di halaman audit (`terkirim`/`gagal`). Bila `CHATERY_*` belum diisi, pesan langsung ditandai `gagal` beserta alasannya tanpa diulang. Pengiriman nyata **belum diverifikasi** karena kredensial tidak tersedia. Format API mengikuti endpoint `POST /chats/send-text`; sesuaikan jika kontrak Chatery berbeda.
+
+### Otomasi terjadwal (cron)
+
+**Sudah diimplementasikan.**
+
+- Migrasi: `npm run db:migrate:automation` (DDL `db/migrations/029_automation.sql`). Gunakan `--dry-run` untuk menguji DDL lalu rollback. Database kosong yang dibuat dengan `npm run db:init` sudah memuat skema ini.
+- Endpoint `GET /api/cron/automation` diamankan dengan `Authorization: Bearer <CRON_SECRET>` dan perbandingan timing-safe. Tanpa secret yang benar endpoint membalas `401`; bila `CRON_SECRET` kosong membalas `500`. `?dryRun=1` hanya membaca status pekerjaan, tanpa menjalankan atau mengubah data. Bila salah satu pekerjaan gagal, endpoint membalas `500` beserta ringkasan agar scheduler dapat mengirim notifikasi.
+- Pekerjaan dan irama: `attendance_finalization` dan `notification_outbox` setiap 60 detik, `checklist_generation` setiap jam, `document_purge` setiap hari. Status, `next_run_at`, kunci, hasil terakhir, dan galat tersimpan di `automation_jobs`.
+- Klaim memakai satu `UPDATE` atomik dengan syarat jatuh tempo dan kunci, sehingga pemanggilan ganda tidak menjalankan pekerjaan yang sama. Pekerjaan berjalan paralel dengan batas internal ~22 detik agar tetap di bawah timeout 30 detik cron-job.org. Pekerjaan yang terlewat dijalankan saat pemanggilan berikutnya; batch dibatasi dan setiap operasi idempoten.
+- Notifikasi SPKL tidak lagi fire-and-forget. Baris `notification_outbox` ditulis dalam transaksi yang sama dengan create/edit/cancel SPKL. Pengiriman maksimum 5 percobaan dengan jeda 1, 5, 15, lalu 60 menit; baris `processing` yang tertinggal dipulihkan setelah 3 menit. Hasil akhir dicatat di `notification_logs` untuk halaman audit.
+- Finalisasi absensi dan generator checklist yang dipicu pembacaan halaman tetap ada sebagai jaring pengaman. Cron memastikan pekerjaan tetap berjalan saat tidak ada pengguna yang membuka aplikasi.
+
+**Vercel Hobby.** `vercel.json` hanya memasang satu cron harian `0 17 * * *` (00:00 WIB) sebagai jaring pengaman; paket Hobby tidak mengizinkan cron per menit dan deployment akan gagal bila ditambahkan. Pemicu utama per menit berasal dari scheduler eksternal gratis seperti cron-job.org:
+
+1. Buat cron job `GET https://<domain>/api/cron/automation` dengan jadwal setiap 1 menit.
+2. Tambahkan header `Authorization: Bearer <CRON_SECRET>`, nilainya sama dengan environment Vercel.
+3. Atur timeout permintaan 30 detik; endpoint menyelesaikan pekerjaan dalam ~22 detik.
+4. Aktifkan notifikasi kegagalan agar `401`, `500`, atau timeout terlihat. Setelah mengganti `CRON_SECRET`, perbarui header di scheduler dan redeploy.
+
+Scheduler eksternal bersifat upaya terbaik: latensi normal 1–2 menit, bukan jaminan SLA. Bila scheduler berhenti, cron harian Vercel tetap menjalankan pekerjaan yang tertinggal, dan fallback lazy saat halaman dibuka menutup absensi/checklist yang lewat tenggat.
 
 ### PWA, cache, dan privasi perangkat
 
@@ -515,7 +537,7 @@ Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta 
 
 
 
-- Penutupan otomatis bersifat *lazy* (dipicu saat ada akses), bukan cron/background worker. Untuk data yang harus final tepat waktu, tambahkan scheduled job.
+- Penutupan otomatis tetap berjalan *lazy* saat ada akses sebagai jaring pengaman. Cron `/api/cron/automation` menjalankan finalisasi, generator checklist, purge dokumen, dan pengiriman outbox tanpa menunggu traffic pengguna; lihat [Otomasi terjadwal](#otomasi-terjadwal-cron).
 - Seluruh lingkungan memakai Neon dengan transaksi relasional lintas instance Vercel; tidak ada fallback JSON.
 - Retensi audit/OTP/notifikasi belum otomatis. Form pilihan pekerja/opsi laporan masih perlu remote search untuk tim sangat besar.
 - Dokumentasi disajikan lewat proxy fungsi Vercel, belum lewat CDN atau presigned URL. Untuk file 1,5 MB ini masih wajar.
@@ -575,6 +597,15 @@ Alur pengiriman sudah ada di `lib/notifications.ts` dan dipakai untuk OTP serta 
 - Uji end-to-end pada database nyata: template berisi grup **Pemeriksaan Pompa** (Periksa gear, Periksa tekanan), grup **Pemeriksaan BBM** (Cek level tangki), dan satu item lepas. Validasi menolak grup tanpa sub-item; versi tersimpan dengan `parent_item_id` dan snapshot `group_path`; generator membuat 15 inspection dan 60 answer (4 item daun per inspection) tanpa answer untuk grup.
 - Uji route dan tampilan pada server dev: `POST /api/checklist/templates` menghasilkan 5 baris (2 grup, 3 item daun), halaman `/checklist/template/[id]` menampilkan heading grup dan badge **Grup**, dan daftar template menghitung **3 item** (daun saja). Fixture inspection selesai + QR langsung: `/p/[token]/area/[locationId]` menampilkan kedua heading grup dan hanya item `public_visible`, sedangkan `/checklist/[id]` menampilkan seluruh item termasuk yang nonpublik. Seluruh data uji dibersihkan.
 - Editor template memakai blok grup + sub-item; detail template, pengisian checklist, halaman publik, dan CSV item menampilkan/menyertakan grup. `npm run typecheck` dan `npm run build` lulus; pemeriksaan ReUI C1–C4 bersih pada file yang diubah.
+
+### Otomasi terjadwal (1 Nov 2026)
+
+- Migrasi `029_automation` diterapkan pada database aktif setelah `--dry-run` lulus: tabel `automation_jobs` (4 pekerjaan) dan `notification_outbox`. Migrasi idempoten; pemeriksaan status/constraint/index lulus.
+- `npx tsc --noEmit` lulus setelah perubahan cron, outbox, dan perbandingan tanggal tindak lanjut.
+- Endpoint `/api/cron/automation`: tanpa `CRON_SECRET` membalas `500`, secret salah `401`, dan `?dryRun=1` dengan secret benar membalas `200` beserta status keempat pekerjaan.
+- Pemanggilan nyata pertama menjalankan `notification_outbox`, `attendance_finalization`, `checklist_generation`, dan `document_purge` dengan status `success`. Pemanggilan kedua secara langsung menghasilkan `executed=0` dan `due=false`, sehingga klaim atomik mencegah pekerjaan ganda.
+- INSERT `notification_outbox` diuji pada transaksi yang di-rollback: status awal `pending`, `attempts=0`, dan tidak ada baris uji yang tertinggal.
+- Pengiriman WhatsApp nyata, scheduler cron-job.org, dan cron harian Vercel belum diuji karena memerlukan kredensial/keputusan deploy pemilik.
 
 ### Catatan historis sebelum normalisasi
 

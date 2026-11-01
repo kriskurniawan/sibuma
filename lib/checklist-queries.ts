@@ -5,6 +5,10 @@ import { rowToCamel } from "./db-model";
 import { clampPage, type PageRequest } from "./pagination";
 import { sqlTimeZone } from "./sql-time-zone";
 import { generateChecklistInspections } from "./checklist-generate";
+import {
+  checklistReadOwner,
+  checklistReadsAll,
+} from "./checklist-access";
 import { buildChecklistLocationOptions } from "./checklist-location-path";
 import {
   getChecklistLocationPathMap,
@@ -79,8 +83,9 @@ function inspectionAccess(
   alias: string,
   employeeParam = "$1",
   managerParam = "$2",
+  allParam = "$3",
 ) {
-  return `((${managerParam}::boolean AND ${alias}.owner_id=${employeeParam}) OR EXISTS(
+  return `((${allParam}::boolean) OR (${managerParam}::boolean AND ${alias}.owner_id=${employeeParam}) OR EXISTS(
     SELECT 1 FROM checklist_inspection_assignees ia WHERE ia.inspection_id=${alias}.id AND ia.employee_id=${employeeParam}))`;
 }
 
@@ -88,8 +93,9 @@ function followUpAccess(
   alias: string,
   employeeParam = "$1",
   managerParam = "$2",
+  allParam = "$3",
 ) {
-  return `((${managerParam}::boolean AND ${alias}.owner_id=${employeeParam}) OR ${alias}.pic_id=${employeeParam} OR EXISTS(
+  return `((${allParam}::boolean) OR (${managerParam}::boolean AND ${alias}.owner_id=${employeeParam}) OR ${alias}.pic_id=${employeeParam} OR EXISTS(
     SELECT 1 FROM checklist_inspection_assignees ia WHERE ia.inspection_id=${alias}.inspection_id AND ia.employee_id=${employeeParam}))`;
 }
 
@@ -102,13 +108,18 @@ function inspectionViewAccess(
   alias: string,
   employeeParam = "$1",
   managerParam = "$2",
+  allParam = "$3",
 ) {
-  return `(${inspectionAccess(alias, employeeParam, managerParam)} OR EXISTS(
+  return `(${inspectionAccess(alias, employeeParam, managerParam, allParam)} OR EXISTS(
     SELECT 1 FROM checklist_follow_ups f WHERE f.inspection_id=${alias}.id AND f.pic_id=${employeeParam}))`;
 }
 
 function roleParams(user: SessionUser) {
-  return [user.id, user.role === "atasan"] as const;
+  return [
+    user.id,
+    user.role === "atasan",
+    checklistReadsAll(user),
+  ] as const;
 }
 
 async function generateForUser(user: SessionUser) {
@@ -134,10 +145,10 @@ export async function getChecklistDashboard(
   request?: PageRequest,
 ) {
   await generateForUser(user);
-  const [userId, manager] = roleParams(user);
-  const ownerId = user.role === "atasan" ? user.id : user.supervisorId;
+  const [userId, manager, all] = roleParams(user);
+  const ownerId = checklistReadOwner(user);
   const locationPathsPromise = getChecklistLocationPathMap(ownerId);
-  const values: unknown[] = [userId, manager];
+  const values: unknown[] = [userId, manager, all];
   let where = `WHERE ${inspectionAccess("i")}`;
 
   const status = filters.status ?? "aktif";
@@ -197,7 +208,7 @@ export async function getChecklistDashboard(
        WHERE f.inspection_id=i.id AND f.status NOT IN ('selesai','dibatalkan')
      ) f ON true
      LEFT JOIN LATERAL (
-       SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik) ORDER BY e.name,e.id) assignees
+       SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik,'avatarKey',e.avatar_key) ORDER BY e.name,e.id) assignees
        FROM checklist_inspection_assignees ia JOIN employees e ON e.id=ia.employee_id
        WHERE ia.inspection_id=i.id
      ) asg ON true
@@ -230,7 +241,7 @@ export async function getChecklistDashboard(
 }
 
 export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTotals> {
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   const [row] = await query(
     `SELECT
        count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung'))::integer todo,
@@ -240,7 +251,7 @@ export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTo
         WHERE f.status NOT IN ('selesai','dibatalkan') AND ${inspectionAccess("i2")}) open_follow_ups
      FROM checklist_inspections i
      WHERE ${inspectionAccess("i")}`,
-    [userId, manager],
+    [userId, manager, all],
   );
   return {
     todo: Number(row.todo),
@@ -255,7 +266,7 @@ async function followUpRows(where: string, values: unknown[], suffix = "") {
     `SELECT f.id,f.inspection_id,f.answer_id,f.owner_id,f.title,f.description,f.pic_id,f.safety_name,f.priority,
        f.due_date,f.status,f.progress_note,f.cancel_reason,f.result_note,f.created_by,f.started_at,
        f.completed_at,f.completed_by,f.created_at,f.updated_at,
-       a.prompt,p.name pic_name,p.nik pic_nik,c.name creator_name,
+       a.prompt,p.name pic_name,p.nik pic_nik,p.avatar_key pic_avatar_key,c.name creator_name,
        i.id source_inspection_id,i.template_name,i.category,i.location_name,i.occurrence_date,
        i.due_at source_due_at,i.status source_status,i.period_label
      FROM checklist_follow_ups f
@@ -282,7 +293,7 @@ async function followUpRows(where: string, values: unknown[], suffix = "") {
     eventsByFollowUp.set(mapped.followUpId, list);
   }
 
-  const now = Date.now();
+  const today = todayLocal();
   return rows.map((row) => {
     const followUp = pickFollowUp(row);
     const inspection: ChecklistInspectionRef = {
@@ -300,14 +311,19 @@ async function followUpRows(where: string, values: unknown[], suffix = "") {
       inspection,
       prompt: (row.prompt as string | null) ?? null,
       pic: row.pic_name
-        ? { id: followUp.picId as string, name: row.pic_name as string, nik: row.pic_nik as string }
+        ? {
+            id: followUp.picId as string,
+            name: row.pic_name as string,
+            nik: row.pic_nik as string,
+            avatarKey: (row.pic_avatar_key as string | null) ?? null,
+          }
         : null,
       creatorName: (row.creator_name as string | null) ?? null,
       events: eventsByFollowUp.get(followUp.id) ?? [],
       overdue:
         ["terbuka", "diproses", "tertunda"].includes(followUp.status) &&
-        Boolean(followUp.dueDate) &&
-        new Date(`${followUp.dueDate}T23:59:59+07:00`).getTime() < now,
+        typeof followUp.dueDate === "string" &&
+        followUp.dueDate < today,
     };
   });
 }
@@ -317,7 +333,7 @@ export async function getChecklistInspectionDetail(
   id: string,
 ): Promise<ChecklistInspectionDetail | null> {
   await generateForUser(user);
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   const [row] = await query(
     `SELECT i.*,o.name owner_name,o.access_mode owner_access_mode,
        cb.name completed_by_name,rb.name reopened_by_name
@@ -325,8 +341,8 @@ export async function getChecklistInspectionDetail(
      JOIN employees o ON o.id=i.owner_id
      LEFT JOIN employees cb ON cb.id=i.completed_by
      LEFT JOIN employees rb ON rb.id=i.reopened_by
-     WHERE i.id=$1 AND ${inspectionViewAccess("i", "$2", "$3")}`,
-    [id, userId, manager],
+     WHERE i.id=$1 AND ${inspectionViewAccess("i", "$2", "$3", "$4")}`,
+    [id, userId, manager, all],
   );
   if (!row) return null;
 
@@ -358,7 +374,7 @@ export async function getChecklistInspectionDetail(
       query(`SELECT * FROM checklist_answers WHERE inspection_id=$1 ORDER BY position,id`, [id]),
       query(`SELECT * FROM checklist_photos WHERE inspection_id=$1 ORDER BY created_at,id`, [id]),
       query(
-        `SELECT e.id,e.name,e.nik FROM checklist_inspection_assignees ia
+        `SELECT e.id,e.name,e.nik,e.avatar_key AS "avatarKey" FROM checklist_inspection_assignees ia
          JOIN employees e ON e.id=ia.employee_id WHERE ia.inspection_id=$1 ORDER BY e.name,e.id`,
         [id],
       ),
@@ -376,7 +392,7 @@ export async function getChecklistInspectionDetail(
         : Promise.resolve([]),
       followUpRows(`WHERE f.inspection_id=$1`, [id]),
       query(
-        `SELECT id,name,nik FROM employees
+        `SELECT id,name,nik,avatar_key AS "avatarKey" FROM employees
          WHERE supervisor_id=$1 AND active AND access_mode='full' ORDER BY name,id`,
         [inspection.ownerId],
       ),
@@ -466,9 +482,9 @@ export async function getChecklistFollowUps(
   request?: PageRequest,
 ) {
   await generateForUser(user);
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   let where = `WHERE ${followUpAccess("f")}`;
-  const values: unknown[] = [userId, manager];
+  const values: unknown[] = [userId, manager, all];
 
   const status = filters.status ?? "aktif";
   if (status === "aktif") {
@@ -510,7 +526,7 @@ export async function getChecklistFollowUps(
 export async function getChecklistFollowUpTotals(
   user: SessionUser,
 ): Promise<ChecklistFollowUpTotals> {
-  const [userId, manager] = roleParams(user);
+  const [userId, manager, all] = roleParams(user);
   const [row] = await query(
     `SELECT
        count(*) FILTER (WHERE f.status IN ('terbuka','diproses','tertunda'))::integer open,
@@ -519,7 +535,7 @@ export async function getChecklistFollowUpTotals(
        count(*) FILTER (WHERE f.status='selesai' AND f.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer done_this_month
      FROM checklist_follow_ups f
      WHERE ${followUpAccess("f")}`,
-    [userId, manager],
+    [userId, manager, all],
   );
   return {
     open: Number(row.open),
@@ -530,7 +546,6 @@ export async function getChecklistFollowUpTotals(
 }
 
 export async function getChecklistLocations(ownerId: string | null) {
-  if (!ownerId) return [];
   return listChecklistLocationOptions(ownerId);
 }
 
@@ -540,7 +555,7 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
     query(`SELECT * FROM checklist_templates WHERE owner_id=$1 ORDER BY active DESC,name,id`, [userId]),
     query(
       `SELECT s.*,t.name template_name,l.name location_name,
-         coalesce((SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik,'divisionId',e.division_id,'divisionName',d.name) ORDER BY e.name,e.id)
+         coalesce((SELECT json_agg(json_build_object('id',e.id,'name',e.name,'nik',e.nik,'avatarKey',e.avatar_key,'divisionId',e.division_id,'divisionName',d.name) ORDER BY e.name,e.id)
            FROM checklist_schedule_assignees sa JOIN employees e ON e.id=sa.employee_id
            LEFT JOIN divisions d ON d.id=e.division_id
            WHERE sa.schedule_id=s.id),'[]'::json) assignees,
@@ -556,7 +571,7 @@ export async function getChecklistSetup(userId: string): Promise<ChecklistSetup>
       [userId],
     ),
     query(
-      `SELECT e.id,e.name,e.nik,e.active,e.division_id,d.name division_name
+      `SELECT e.id,e.name,e.nik,e.active,e.division_id,d.name division_name,e.avatar_key
        FROM employees e LEFT JOIN divisions d ON d.id=e.division_id
        WHERE e.supervisor_id=$1 AND e.active AND e.access_mode='full'
        ORDER BY d.name NULLS LAST,e.name,e.id`,
@@ -711,16 +726,17 @@ export async function getChecklistTemplateDetail(userId: string, templateId: str
 export async function getChecklistPhoto(
   userId: string,
   manager: boolean,
+  all: boolean,
   photoId: string,
 ) {
   const [row] = await query(
     `SELECT p.*,i.owner_id inspection_owner_id
      FROM checklist_photos p
      JOIN checklist_inspections i ON i.id=p.inspection_id
-     WHERE p.id=$1 AND (($3::boolean AND i.owner_id=$2) OR p.uploaded_by=$2
+     WHERE p.id=$1 AND ($4::boolean OR ($3::boolean AND i.owner_id=$2) OR p.uploaded_by=$2
        OR EXISTS(SELECT 1 FROM checklist_inspection_assignees ia WHERE ia.inspection_id=i.id AND ia.employee_id=$2)
        OR EXISTS(SELECT 1 FROM checklist_follow_ups f WHERE f.inspection_id=i.id AND f.pic_id=$2))`,
-    [photoId, userId, manager],
+    [photoId, userId, manager, all],
   );
   if (!row) return null;
   return {

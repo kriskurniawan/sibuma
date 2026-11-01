@@ -145,7 +145,10 @@ function navigationFor(
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
       ],
       manage: readOnly
-        ? [{ href: "/tim", label: "Tim", icon: UsersRound }]
+        ? [
+            { href: "/tim", label: "Tim", icon: UsersRound },
+            { href: "/checklist/qr", label: "QR area", icon: QrCode },
+          ]
         : [
             { href: "/tim", label: "Tim", icon: UsersRound },
             { href: "/checklist/template", label: "Template checklist", icon: Settings2 },
@@ -168,7 +171,7 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/tindak-lanjut", "/laporan"]
+            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan"]
             : [
                 "/tim",
                 "/checklist/template",
@@ -231,7 +234,11 @@ function spklBackTarget(role: SessionUser["role"]) {
 }
 
 /** Halaman detail, form, dan sub-halaman checklist memakai tombol kembali di header mobile. */
-function mobileBackLink(pathname: string, role: SessionUser["role"]) {
+function mobileBackLink(
+  pathname: string,
+  role: SessionUser["role"],
+  readOnly = false,
+) {
   if (pathname === "/pekerjaan/baru") {
     return { href: "/pekerjaan", label: "Pekerjaan harian" };
   }
@@ -267,7 +274,9 @@ function mobileBackLink(pathname: string, role: SessionUser["role"]) {
     return { href: "/checklist/template", label: "Template checklist" };
   }
   if (pathname === "/checklist/qr") {
-    return { href: "/checklist/template", label: "Template & lokasi" };
+    return readOnly
+      ? { href: "/checklist", label: "Checklist" }
+      : { href: "/checklist/template", label: "Template & lokasi" };
   }
   if (pathname.startsWith("/checklist/")) {
     return { href: "/checklist", label: "Checklist" };
@@ -460,7 +469,7 @@ export function AppShell({
   const todayLabel = formatDateHuman(new Date().toISOString(), "EEEE, d MMMM");
   const sectionLabel = currentSectionLabel(pathname, nav);
   const firstName = user.name.split(" ")[0];
-  const backLink = mobileBackLink(pathname, user.role);
+  const backLink = mobileBackLink(pathname, user.role, readOnly);
   const { previousPath, handleBack } = useMobileBack(pathname, user.id);
 
   let activeMobileHref: string | null = null;

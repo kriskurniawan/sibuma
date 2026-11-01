@@ -48,7 +48,28 @@ export function isAtasan(user: Pick<SessionUser, "role">) {
   return user.role === "atasan";
 }
 
-/** Client-safe: true bila akun hanya boleh membaca data timnya sendiri. */
+/** Client-safe: true bila akun tidak boleh melakukan perubahan apa pun. */
 export function isReadOnly(user: Pick<SessionUser, "accessMode">) {
   return user.accessMode === "read_only";
+}
+
+/**
+ * Atasan hanya-lihat berperan sebagai pengamat lintas tim: seluruh data
+ * operasional perusahaan dapat dibaca, tetapi semua aksi tulis tetap ditolak.
+ */
+export function isObserver(
+  user: Pick<SessionUser, "role" | "accessMode">,
+) {
+  return user.role === "atasan" && user.accessMode === "read_only";
+}
+
+/**
+ * Pemilik data untuk query pembacaan. `null` berarti seluruh perusahaan,
+ * dipakai super admin dan atasan pengamat. Pekerja memakai atasan mereka.
+ */
+export function readOwnerId(
+  user: Pick<SessionUser, "id" | "role" | "accessMode" | "supervisorId">,
+): string | null {
+  if (user.role === "super_admin" || isObserver(user)) return null;
+  return user.role === "atasan" ? user.id : user.supervisorId;
 }
