@@ -200,17 +200,13 @@ function navigationFor(
       { href: "/riwayat", label: "Lembur", icon: Clock3 },
     ],
     manage: [],
+    // Empat tujuan + tombol scan = lima slot bottom nav.
+    // Lembur tetap dapat dibuka dari kartu jadwal lembur di Beranda dan Profil.
     mobile: [
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
       { href: "/pekerjaan", label: "Pekerjaan", icon: Hammer },
       { href: "/catatan", label: "Catatan", icon: StickyNote },
-      {
-        href: "/riwayat",
-        label: "Lembur",
-        icon: Clock3,
-        match: ["/spkl"],
-      },
     ],
   };
 }
@@ -458,7 +454,12 @@ export function AppShell({
   const readOnly = isReadOnly(user);
   const needsEmailChange = isCompanyEmail(user.email);
   const nav = navigationFor(user.role, readOnly);
-  const mobileNav: Array<NavItem | "scan"> = [...nav.mobile];
+  /** Bottom nav mobile maksimal 5 slot, termasuk tombol scan pekerja. */
+  const mobileNavMax = 5;
+  const mobileNav: Array<NavItem | "scan"> = nav.mobile.slice(
+    0,
+    user.role === "pekerja" ? mobileNavMax - 1 : mobileNavMax,
+  );
   if (user.role === "pekerja") {
     mobileNav.splice(Math.floor(mobileNav.length / 2), 0, "scan");
   }
@@ -756,9 +757,7 @@ export function AppShell({
               ? "grid-cols-3"
               : mobileNav.length === 4
                 ? "grid-cols-4"
-                : mobileNav.length === 6
-                  ? "grid-cols-6"
-                  : "grid-cols-5",
+                : "grid-cols-5",
           )}
         >
           {mobileNav.map((item) => {
