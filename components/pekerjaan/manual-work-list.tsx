@@ -160,10 +160,16 @@ export function ManualWorkListView({
   photoLimit: number;
 }) {
   const filtered =
-    filters.status !== "aktif" ||
+    filters.status !== "semua" ||
     filters.search.length > 0 ||
     Boolean(filters.divisionId) ||
     Boolean(filters.employeeId);
+  const listDescription =
+    filters.status === "semua"
+      ? totals.active > 0
+        ? `${total} pekerjaan, ${totals.active} aktif di atas.`
+        : `${total} pekerjaan.`
+      : `${total} pekerjaan sesuai filter.`;
 
   return (
     <div className="flex flex-col gap-5 pb-8">
@@ -267,7 +273,7 @@ export function ManualWorkListView({
           <div className="flex min-w-0 flex-col gap-0.5">
             <FrameTitle className="max-md:sr-only">Daftar pekerjaan</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">
-              {total} pekerjaan sesuai filter.
+              {listDescription}
             </FrameDescription>
           </div>
           <span className="text-xs text-muted-foreground tabular-nums md:hidden">
@@ -302,7 +308,7 @@ export function ManualWorkListView({
                       : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
                     : readOnly
                       ? "Belum ada pekerjaan harian untuk tim ini."
-                      : "Penugasan baru akan muncul di sini."
+                      : "Pekerjaan dari atasanmu akan muncul di sini."
               }
               action={
                 filtered ? (

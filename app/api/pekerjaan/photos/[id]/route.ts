@@ -5,6 +5,7 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { insertAudit } from "@/lib/audit";
 import {
   canAccessManualWork,
+  canViewManualWork,
   loadManualWork,
 } from "@/lib/manual-work-access";
 import { manualWorkErrorMessage } from "@/lib/manual-work-errors";
@@ -24,12 +25,14 @@ const CONTENT_TYPES: Record<string, string> = {
 const ACTIVE_STATUSES: ManualWorkStatus[] = ["terbuka", "dikerjakan"];
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const user = await getCurrentUser();
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
 
+  const wantsDownload =
+    new URL(request.url).searchParams.get("download") === "1";
   const { id } = await params;
   const [photo] = await query(
     `SELECT p.*,w.owner_id,w.created_by FROM manual_work_photos p
@@ -39,8 +42,8 @@ export async function GET(
   );
   if (!photo) return apiError("Foto tidak ditemukan.", 404);
 
-  // Read-only supervisors still need to inspect evidence.
-  const allowed = await canAccessManualWork(pool(), user, {
+  // Read-only supervisors and teammates still need to inspect evidence.
+  const allowed = await canViewManualWork(pool(), user, {
     id: photo.work_id as string,
     ownerId: photo.owner_id as string,
     createdBy: photo.created_by as string,
@@ -86,7 +89,7 @@ export async function GET(
         ),
         // Evidence must not remain in a shared browser profile after logout.
         "Cache-Control": "private, no-store",
-        "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(photo.file_name as string)}`,
+        "Content-Disposition": `${wantsDownload ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(photo.file_name as string)}`,
         "X-Content-Type-Options": "nosniff",
       },
     });

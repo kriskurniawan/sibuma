@@ -32,12 +32,12 @@ import type {
 import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
+  { value: "semua", label: "Semua" },
   { value: "aktif", label: "Aktif" },
   { value: "terlambat", label: "Terlambat" },
   { value: "belum_mulai", label: "Belum mulai" },
   { value: "selesai", label: "Selesai" },
   { value: "dibatalkan", label: "Dibatalkan" },
-  { value: "semua", label: "Semua" },
 ];
 
 interface WorkerGroup {
@@ -61,7 +61,7 @@ export function ManualWorkFilters({
   divisions: ManualWorkFilterDivision[];
   workers: ManualWorkFilterWorker[];
 }) {
-  const { isPending, navigate } = useFilterNavigation({ status: "aktif" });
+  const { isPending, navigate } = useFilterNavigation({ status: "semua" });
   const [currentStatus, setCurrentStatus] = useOptimisticFilterValue(
     status,
     isPending,
@@ -123,7 +123,7 @@ export function ManualWorkFilters({
   }, [visibleWorkers]);
 
   const filtered =
-    currentStatus !== "aktif" ||
+    currentStatus !== "semua" ||
     searchState.text.length > 0 ||
     Boolean(activeDivision) ||
     (currentEmployee !== "" && currentEmployee !== "semua");

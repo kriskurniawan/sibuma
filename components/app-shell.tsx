@@ -150,13 +150,13 @@ function navigationFor(
       manage: readOnly
         ? [
             { href: "/tim", label: "Tim", icon: UsersRound },
-            { href: "/checklist/qr", label: "QR area", icon: QrCode },
+            { href: "/checklist/qr", label: "Kelola QR area", icon: QrCode },
           ]
         : [
             { href: "/tim", label: "Tim", icon: UsersRound },
             { href: "/checklist/template", label: "Template checklist", icon: Settings2 },
             { href: "/checklist/jadwal", label: "Jadwal checklist", icon: CalendarClock },
-            { href: "/checklist/qr", label: "QR area", icon: QrCode },
+            { href: "/checklist/qr", label: "Kelola QR area", icon: QrCode },
             { href: "/audit", label: "Log audit", icon: ScrollText },
           ],
       mobile: [
@@ -443,9 +443,11 @@ function NavRows({
 
 export function AppShell({
   user,
+  workActiveCount,
   children,
 }: {
   user: SessionUser;
+  workActiveCount: number;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -464,6 +466,42 @@ export function AppShell({
     mobileNav.splice(Math.floor(mobileNav.length / 2), 0, "scan");
   }
   const [loggingOut, setLoggingOut] = useState(false);
+  const [workCount, setWorkCount] = useState(workActiveCount);
+
+  useEffect(() => {
+    setWorkCount(workActiveCount);
+  }, [workActiveCount]);
+
+  useEffect(() => {
+    if (readOnly || user.role === "super_admin") return;
+    const controller = new AbortController();
+
+    async function loadWorkCount() {
+      try {
+        const response = await fetch("/api/pekerjaan/ringkasan", {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) return;
+        const data = (await response.json()) as { count?: number };
+        if (typeof data.count === "number") setWorkCount(data.count);
+      } catch {
+        // Badge bukan data kritis; pertahankan angka terakhir.
+      }
+    }
+
+    void loadWorkCount();
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") void loadWorkCount();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      controller.abort();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [pathname, readOnly, user.role]);
 
   async function logout() {
     setLoggingOut(true);
@@ -788,11 +826,17 @@ export function AppShell({
             }
 
             const active = item.href === activeMobileHref;
+            const showWorkBadge = item.href === "/pekerjaan" && workCount > 0;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                aria-label={
+                  showWorkBadge
+                    ? `${item.label}, ${workCount} pekerjaan aktif`
+                    : undefined
+                }
                 className={cn(
                   "group flex flex-col items-center gap-1 rounded-lg px-2 py-2 text-xs font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
                   active ? "text-foreground" : "text-muted-foreground",
@@ -800,7 +844,7 @@ export function AppShell({
               >
                 <span
                   className={cn(
-                    "flex h-8 w-12 items-center justify-center rounded-full transition-colors",
+                    "relative flex h-8 w-12 items-center justify-center rounded-full transition-colors",
                     active
                       ? "bg-accent text-accent-foreground"
                       : "group-hover:bg-muted",
@@ -811,6 +855,15 @@ export function AppShell({
                     strokeWidth={active ? 2.2 : 1.8}
                     aria-hidden="true"
                   />
+                  {showWorkBadge && (
+                    <Badge
+                      radius="full"
+                      aria-hidden="true"
+                      className="absolute -top-1 -right-1 tabular-nums"
+                    >
+                      {workCount > 99 ? "99+" : workCount}
+                    </Badge>
+                  )}
                 </span>
                 <span className="max-w-full truncate">{item.label}</span>
               </Link>

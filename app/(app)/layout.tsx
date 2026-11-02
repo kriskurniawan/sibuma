@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { TimeZoneBootstrap } from "@/components/time-zone-bootstrap";
 import { getActiveTimeZone } from "@/lib/active-time-zone";
 import { getCurrentUser } from "@/lib/auth";
+import { getManualWorkActiveCount } from "@/lib/manual-work-queries";
 
 export default async function ProtectedLayout({
   children,
@@ -12,11 +13,14 @@ export default async function ProtectedLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const timeZone = getActiveTimeZone();
+  const workActiveCount = await getManualWorkActiveCount(user);
 
   return (
     <>
       <TimeZoneBootstrap timeZone={timeZone} />
-      <AppShell user={user}>{children}</AppShell>
+      <AppShell user={user} workActiveCount={workActiveCount}>
+        {children}
+      </AppShell>
     </>
   );
 }

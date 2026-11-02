@@ -3,6 +3,7 @@ import "server-only";
 import type { QueryResultRow } from "pg";
 import { isReadOnly } from "./access";
 import { insertAudit } from "./audit";
+import { NOTE_MAX_PHOTOS, NOTE_MAX_TOTAL_BYTES } from "./constants";
 import { query, transaction } from "./db";
 import type {
   Note,
@@ -105,6 +106,9 @@ function attachmentsFrom(row: NoteRow): NoteAttachment[] {
 }
 
 function toNote(row: NoteRow, user: SessionUser): Note {
+  const canManage =
+    !isReadOnly(user) &&
+    (user.role === "super_admin" || row.author_id === user.id);
   return {
     id: row.id,
     authorId: row.author_id,
@@ -117,9 +121,8 @@ function toNote(row: NoteRow, user: SessionUser): Note {
     divisionName: row.division_name,
     recipientNames: row.recipient_names ?? [],
     attachments: attachmentsFrom(row),
-    canDelete:
-      !isReadOnly(user) &&
-      (user.role === "super_admin" || row.author_id === user.id),
+    canEdit: canManage,
+    canDelete: canManage,
     createdAt: new Date(row.created_at).toISOString(),
     updatedAt: new Date(row.updated_at).toISOString(),
   };
@@ -432,5 +435,263 @@ export async function deleteNoteForUser(input: {
     });
 
     return { status: "deleted", storageKeys: note.storage_keys ?? [] };
+  });
+}
+
+export type UpdateNoteContentResult =
+  | { status: "updated"; removedStorageKeys: string[] }
+  | { status: "missing" }
+  | { status: "conflict" };
+
+export interface EditableNoteAttachment {
+  id: string;
+  storageKey: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
+export type EditableNoteSnapshot =
+  | {
+      status: "ok";
+      title: string;
+      body: string;
+      updatedAt: string;
+      attachments: EditableNoteAttachment[];
+    }
+  | { status: "missing" };
+
+interface EditableNoteAttachmentRow {
+  id: string;
+  storageKey: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: string | number;
+}
+
+/**
+ * Dibaca sebelum unggah agar route dapat menolak `keepAttachmentIds` yang
+ * bukan milik catatan ini. Pemeriksaan izin dan lampiran diulang di dalam
+ * transaksi update, sehingga hasil ini tidak dipakai sebagai sumber kebenaran.
+ */
+export async function getEditableNoteForUser(input: {
+  id: string;
+  actorId: string;
+  canEditAny: boolean;
+}): Promise<EditableNoteSnapshot> {
+  const [note] = await query<{
+    id: string;
+    author_id: string;
+    title: string;
+    body: string;
+    updated_at: Date | string;
+    attachments: EditableNoteAttachmentRow[] | null;
+  }>(
+    `SELECT n.id,n.author_id,n.title,n.body,n.updated_at,
+       COALESCE((
+         SELECT json_agg(json_build_object(
+           'id', a.id,
+           'storageKey', a.storage_key,
+           'fileName', a.file_name,
+           'mimeType', a.mime_type,
+           'sizeBytes', a.size_bytes
+         ) ORDER BY a.sort_order,a.created_at)
+         FROM note_attachments a
+         WHERE a.note_id=n.id
+       ), '[]'::json) attachments
+     FROM notes n
+     WHERE n.id=$1
+     LIMIT 1`,
+    [input.id],
+  );
+  if (!note) return { status: "missing" };
+  if (!input.canEditAny && note.author_id !== input.actorId) {
+    return { status: "missing" };
+  }
+
+  return {
+    status: "ok",
+    title: note.title,
+    body: note.body,
+    updatedAt: new Date(note.updated_at).toISOString(),
+    attachments: (note.attachments ?? []).map((attachment) => ({
+      id: attachment.id,
+      storageKey: attachment.storageKey,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      sizeBytes: Number(attachment.sizeBytes),
+    })),
+  };
+}
+
+interface StoredNoteAttachmentRow extends QueryResultRow {
+  id: string;
+  storage_key: string;
+  file_name: string;
+  size_bytes: string | number;
+}
+
+/**
+ * Judul, isi, dan daftar foto diubah dalam satu transaksi. Penerima tetap
+ * dipertahankan agar perubahan isi tidak diam-diam mengubah pembaca catatan.
+ * Lampiran yang dihapus baru dibersihkan dari storage setelah COMMIT.
+ */
+export async function updateNoteContentForUser(input: {
+  id: string;
+  actorId: string;
+  actorName: string;
+  canEditAny: boolean;
+  expectedUpdatedAt: string;
+  title: string;
+  body: string;
+  keepAttachmentIds: string[];
+  newAttachments: Array<{
+    id: string;
+    storageKey: string;
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+  }>;
+}): Promise<UpdateNoteContentResult> {
+  return transaction(async (connection) => {
+    const [note] = await query<{
+      id: string;
+      author_id: string;
+      title: string;
+      body: string;
+      updated_at: Date | string;
+    }>(
+      `SELECT id,author_id,title,body,updated_at
+       FROM notes
+       WHERE id=$1
+       FOR UPDATE`,
+      [input.id],
+      connection,
+    );
+    if (!note) return { status: "missing" };
+    if (!input.canEditAny && note.author_id !== input.actorId) {
+      return { status: "missing" };
+    }
+
+    const currentUpdatedAt = new Date(note.updated_at).toISOString();
+    if (
+      input.expectedUpdatedAt &&
+      currentUpdatedAt !== input.expectedUpdatedAt
+    ) {
+      return { status: "conflict" };
+    }
+
+    const attachments = await query<StoredNoteAttachmentRow>(
+      `SELECT id,storage_key,file_name,size_bytes
+       FROM note_attachments
+       WHERE note_id=$1
+       ORDER BY sort_order,created_at`,
+      [input.id],
+      connection,
+    );
+
+    const keepIds = new Set(input.keepAttachmentIds);
+    if (
+      keepIds.size !== input.keepAttachmentIds.length ||
+      input.keepAttachmentIds.some(
+        (id) => !attachments.some((attachment) => attachment.id === id),
+      )
+    ) {
+      return { status: "conflict" };
+    }
+
+    const kept = attachments.filter((attachment) => keepIds.has(attachment.id));
+    const removed = attachments.filter(
+      (attachment) => !keepIds.has(attachment.id),
+    );
+    const totalBytes =
+      kept.reduce((sum, attachment) => sum + Number(attachment.size_bytes), 0) +
+      input.newAttachments.reduce(
+        (sum, attachment) => sum + attachment.sizeBytes,
+        0,
+      );
+    if (
+      input.newAttachments.length > 0 &&
+      (kept.length + input.newAttachments.length > NOTE_MAX_PHOTOS ||
+        totalBytes > NOTE_MAX_TOTAL_BYTES)
+    ) {
+      return { status: "conflict" };
+    }
+
+    const now = new Date().toISOString();
+    await query(
+      `UPDATE notes
+       SET title=$2,body=$3,updated_at=$4
+       WHERE id=$1`,
+      [input.id, input.title, input.body, now],
+      connection,
+    );
+
+    // Urutan foto lama mengikuti urutan yang dipertahankan klien; foto baru
+    // selalu ditambahkan di belakang agar tampilan detail tetap stabil.
+    for (const [index, attachmentId] of input.keepAttachmentIds.entries()) {
+      await query(
+        `UPDATE note_attachments
+         SET sort_order=$3
+         WHERE note_id=$1 AND id=$2`,
+        [input.id, attachmentId, index],
+        connection,
+      );
+    }
+
+    for (const [index, attachment] of input.newAttachments.entries()) {
+      await query(
+        `INSERT INTO note_attachments
+          (id,note_id,storage_provider,storage_key,file_name,mime_type,
+           size_bytes,sort_order,created_at)
+         VALUES ($1,$2,'s3',$3,$4,$5,$6,$7,$8)`,
+        [
+          attachment.id,
+          input.id,
+          attachment.storageKey,
+          attachment.fileName,
+          attachment.mimeType,
+          attachment.sizeBytes,
+          kept.length + index,
+          now,
+        ],
+        connection,
+      );
+    }
+
+    if (removed.length > 0) {
+      await query(
+        `DELETE FROM note_attachments
+         WHERE note_id=$1 AND id = ANY($2::text[])`,
+        [input.id, removed.map((attachment) => attachment.id)],
+        connection,
+      );
+    }
+
+    await insertAudit(connection, {
+      actorId: input.actorId,
+      actorName: input.actorName,
+      action: "catatan_diubah",
+      objectType: "catatan",
+      objectId: note.id,
+      summary: `${input.actorName} mengubah catatan "${input.title}".`,
+      before: {
+        title: note.title,
+        bodyLength: note.body.length,
+        photoCount: attachments.length,
+      },
+      after: {
+        title: input.title,
+        bodyLength: input.body.length,
+        photoCount: kept.length + input.newAttachments.length,
+        addedPhotos: input.newAttachments.length,
+        removedPhotos: removed.length,
+      },
+    });
+
+    return {
+      status: "updated",
+      removedStorageKeys: removed.map((attachment) => attachment.storage_key),
+    };
   });
 }

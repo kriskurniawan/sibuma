@@ -102,14 +102,16 @@ export function NoteDelete({
       <Button
         type="button"
         size="sm"
-        variant="ghost"
+        variant="destructive"
+        className="w-full sm:w-auto"
         aria-label={`Hapus catatan ${title}`}
         onClick={() => {
           setError(null);
           setOpen(true);
         }}
       >
-        <Trash2 />
+        <Trash2 aria-hidden="true" />
+        Hapus catatan
       </Button>
 
       <AlertDialog

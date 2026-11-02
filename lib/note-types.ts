@@ -20,6 +20,7 @@ export interface Note {
   divisionName: string;
   recipientNames: string[];
   attachments: NoteAttachment[];
+  canEdit: boolean;
   canDelete: boolean;
   createdAt: string;
   updatedAt: string;

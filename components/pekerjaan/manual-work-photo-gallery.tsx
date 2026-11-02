@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import {
   Camera,
-  Film,
+  Download,
   ImagePlus,
   Play,
   Trash2,
@@ -13,7 +13,6 @@ import {
 import { toast } from "sonner";
 import { CameraCaptureDialog } from "@/components/camera-capture-dialog";
 import { EvidenceVideoUpload } from "@/components/evidence-video-upload";
-import { Modal } from "@/components/modal";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +24,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { compressImage } from "@/lib/compress-image";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
@@ -32,6 +37,7 @@ import { buildManualWorkMarker } from "@/lib/documentation-marker";
 import { readImageExif } from "@/lib/exif";
 import type { ManualWorkPhoto } from "@/lib/manual-work-types";
 import { currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
+import { fileSizeLabel } from "@/lib/utils";
 import { formatVideoDuration } from "@/lib/video";
 
 const MAX_SOURCE_BYTES = 12 * 1024 * 1024;
@@ -88,6 +94,7 @@ export function ManualWorkPhotoGallery({
     null,
   );
   const [deleting, setDeleting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   const busy = uploading || processing;
   const photoItems = photos.filter((photo) => photo.kind !== "video");
@@ -368,6 +375,37 @@ export function ManualWorkPhotoGallery({
     }
   }
 
+  async function downloadPreview() {
+    if (!preview || preview.kind === "video" || downloading) return;
+    setDownloading(true);
+    try {
+      const response = await fetch(
+        `/api/pekerjaan/photos/${preview.id}?download=1`,
+      );
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        toast.error(data?.message ?? "Gagal mengunduh foto.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = preview.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      toast.success("Foto dokumentasi diunduh.");
+    } catch {
+      toast.error("Gagal mengunduh foto. Periksa koneksi.");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   function previewDescription(photo: ManualWorkPhoto) {
     if (photo.kind === "video") {
       return (
@@ -621,47 +659,133 @@ export function ManualWorkPhotoGallery({
         </p>
       )}
 
-      <Modal
+      <Dialog
         open={preview !== null}
-        onClose={() => setPreview(null)}
-        title={
-          preview?.caption ||
-          (preview?.kind === "video" ? "Video dokumentasi" : "Foto dokumentasi")
-        }
-        description={preview ? previewDescription(preview) : undefined}
-        size="lg"
-        footer={
-          preview && canDelete ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteTarget(preview)}
-            >
-              <Trash2 aria-hidden="true" />
-              {preview.kind === "video" ? "Hapus video" : "Hapus foto"}
-            </Button>
-          ) : undefined
-        }
+        onOpenChange={(open) => {
+          if (!open) setPreview(null);
+        }}
       >
-        {preview &&
-          (preview.kind === "video" ? (
-            <video
-              src={`/api/pekerjaan/photos/${preview.id}`}
-              controls
-              playsInline
-              preload="metadata"
-              className="max-h-[65vh] w-full rounded-md bg-black"
-            />
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={`/api/pekerjaan/photos/${preview.id}`}
-              alt={preview.caption || `Foto dokumentasi ${workTitle}`}
-              className="max-h-[65vh] w-full object-contain"
-            />
-          ))}
-      </Modal>
+        <DialogContent
+          showCloseButton={false}
+          className="top-0 left-0 z-[1000000000] flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-black p-0 text-white ring-0 outline-none sm:max-w-none"
+        >
+          {preview && (
+            <>
+              <div className="flex shrink-0 items-start gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <DialogTitle className="truncate text-sm text-white">
+                    {preview.kind === "video"
+                      ? "Video dokumentasi"
+                      : "Foto dokumentasi"}
+                  </DialogTitle>
+                  <DialogDescription className="truncate text-xs text-white/70">
+                    {workTitle} · {preview.fileName}
+                  </DialogDescription>
+                </div>
+                {preview.kind !== "video" && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-lg"
+                    className="text-white hover:bg-white/10 hover:text-white"
+                    onClick={downloadPreview}
+                    disabled={downloading}
+                    aria-busy={downloading}
+                    aria-label={
+                      downloading
+                        ? "Sedang mengunduh foto dokumentasi"
+                        : "Unduh foto dokumentasi"
+                    }
+                  >
+                    {downloading ? (
+                      <Spinner aria-label="Mengunduh foto" />
+                    ) : (
+                      <Download aria-hidden="true" />
+                    )}
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  onClick={() => setPreview(null)}
+                  aria-label="Tutup pratinjau dokumentasi"
+                  className="text-white hover:bg-white/10 hover:text-white"
+                >
+                  <X aria-hidden="true" />
+                </Button>
+              </div>
+
+              <div
+                className="flex min-h-0 flex-1 items-center justify-center p-2"
+                onClick={(event) => {
+                  if (event.target === event.currentTarget) setPreview(null);
+                }}
+              >
+                {preview.kind === "video" ? (
+                  <video
+                    src={`/api/pekerjaan/photos/${preview.id}`}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="max-h-full max-w-full rounded-md bg-black"
+                  />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/pekerjaan/photos/${preview.id}`}
+                    alt={preview.caption || `Foto dokumentasi ${workTitle}`}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                )}
+              </div>
+
+              <div className="shrink-0 border-t border-white/10 bg-black/80 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div className="flex flex-col gap-2">
+                  <p
+                    className={
+                      preview.caption
+                        ? "text-sm leading-relaxed text-white"
+                        : "text-sm italic leading-relaxed text-white/60"
+                    }
+                  >
+                    {preview.caption || "Tanpa keterangan"}
+                  </p>
+                  <div className="flex flex-col gap-1 text-xs text-white/70">
+                    {previewDescription(preview)}
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="tabular-nums">
+                        {fileSizeLabel(preview.sizeBytes)}
+                      </span>
+                      <span>
+                        {preview.mimeType.split("/")[1]?.toUpperCase() ??
+                          preview.mimeType}
+                      </span>
+                    </span>
+                  </div>
+                  {canDelete && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="w-fit text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => {
+                          setDeleteTarget(preview);
+                          setPreview(null);
+                        }}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        Hapus {preview.kind === "video" ? "video" : "foto"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <CameraCaptureDialog
         open={cameraOpen}

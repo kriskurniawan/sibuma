@@ -13,6 +13,7 @@ import {
   StickyNote,
   UsersRound,
 } from "lucide-react";
+import { MenuScanRow } from "@/components/checklist/menu-scan-row";
 import { ProfileActions } from "@/components/profile/profile-actions";
 import {
   Frame,
@@ -40,6 +41,8 @@ interface MenuEntry {
 interface MenuGroupData {
   title: string;
   description: string;
+  /** Baris pemindai QR di atas tautan grup, khusus atasan. */
+  scanFirst?: boolean;
   items: MenuEntry[];
 }
 
@@ -48,6 +51,7 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
     {
       title: "Tim & operasional",
       description: "Siapkan pekerja, area, dan jadwal pemeriksaan.",
+      scanFirst: true,
       items: [
         {
           href: "/tim",
@@ -69,8 +73,8 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
         },
         {
           href: "/checklist/qr",
-          label: "QR area",
-          description: "Cetak dan kelola QR untuk tiap lokasi.",
+          label: "Kelola QR area",
+          description: "Cetak, unduh, dan atur QR untuk tiap area.",
           icon: QrCode,
         },
         {
@@ -176,6 +180,7 @@ function MenuGroup({ group }: { group: MenuGroupData }) {
       </FrameHeader>
       <FramePanel>
         <nav aria-label={group.title} className="divide-y divide-border">
+          {group.scanFirst && <MenuScanRow />}
           {group.items.map((item) => (
             <Link
               key={item.href}

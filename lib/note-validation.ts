@@ -93,3 +93,19 @@ export const noteCreateSchema = z
   });
 
 export type NoteCreateInput = z.infer<typeof noteCreateSchema>;
+
+/** Perubahan teks catatan; penerima tidak ikut diubah. */
+export const noteContentSchema = z.object({
+  title: textSchema(
+    1,
+    160,
+    "Judul catatan wajib diisi.",
+    "Judul catatan maksimal 160 karakter.",
+  ),
+  body: textSchema(
+    1,
+    2_000,
+    "Isi catatan wajib diisi.",
+    "Isi catatan maksimal 2.000 karakter.",
+  ),
+});

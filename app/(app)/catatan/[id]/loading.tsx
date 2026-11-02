@@ -16,9 +16,13 @@ export default function CatatanDetailLoading() {
         <div className="flex min-w-0 flex-1 flex-col gap-1">
           <Skeleton className="h-4 w-20" />
           <Skeleton className="h-7 w-64 max-w-full sm:h-8" />
-          <Skeleton className="h-5 w-72 max-w-full" />
+          <Skeleton className="h-5 w-40 max-w-full" />
         </div>
-        <Skeleton className="h-7 w-8 shrink-0 rounded-md" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-4">
+        <Skeleton className="h-4 w-36" />
+        <Skeleton className="h-4 w-40" />
       </div>
 
       <Frame>
@@ -60,6 +64,11 @@ export default function CatatanDetailLoading() {
           </div>
         </FramePanel>
       </Frame>
+
+      <div className="flex flex-col gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
+        <Skeleton className="h-7 w-full rounded-md sm:w-28" />
+        <Skeleton className="h-7 w-full rounded-md sm:w-32" />
+      </div>
     </div>
   );
 }

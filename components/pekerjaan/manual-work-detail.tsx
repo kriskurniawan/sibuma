@@ -15,6 +15,7 @@ import {
   Pencil,
   Play,
   RotateCcw,
+  UserPlus,
   UsersRound,
   XCircle,
 } from "lucide-react";
@@ -123,6 +124,29 @@ export function ManualWorkDetailView({
     await runAction("mulai");
   }
 
+  async function join() {
+    setBusy("gabung");
+    try {
+      const response = await fetch(`/api/pekerjaan/${work.id}/join`, {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        ok?: boolean;
+        message?: string;
+      };
+      if (!response.ok) {
+        toast.error(data.message ?? "Gagal bergabung mengerjakan.");
+        return;
+      }
+      toast.success(data.message ?? "Kamu ikut mengerjakan pekerjaan ini.");
+      router.refresh();
+    } catch {
+      toast.error("Gagal bergabung. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   const statusLine = (
     <div className="flex flex-wrap items-center gap-2">
       <ManualWorkStatusBadge status={work.status} />
@@ -139,6 +163,18 @@ export function ManualWorkDetailView({
 
   const actionControls = (
     <>
+      {detail.canJoin && (
+        <Button
+          type="button"
+          className="w-full"
+          onClick={join}
+          disabled={busy !== null}
+        >
+          {busy === "gabung" ? <Spinner /> : <UserPlus aria-hidden="true" />}
+          Ikut mengerjakan
+        </Button>
+      )}
+
       {detail.canStart && (
         <Button
           type="button"
@@ -200,7 +236,8 @@ export function ManualWorkDetailView({
         !detail.canComplete &&
         !detail.canCancel &&
         !detail.canReopen &&
-        !detail.canEdit && (
+        !detail.canEdit &&
+        !detail.canJoin && (
           <p className="text-xs leading-relaxed text-muted-foreground">
             {detail.readOnly
               ? "Akun hanya-lihat tidak dapat mengubah pekerjaan."
@@ -398,8 +435,8 @@ export function ManualWorkDetailView({
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <FrameTitle>Dokumentasi</FrameTitle>
                   <FrameDescription>
-                    Bukti foto dan video privat. Hanya pemilik pekerjaan, pelapor,
-                    dan pekerja yang ditugaskan dapat mengakses.
+                    Bukti foto dan video privat. Hanya atasan pemilik, pelapor,
+                    dan pekerja di tim yang sama dapat mengakses.
                   </FrameDescription>
                 </div>
                 <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">

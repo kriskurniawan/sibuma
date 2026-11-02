@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CalendarPlus, History } from "lucide-react";
 import { NoteDelete } from "@/components/catatan/note-delete";
+import { NoteEdit } from "@/components/catatan/note-edit";
 import { NotePhoto } from "@/components/catatan/note-photo";
 import { Badge } from "@/components/reui/badge";
 import {
@@ -53,18 +54,35 @@ export default async function CatatanDetailPage({
       <PageHeader
         eyebrow="Catatan"
         title={<span className="break-words">{note.title}</span>}
-        description={`Ditulis ${note.authorName} · ${formatDateTime(note.createdAt)}`}
+        description={`Ditulis ${note.authorName}`}
         descriptionClassName="break-words"
-        action={
-          note.canDelete ? (
-            <NoteDelete
-              noteId={note.id}
-              title={note.title}
-              redirectTo="/catatan"
-            />
-          ) : undefined
-        }
       />
+
+      <dl
+        aria-label="Riwayat catatan"
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground"
+      >
+        <div className="inline-flex items-center gap-1.5">
+          <CalendarPlus className="size-3.5" aria-hidden="true" />
+          <dt>Dibuat</dt>
+          <dd className="tabular-nums">
+            <time dateTime={note.createdAt}>
+              {formatDateTime(note.createdAt)}
+            </time>
+          </dd>
+        </div>
+        {note.updatedAt !== note.createdAt && (
+          <div className="inline-flex items-center gap-1.5">
+            <History className="size-3.5" aria-hidden="true" />
+            <dt>Diperbarui</dt>
+            <dd className="tabular-nums">
+              <time dateTime={note.updatedAt}>
+                {formatDateTime(note.updatedAt)}
+              </time>
+            </dd>
+          </div>
+        )}
+      </dl>
 
       <Frame>
         <FrameHeader className="flex flex-row items-start justify-between gap-3">
@@ -114,6 +132,27 @@ export default async function CatatanDetailPage({
             </div>
           </FramePanel>
         </Frame>
+      )}
+
+      {(note.canEdit || note.canDelete) && (
+        <div className="flex flex-col gap-2 border-t border-border pt-5 sm:flex-row sm:justify-end">
+          {note.canEdit && (
+            <NoteEdit
+              noteId={note.id}
+              initialTitle={note.title}
+              initialBody={note.body}
+              initialAttachments={note.attachments}
+              updatedAt={note.updatedAt}
+            />
+          )}
+          {note.canDelete && (
+            <NoteDelete
+              noteId={note.id}
+              title={note.title}
+              redirectTo="/catatan"
+            />
+          )}
+        </div>
       )}
     </div>
   );

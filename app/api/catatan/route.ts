@@ -1,12 +1,7 @@
-import path from "node:path";
 import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
-import {
-  NOTE_MAX_PHOTOS,
-  NOTE_MAX_TOTAL_BYTES,
-  UPLOAD_MAX_BYTES,
-} from "@/lib/constants";
+import { NOTE_MAX_PHOTOS, NOTE_MAX_TOTAL_BYTES } from "@/lib/constants";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import {
   findNoteByClientRequest,
@@ -17,57 +12,17 @@ import {
 } from "@/lib/note-queries";
 import type { NoteAudience } from "@/lib/note-types";
 import { noteCreateSchema } from "@/lib/note-validation";
+import {
+  notePhotoFiles,
+  parseNoteIds,
+  prepareNotePhotos,
+  safeNoteFileName,
+} from "@/lib/note-upload";
 import { putObject } from "@/lib/storage";
 import { cleanupObjects } from "@/lib/storage-cleanup";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const ACCEPTED_TYPES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-};
-
-function matchesMagicBytes(buffer: Buffer, mimeType: string) {
-  if (mimeType === "image/jpeg") {
-    return (
-      buffer.length >= 3 &&
-      buffer[0] === 0xff &&
-      buffer[1] === 0xd8 &&
-      buffer[2] === 0xff
-    );
-  }
-  if (mimeType === "image/png") {
-    return (
-      buffer.length >= 8 &&
-      buffer[0] === 0x89 &&
-      buffer[1] === 0x50 &&
-      buffer[2] === 0x4e &&
-      buffer[3] === 0x47 &&
-      buffer[4] === 0x0d &&
-      buffer[5] === 0x0a &&
-      buffer[6] === 0x1a &&
-      buffer[7] === 0x0a
-    );
-  }
-  if (mimeType === "image/webp") {
-    return (
-      buffer.length >= 12 &&
-      buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-      buffer.subarray(8, 12).toString("ascii") === "WEBP"
-    );
-  }
-  return false;
-}
-
-function safeFileName(name: string, fallback: string) {
-  const base = path
-    .basename(name.replaceAll("\\", "/"))
-    .replace(/[\u0000-\u001F\u007F]/g, "")
-    .trim();
-  return base.slice(0, 160) || fallback;
-}
 
 function recipientLabel(
   audienceType: NoteAudience,
@@ -80,30 +35,6 @@ function recipientLabel(
   return names.length > 3
     ? `${shown}, dan ${names.length - 3} lainnya`
     : shown;
-}
-
-function parseIds(form: FormData, field: string, message: string) {
-  const raw = form.get(field);
-  if (raw === null) return [] as string[];
-  if (typeof raw !== "string") throw new Error(message);
-  if (!raw.trim()) return [] as string[];
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error(message);
-  }
-  if (!Array.isArray(parsed)) throw new Error(message);
-
-  return parsed.map((value) => {
-    if (typeof value !== "string") throw new Error(message);
-    const id = value.trim();
-    if (!id || id.length > 160 || /[\u0000-\u001F\u007F]/.test(id)) {
-      throw new Error(message);
-    }
-    return id;
-  });
 }
 
 export async function POST(request: Request) {
@@ -122,8 +53,12 @@ export async function POST(request: Request) {
   let employeeIds: string[] = [];
   let divisionIds: string[] = [];
   try {
-    employeeIds = parseIds(form, "employeeIds", "Daftar penerima tidak valid.");
-    divisionIds = parseIds(
+    employeeIds = parseNoteIds(
+      form,
+      "employeeIds",
+      "Daftar penerima tidak valid.",
+    );
+    divisionIds = parseNoteIds(
       form,
       "divisionIds",
       "Daftar divisi tujuan tidak valid.",
@@ -199,9 +134,7 @@ export async function POST(request: Request) {
     recipientNames = employees.map((row) => row.name);
   }
 
-  const photos = form
-    .getAll("photo")
-    .filter((entry): entry is File => entry instanceof File && entry.size > 0);
+  const photos = notePhotoFiles(form);
 
   if (photos.length > NOTE_MAX_PHOTOS) {
     return apiError(`Maksimal ${NOTE_MAX_PHOTOS} foto per catatan.`);
@@ -214,25 +147,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const prepared: Array<{ photo: File; extension: string; buffer: Buffer }> = [];
-  for (const [index, photo] of photos.entries()) {
-    if (photo.size > UPLOAD_MAX_BYTES) {
-      return apiError(
-        `Foto ${index + 1} melebihi batas ${(UPLOAD_MAX_BYTES / 1024 / 1024).toFixed(1)} MB setelah kompresi.`,
-      );
-    }
-    const extension = ACCEPTED_TYPES[photo.type];
-    if (!extension) {
-      return apiError(`Foto ${index + 1} harus berformat JPG, PNG, atau WEBP.`);
-    }
-    const buffer = Buffer.from(await photo.arrayBuffer());
-    if (!matchesMagicBytes(buffer, photo.type)) {
-      return apiError(
-        `Isi foto ${index + 1} tidak sesuai dengan format gambarnya.`,
-      );
-    }
-    prepared.push({ photo, extension, buffer });
-  }
+  const preparation = await prepareNotePhotos(photos);
+  if (!preparation.ok) return apiError(preparation.message);
+  const prepared = preparation.prepared;
 
   const noteId = `note_${crypto.randomUUID()}`;
   const uploadedKeys: string[] = [];
@@ -247,7 +164,11 @@ export async function POST(request: Request) {
   for (const [index, entry] of prepared.entries()) {
     const storageKey = `catatan/${noteId}/${crypto.randomUUID()}.${entry.extension}`;
     try {
-      await putObject(storageKey, new Uint8Array(entry.buffer), entry.photo.type);
+      await putObject(
+        storageKey,
+        new Uint8Array(entry.buffer),
+        entry.photo.type,
+      );
     } catch (error) {
       after(() => cleanupObjects(uploadedKeys));
       console.error("Gagal mengunggah foto catatan:", error);
@@ -257,7 +178,7 @@ export async function POST(request: Request) {
     attachments.push({
       id: `att_${crypto.randomUUID()}`,
       storageKey,
-      fileName: safeFileName(
+      fileName: safeNoteFileName(
         entry.photo.name,
         `catatan-${index + 1}.${entry.extension}`,
       ),

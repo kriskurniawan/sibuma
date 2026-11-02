@@ -159,6 +159,7 @@ const ACTION_LABEL: Record<string, string> = {
   pekerjaan_diselesaikan: "Pekerjaan harian diselesaikan",
   pekerjaan_dibatalkan: "Pekerjaan harian dibatalkan",
   pekerjaan_dibuka_kembali: "Pekerjaan harian dibuka kembali",
+  pekerjaan_bergabung: "Pekerja bergabung",
   pekerjaan_foto_diunggah: "Foto pekerjaan diunggah",
   pekerjaan_foto_dihapus: "Foto pekerjaan dihapus",
   pekerjaan_video_diunggah: "Video pekerjaan diunggah",
@@ -177,6 +178,7 @@ const ACTION_LABEL: Record<string, string> = {
   pengaturan_dokumen_diubah: "Pengaturan dokumen diubah",
   pengaturan_batas_foto_diubah: "Batas foto diubah",
   catatan_dibuat: "Catatan dibuat",
+  catatan_diubah: "Catatan diubah",
   catatan_dihapus: "Catatan dihapus",
 };
 

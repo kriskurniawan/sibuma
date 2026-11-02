@@ -46,6 +46,27 @@ export async function canAccessManualWork(
 }
 
 /**
+ * Pratinjau pekerjaan tim untuk rekan satu atasan. Hak baca ini tidak memberi
+ * izin mulai, selesai, atau mengunggah bukti sampai pekerja bergabung.
+ */
+export async function canViewManualWork(
+  connection: Connection,
+  user: SessionUser,
+  work: Pick<ManualWork, "id" | "ownerId" | "createdBy">,
+) {
+  if (await canAccessManualWork(connection, user, work)) return true;
+  if (user.role !== "pekerja" || user.accessMode !== "full") return false;
+  const [row] = await query(
+    `SELECT 1 FROM employees
+     WHERE id=$1 AND role='pekerja' AND active AND access_mode='full'
+       AND supervisor_id=$2`,
+    [user.id, work.ownerId],
+    connection,
+  );
+  return Boolean(row);
+}
+
+/**
  * Atasan pemilik dan pelapor boleh mengelola pekerjaan. Pelapor hanya untuk
  * catatan yang ia buat sendiri; tautan tindak lanjut tetap milik atasan.
  */

@@ -41,7 +41,7 @@ export default async function ManualWorkPage({
     status:
       requestedStatus && STATUS_VALUES.has(requestedStatus)
         ? requestedStatus
-        : "aktif",
+        : "semua",
     search: first(params.search) ?? "",
     divisionId:
       requestedDivision && requestedDivision !== "semua"

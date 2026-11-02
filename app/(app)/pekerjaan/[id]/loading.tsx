@@ -41,6 +41,7 @@ export default function PekerjaanDetailLoading() {
           <div className="flex flex-col gap-2">
             <Skeleton className="h-9 w-full rounded-md" />
             <Skeleton className="h-9 w-full rounded-md" />
+            <Skeleton className="h-9 w-full rounded-md" />
           </div>
         </FramePanel>
       </Frame>
@@ -120,6 +121,7 @@ export default function PekerjaanDetailLoading() {
                   <Skeleton className="h-5 w-20 rounded-full" />
                   <Skeleton className="h-3 w-24" />
                 </div>
+                <Skeleton className="h-9 w-full rounded-md" />
                 <Skeleton className="h-9 w-full rounded-md" />
                 <Skeleton className="h-9 w-full rounded-md" />
               </FramePanel>

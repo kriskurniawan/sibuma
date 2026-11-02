@@ -26,6 +26,7 @@ export const MANUAL_WORK_EVENT_LABEL: Record<string, string> = {
   diselesaikan: "Diselesaikan",
   dibatalkan: "Dibatalkan",
   dibuka_kembali: "Dibuka kembali",
+  bergabung: "Bergabung",
 };
 
 export interface ManualWork {
@@ -145,6 +146,7 @@ export interface ManualWorkDetail extends ManualWorkRow {
   canCancel: boolean;
   canReopen: boolean;
   canUpload: boolean;
+  canJoin: boolean;
 }
 
 export interface ManualWorkTotals {

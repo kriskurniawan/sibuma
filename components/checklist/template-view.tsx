@@ -183,7 +183,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
               render={<Link href="/checklist/qr" />}
             >
               <QrCode aria-hidden="true" />
-              QR area
+              Kelola QR area
             </Button>
             <Button
               size="sm"

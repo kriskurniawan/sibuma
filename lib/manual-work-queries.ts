@@ -1,6 +1,6 @@
 import "server-only";
 import type { QueryResultRow } from "pg";
-import { isObserver, readOwnerId } from "./access";
+import { isObserver, isReadOnly, readOwnerId } from "./access";
 import { query } from "./db";
 import { rowToCamel } from "./db-model";
 import { listManualWorkLocations } from "./manual-work-locations";
@@ -23,6 +23,7 @@ import type {
   ManualWorkTeamMember,
   ManualWorkTotals,
 } from "./manual-work-types";
+import { MANUAL_WORK_MAX_ASSIGNEES } from "./manual-work-types";
 
 const ACTIVE_STATUSES: ManualWorkStatus[] = ["terbuka", "dikerjakan"];
 const TODAY_SQL = () => `(now() AT TIME ZONE ${sqlTimeZone()})::date`;
@@ -86,10 +87,10 @@ function roleParams(user: SessionUser) {
 }
 
 /**
- * Atasan melihat pekerjaan miliknya; pekerja melihat pekerjaan yang
- * ditugaskan kepadanya dan laporan yang ia buat sendiri. Pengamat hanya-lihat
- * melihat seluruh pekerjaan perusahaan. Super admin tidak memakai modul
- * operasional ini.
+ * Atasan melihat pekerjaan miliknya; pekerja melihat seluruh pekerjaan atasannya,
+ * ditambah laporan yang ia buat sendiri dan pekerjaan tempat ia ditugaskan.
+ * Pengamat hanya-lihat melihat seluruh pekerjaan perusahaan. Super admin tidak
+ * memakai modul operasional ini.
  */
 function workAccess(
   alias: string,
@@ -102,7 +103,13 @@ function workAccess(
     OR ${alias}.created_by=${employeeParam}
     OR EXISTS(
     SELECT 1 FROM manual_work_assignees mwa
-    WHERE mwa.work_id=${alias}.id AND mwa.employee_id=${employeeParam}))`;
+    WHERE mwa.work_id=${alias}.id AND mwa.employee_id=${employeeParam})
+    OR EXISTS(
+      SELECT 1 FROM employees viewer
+      WHERE viewer.id=${employeeParam}
+        AND viewer.role='pekerja' AND viewer.active
+        AND viewer.access_mode='full'
+        AND viewer.supervisor_id=${alias}.owner_id))`;
 }
 
 export const MANUAL_WORK_ROW_SELECT = `w.*,o.name owner_name,cr.name created_by_name,
@@ -172,6 +179,24 @@ export async function getManualWorkTotals(
 }
 
 /**
+ * Badge navigasi: pekerjaan aktif yang relevan untuk pengguna. Pekerja melihat
+ * pekerjaan aktif divisinya, atasan melihat pekerjaan miliknya sendiri.
+ */
+export async function getManualWorkActiveCount(user: SessionUser) {
+  if (user.role === "super_admin" || isObserver(user) || isReadOnly(user)) {
+    return 0;
+  }
+  const [userId, manager, all] = roleParams(user);
+  const [row] = await query<{ total: number }>(
+    `SELECT count(*)::integer total
+     FROM manual_works w
+     WHERE w.status IN ('terbuka','dikerjakan') AND ${workAccess("w")}`,
+    [userId, manager, all],
+  );
+  return Number(row?.total ?? 0);
+}
+
+/**
  * Pilihan filter "siapa yang bekerja": pekerja dari tim pemilik pekerjaan,
  * lengkap dengan divisinya agar daftar dapat dikelompokkan.
  */
@@ -225,7 +250,7 @@ export async function getManualWorks(
   const values: unknown[] = [userId, manager, all];
   let where = `WHERE ${workAccess("w")}`;
 
-  const status = filters.status ?? "aktif";
+  const status = filters.status ?? "semua";
   if (status === "aktif") {
     where += ` AND w.status IN ('terbuka','dikerjakan')`;
   } else if (status === "terlambat") {
@@ -348,6 +373,13 @@ export async function getManualWorkDetail(
   const active = ACTIVE_STATUSES.includes(work.status);
   const operator = !readOnly && (owner || reporter || assigned);
   const canManage = !readOnly && (owner || reporter);
+  const canJoin =
+    !readOnly &&
+    user.role === "pekerja" &&
+    active &&
+    !assigned &&
+    work.ownerId === user.supervisorId &&
+    detailRow.assignees.length < MANUAL_WORK_MAX_ASSIGNEES;
 
   return {
     ...detailRow,
@@ -362,6 +394,7 @@ export async function getManualWorkDetail(
     canCancel: canManage && active,
     canReopen: !readOnly && owner && work.status === "selesai",
     canUpload: operator && active,
+    canJoin,
   };
 }
 
