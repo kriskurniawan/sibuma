@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
-  Check,
   CheckCircle2,
   ClipboardCheck,
   Clock3,
@@ -229,8 +228,8 @@ export function ChecklistDetail({
     unsavedCount === 0 &&
     uploadingCount === 0;
   const completionBlocker =
-    unsavedCount > 0
-      ? `Simpan dulu ${unsavedCount} item yang belum tersimpan.`
+    unsavedCount > 0 && missingRequirements.length === 0
+      ? `Tunggu ${unsavedCount} item selesai disimpan.`
       : uploadingCount > 0
         ? "Tunggu unggahan foto selesai."
         : missingRequirements.length > 0
@@ -373,19 +372,6 @@ export function ChecklistDetail({
           Buka kembali
         </Button>
       )}
-      {detail.canComplete && (
-        <Button
-          size="sm"
-          onClick={() => setCompleteOpen(true)}
-          disabled={!completionReady || completing}
-          title={
-            completionBlocker ?? "Semua syarat penyelesaian sudah terpenuhi."
-          }
-        >
-          <CheckCircle2 aria-hidden="true" />
-          Selesaikan
-        </Button>
-      )}
     </div>
   );
 
@@ -518,8 +504,10 @@ export function ChecklistDetail({
                     href={`/checklist/${location.inspectionId}`}
                     aria-current={location.current ? "page" : undefined}
                     className={cn(
-                      "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none sm:px-5",
-                      location.current && "bg-muted/20",
+                      "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none sm:px-5",
+                      location.current
+                        ? "bg-muted dark:bg-muted/50"
+                        : "hover:bg-muted/40 focus-visible:bg-muted/40",
                     )}
                   >
                     <div className="flex min-w-0 flex-col gap-0.5">
@@ -531,12 +519,6 @@ export function ChecklistDetail({
                         <span className="truncate">
                           {location.locationPath ?? location.locationName}
                         </span>
-                        {location.current && (
-                          <Badge variant="info-light" className="text-xs">
-                            <Check className="size-3" aria-hidden="true" />
-                            Dibuka
-                          </Badge>
-                        )}
                       </span>
                       <span className="text-xs text-muted-foreground tabular-nums">
                         {location.answeredCount}/{location.totalItems} item
@@ -778,14 +760,13 @@ export function ChecklistDetail({
                 </AlertDescription>
               </Alert>
             )}
-            {unsavedCount > 0 && (
-              <Alert variant="warning">
+            {unsavedCount > 0 && missingRequirements.length === 0 && (
+              <Alert variant="info">
                 <AlertDescription>
                   <span className="font-medium">
-                    {unsavedCount} item belum disimpan.
+                    {unsavedCount} item sedang disimpan otomatis.
                   </span>{" "}
-                  Simpan perubahan dulu agar hasil yang dikunci sesuai isian
-                  terakhir.
+                  Tunggu sebentar sebelum menyelesaikan checklist.
                 </AlertDescription>
               </Alert>
             )}

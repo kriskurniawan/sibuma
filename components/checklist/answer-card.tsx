@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check, ImageIcon, ListChecks, Loader2, Undo2 } from "lucide-react";
+import { AlertCircle, Check, ImageIcon, ListChecks, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -33,6 +33,8 @@ const SELECTED_CLASS: Record<ChecklistConditionTone, string> = {
 };
 
 const DRAFT_PREFIX = "sibuma:draft:";
+/** Note edits save after a short idle so typing is not one request per key. */
+const NOTE_SAVE_DELAY = 600;
 
 interface DraftRecord {
   condition: ChecklistCondition | null;
@@ -147,7 +149,12 @@ export function AnswerCard({
   const [saving, setSaving] = useState(false);
   const [baseVersion, setBaseVersion] = useState(answer.version);
   const [serverChanged, setServerChanged] = useState(false);
+  const [saveTick, setSaveTick] = useState(0);
   const savingRef = useRef(false);
+  const conflictRef = useRef(false);
+  const saveRef = useRef<((overwrite?: boolean) => Promise<boolean>) | null>(
+    null,
+  );
   const draftKey = `${DRAFT_PREFIX}${inspectionId}:${answer.id}`;
 
   const serverRef = useRef({
@@ -189,6 +196,7 @@ export function AnswerCard({
       local.condition === previous.condition && local.note === previous.note;
 
     if (untouched) {
+      conflictRef.current = false;
       setCondition(answer.condition);
       setNote(answer.note);
       setBaseVersion(answer.version);
@@ -204,8 +212,16 @@ export function AnswerCard({
     };
   }, [answer.condition, answer.note, answer.version]);
 
+  // Keep reporting local edits while either the props or the last confirmed
+  // server state still differ. Props can lag behind a save by a refresh, and a
+  // value typed back to the old text while a request is in flight is still an
+  // unsaved revert.
   const dirty =
-    condition !== answer.condition || note !== answer.note || serverChanged;
+    condition !== answer.condition ||
+    note !== answer.note ||
+    condition !== serverRef.current.condition ||
+    note !== serverRef.current.note ||
+    serverChanged;
 
   useEffect(() => {
     onDraftChange?.(answer.id, { condition, note, dirty });
@@ -248,20 +264,26 @@ export function AnswerCard({
     overwrite = false,
     options?: {
       condition?: ChecklistCondition | null;
-      feedback?: "manual" | "condition";
+      feedback?: "condition" | "draft";
     },
-  ) {
-    if (savingRef.current) return;
+  ): Promise<boolean> {
+    if (savingRef.current) return false;
     const nextCondition =
       options?.condition === undefined ? condition : options.condition;
     const hint = needsNote(answer, nextCondition, conditions, note);
     if (hint) {
       toast.error(hint);
-      return;
+      return false;
     }
     savingRef.current = true;
     setSaving(true);
     const expectedVersion = overwrite ? answer.version : baseVersion;
+    const retry = {
+      action: {
+        label: "Coba lagi",
+        onClick: () => void saveRef.current?.(overwrite),
+      },
+    };
     try {
       const response = await fetch(`/api/checklist/answers/${answer.id}`, {
         method: "PATCH",
@@ -278,16 +300,20 @@ export function AnswerCard({
         answer?: { version: number };
       };
       if (response.status === 409) {
+        conflictRef.current = true;
         toast.error(
           data.message ??
             "Item ini baru saja diubah anggota lain. Draf Anda tetap tersimpan.",
         );
         router.refresh();
-        return;
+        return false;
       }
       if (!response.ok) {
-        toast.error(data.message ?? "Gagal menyimpan item.");
-        return;
+        toast.error(
+          data.message ?? "Gagal menyimpan item.",
+          response.status >= 500 ? retry : undefined,
+        );
+        return false;
       }
       const nextVersion = data.answer?.version ?? expectedVersion + 1;
       serverRef.current = {
@@ -295,40 +321,89 @@ export function AnswerCard({
         note,
         version: nextVersion,
       };
-      setCondition(nextCondition);
+      conflictRef.current = false;
+      // A condition picked while this request was in flight must win over the
+      // value that was sent, otherwise the user's latest click would revert.
+      const conditionUnchanged = localRef.current.condition === nextCondition;
+      if (conditionUnchanged) setCondition(nextCondition);
       setBaseVersion(nextVersion);
       setServerChanged(false);
       clearDraft(draftKey);
-      toast.success(
-        options?.feedback === "condition"
-          ? "Kondisi disimpan."
-          : "Item checklist disimpan.",
-      );
+      if (options?.feedback === "condition" && conditionUnchanged) {
+        toast.success("Kondisi disimpan.");
+      } else if (options?.feedback === "draft") {
+        toast.success("Draf disimpan.");
+      }
+      setSaveTick((tick) => tick + 1);
       router.refresh();
+      return true;
     } catch {
-      toast.error("Gagal menyimpan item. Periksa koneksi lalu coba lagi.");
+      toast.error(
+        "Gagal menyimpan item. Periksa koneksi lalu coba lagi.",
+        retry,
+      );
+      return false;
     } finally {
       savingRef.current = false;
       setSaving(false);
     }
   }
 
+  saveRef.current = save;
+
   async function selectCondition(next: ChecklistCondition | null) {
-    if (!canFill || savingRef.current) return;
+    if (!canFill) return;
+    localRef.current = { ...localRef.current, condition: next };
     setCondition(next);
     // A stale base version would only bounce back as a 409. Keep the pick as a
     // draft and let the conflict banner decide how to resolve it.
-    if (serverChanged) return;
+    if (serverChanged || conflictRef.current) return;
+    // A save is already running; its completion re-runs the auto-save effect
+    // with the newest local values.
+    if (savingRef.current) return;
     await save(false, { condition: next, feedback: "condition" });
   }
 
-  function useServerVersion() {
+  function adoptServerVersion() {
+    conflictRef.current = false;
+    localRef.current = { condition: answer.condition, note: answer.note };
     setCondition(answer.condition);
     setNote(answer.note);
     setBaseVersion(answer.version);
     setServerChanged(false);
     clearDraft(draftKey);
   }
+
+  // Notes save on their own after a short idle. Condition picks save
+  // immediately in selectCondition; this catches text edits and recovered
+  // drafts. A conflict or an unmet note requirement pauses it.
+  const pendingServerChange =
+    condition !== serverRef.current.condition || note !== serverRef.current.note;
+  const conditionPending = condition !== serverRef.current.condition;
+
+  useEffect(() => {
+    if (!canFill || serverChanged || conflictRef.current) return;
+    if (!pendingServerChange) return;
+    if (needsNote(answer, condition, conditions, note)) return;
+    const timeout = window.setTimeout(() => {
+      if (savingRef.current) return;
+      // A direct condition save may have already sent these exact values.
+      const confirmed = serverRef.current;
+      if (condition === confirmed.condition && note === confirmed.note) return;
+      void saveRef.current?.(false);
+    }, conditionPending ? 0 : NOTE_SAVE_DELAY);
+    return () => window.clearTimeout(timeout);
+  }, [
+    answer,
+    canFill,
+    condition,
+    conditionPending,
+    conditions,
+    note,
+    pendingServerChange,
+    saveTick,
+    serverChanged,
+  ]);
 
   const activeFollowUp = followUp && followUp.followUp.status !== "dibatalkan";
 
@@ -367,9 +442,10 @@ export function AnswerCard({
                 conditions={conditions}
               />
             )}
-            {dirty && (
-              <Badge variant="warning-outline" className="text-xs">
-                Belum disimpan
+            {saving && (
+              <Badge variant="info-light" className="text-xs">
+                <Loader2 className="animate-spin" aria-hidden="true" />
+                Menyimpan…
               </Badge>
             )}
           </div>
@@ -408,7 +484,7 @@ export function AnswerCard({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={useServerVersion}
+                onClick={adoptServerVersion}
                 disabled={saving}
               >
                 Gunakan versi server
@@ -416,7 +492,7 @@ export function AnswerCard({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => save(true)}
+                onClick={() => save(true, { feedback: "draft" })}
                 disabled={saving || invalid}
               >
                 Simpan draf saya
@@ -439,7 +515,7 @@ export function AnswerCard({
               <button
                 key={option.id}
                 type="button"
-                disabled={!canFill || saving}
+                disabled={!canFill}
                 aria-pressed={selected}
                 onClick={() => selectCondition(selected ? null : option.id)}
                 className={cn(
@@ -459,8 +535,12 @@ export function AnswerCard({
       <div className="flex flex-col gap-1.5">
         <Textarea
           value={note}
-          onChange={(event) => setNote(event.target.value)}
-          readOnly={!canFill || saving}
+          onChange={(event) => {
+            const nextNote = event.target.value;
+            localRef.current = { ...localRef.current, note: nextNote };
+            setNote(nextNote);
+          }}
+          readOnly={!canFill}
           rows={2}
           maxLength={2000}
           placeholder={
@@ -529,33 +609,6 @@ export function AnswerCard({
               >
                 <ListChecks aria-hidden="true" />
                 Buat tindak lanjut
-              </Button>
-            )}
-            {canFill && !serverChanged && dirty && (
-              <Button
-                type="button"
-                size="sm"
-                variant="destructive"
-                onClick={useServerVersion}
-                disabled={saving}
-              >
-                <Undo2 aria-hidden="true" />
-                Batalkan draf
-              </Button>
-            )}
-            {canFill && !serverChanged && (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => save(false)}
-                disabled={saving || !dirty || invalid}
-              >
-                {saving ? (
-                  <Loader2 className="animate-spin" aria-hidden="true" />
-                ) : (
-                  <Check aria-hidden="true" />
-                )}
-                {saving ? "Menyimpan…" : "Simpan"}
               </Button>
             )}
           </div>
