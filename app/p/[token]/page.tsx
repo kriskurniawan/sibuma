@@ -6,7 +6,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { listChecklistConditions } from "@/lib/checklist-conditions";
 import {
   getChecklistPublicArea,
-  getChecklistPublicStaff,
   listChecklistPublicLocations,
   resolveChecklistQrToken,
 } from "@/lib/checklist-qr";
@@ -27,18 +26,20 @@ export default async function PublicChecklistPage({
       : null;
   const qr = await resolveChecklistQrToken(token);
   if (!qr) notFound();
+  const user = await getCurrentUser();
   if (!qr.active) {
     return (
       <PublicUnavailable
         title="QR tidak aktif"
         description="QR ini sudah dinonaktifkan oleh pengelola. Minta QR terbaru kepada petugas gedung."
+        loggedIn={Boolean(user)}
+        loginNext={`/p/${token}`}
       />
     );
   }
 
   // QR pengamat mencakup seluruh area publik perusahaan.
   const ownerId = qr.companyWide ? null : qr.ownerId;
-  const user = await getCurrentUser();
 
   if (qr.mode === "langsung" && qr.locationId) {
     if (qr.locationPublicEnabled === false || qr.locationActive === false) {
@@ -46,6 +47,8 @@ export default async function PublicChecklistPage({
         <PublicUnavailable
           title="Area belum dipublikasikan"
           description="Pengelola belum mengaktifkan area ini untuk pengunjung. Silakan hubungi petugas gedung."
+          loggedIn={Boolean(user)}
+          loginNext={`/p/${token}`}
         />
       );
     }
@@ -60,6 +63,8 @@ export default async function PublicChecklistPage({
           <PublicUnavailable
             title="Hasil tidak ditemukan"
             description="Periode pemeriksaan ini tidak tersedia untuk area tersebut."
+            loggedIn={Boolean(user)}
+            loginNext={`/p/${token}`}
           />
         );
       }
@@ -67,18 +72,17 @@ export default async function PublicChecklistPage({
         <PublicUnavailable
           title="Area tidak tersedia"
           description="Area pada QR ini tidak ditemukan atau sudah tidak aktif."
+          loggedIn={Boolean(user)}
+          loginNext={`/p/${token}`}
         />
       );
     }
-    const [staff, conditions] = await Promise.all([
-      getChecklistPublicStaff(user, ownerId, qr.locationId),
-      listChecklistConditions({ includeInactive: true }),
-    ]);
+    const conditions = await listChecklistConditions({ includeInactive: true });
     return (
       <PublicAreaDetail
         qrName={qr.name}
         area={area}
-        staff={staff}
+        loggedIn={Boolean(user)}
         conditions={conditions}
         backHref={null}
         detailHref={`/p/${token}`}

@@ -107,15 +107,15 @@ const STATUS_OPTIONS: Record<
 export function ReportOptionSkeleton({ tab }: { tab: ReportTab }) {
   const widths =
     tab === "lembur"
-      ? ["sm:w-44", "sm:w-56"]
+      ? ["xl:w-44", "xl:w-56"]
       : tab === "tindak-lanjut"
-        ? ["sm:w-44"]
-        : ["sm:w-44", tab === "checklist" ? "sm:w-48" : "sm:w-44"];
+        ? ["xl:w-44"]
+        : ["xl:w-44", tab === "checklist" ? "xl:w-48" : "xl:w-44"];
   return (
     <div
       role="status"
       aria-label="Memuat pilihan filter"
-      className="col-span-2 contents"
+      className="contents"
     >
       {widths.map((width, index) => (
         <Skeleton key={index} className={`h-8 w-full ${width}`} />
@@ -159,6 +159,20 @@ export function ReportShell({
     const value = key === "search" ? search : firstReportParam(params[key]);
     if (value) exportParams.set(key, value);
   }
+  const dateFiltered =
+    Boolean(firstReportParam(params.from)) ||
+    Boolean(firstReportParam(params.to));
+  const includeSubFiltered =
+    Boolean(locationId) && firstReportParam(params.includeSub) === "0";
+  const activeFilterCount =
+    (dateFiltered ? 1 : 0) +
+    filterKeys.reduce(
+      (count, key) => count + (firstReportParam(params[key]) ? 1 : 0),
+      0,
+    ) +
+    (includeSubFiltered ? 1 : 0);
+  const hasFilters = Boolean(search) || activeFilterCount > 0;
+  const resetHref = `/laporan?tab=${tab}`;
   if (tab !== "lembur")
     exportParams.set(
       "includeSub",
@@ -335,15 +349,12 @@ export function ReportShell({
               {filterDescription}
             </FrameDescription>
           </div>
-          {(Boolean(search) ||
-            filterKeys.some((key) =>
-              Boolean(firstReportParam(params[key])),
-            )) && (
+          {hasFilters && (
             <Button
               variant="ghost"
               size="sm"
               nativeButton={false}
-              render={<Link href={`/laporan?tab=${tab}`} />}
+              render={<Link href={resetHref} />}
             >
               <RotateCcw aria-hidden="true" />
               Reset filter
@@ -362,6 +373,8 @@ export function ReportShell({
             selectFilters={staticFilters}
             selectContent={optionFilters}
             summary={periodLabel}
+            activeCount={activeFilterCount}
+            resetHref={resetHref}
           />
         </FramePanel>
       </Frame>

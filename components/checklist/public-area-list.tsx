@@ -2,8 +2,6 @@ import Link from "next/link";
 import {
   Building2,
   ChevronRight,
-  ClipboardCheck,
-  LogIn,
   MapPin,
 } from "lucide-react";
 import {
@@ -15,7 +13,6 @@ import {
 } from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
 import { Badge, EmptyState } from "@/components/ui";
-import { Button } from "@/components/ui/button";
 import { ChecklistStatusBadge } from "@/components/checklist/checklist-badges";
 import { PublicRefreshButton } from "@/components/checklist/public-refresh-button";
 import { PublicShell } from "@/components/checklist/public-shell";
@@ -34,7 +31,7 @@ export function PublicAreaList({
   loggedIn?: boolean;
 }) {
   return (
-    <PublicShell>
+    <PublicShell loggedIn={loggedIn} loginNext={`/p/${token}`}>
       <div className="flex min-w-0 flex-col gap-1">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Checklist area
@@ -112,8 +109,9 @@ export function PublicAreaList({
                               <>
                                 <ChecklistStatusBadge status={latest.status} />
                                 <span className="text-xs text-muted-foreground tabular-nums">
-                                  {latest.answeredCount}/{latest.totalItems} item
-                                  diperiksa
+                                  {latest.totalItems > 0
+                                    ? `${latest.answeredCount}/${latest.totalItems} item publik diperiksa`
+                                    : "Belum ada item publik"}
                                 </span>
                               </>
                             ) : (
@@ -152,45 +150,6 @@ export function PublicAreaList({
               })}
             </ul>
           )}
-        </FramePanel>
-      </Frame>
-
-      <Frame spacing="default">
-        <FramePanel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-start gap-2">
-            <ClipboardCheck
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <p className="text-sm font-medium text-foreground">Akses petugas</p>
-              <p className="text-xs text-muted-foreground">
-                Tugas pemeriksaan hanya untuk petugas yang ditugaskan.
-              </p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            nativeButton={false}
-            className="self-start sm:self-auto"
-            render={
-              <Link
-                href={
-                  loggedIn
-                    ? "/checklist"
-                    : `/login?next=${encodeURIComponent(`/p/${token}`)}`
-                }
-              />
-            }
-          >
-            {loggedIn ? (
-              <ClipboardCheck aria-hidden="true" />
-            ) : (
-              <LogIn aria-hidden="true" />
-            )}
-            {loggedIn ? "Checklist saya" : "Masuk"}
-          </Button>
         </FramePanel>
       </Frame>
     </PublicShell>

@@ -5,13 +5,18 @@ import {
   ClipboardList,
   Clock3,
   FolderTree,
-  HardHat,
   History,
   ListChecks,
   MapPin,
   TriangleAlert,
 } from "lucide-react";
 import { MobileSummary } from "@/components/mobile-summary";
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/reui/alert";
 import {
   Frame,
   FrameDescription,
@@ -25,19 +30,44 @@ import {
   ChecklistConditionBadge,
   ChecklistStatusBadge,
 } from "@/components/checklist/checklist-badges";
+import {
+  PublicHistoryList,
+  type PublicHistoryListItem,
+} from "@/components/checklist/public-history-list";
 import { PublicRefreshButton } from "@/components/checklist/public-refresh-button";
 import { PublicSecondarySection } from "@/components/checklist/public-secondary-section";
 import { PublicShell } from "@/components/checklist/public-shell";
-import { PublicStaffAccess, type PublicStaffState } from "@/components/checklist/public-staff-access";
+import {
+  Timeline,
+  TimelineContent,
+  TimelineDate,
+  TimelineHeader,
+  TimelineIndicator,
+  TimelineItem,
+  TimelineSeparator,
+  TimelineTitle,
+} from "@/components/reui/timeline";
 import { ManualWorkStatusBadge } from "@/components/pekerjaan/manual-work-badges";
-import type { ChecklistConditionOption, ChecklistPublicArea } from "@/lib/checklist-types";
+import {
+  findChecklistCondition,
+  type ChecklistConditionOption,
+  type ChecklistConditionTone,
+  type ChecklistPublicArea,
+} from "@/lib/checklist-types";
 import { cn } from "@/lib/utils";
 import { currentTimeZoneLabel, formatDateHuman, formatDateTime } from "@/lib/time";
+
+const CONDITION_TONE_CLASS: Record<ChecklistConditionTone, string> = {
+  success: "bg-success",
+  warning: "bg-warning",
+  danger: "bg-destructive",
+  neutral: "bg-muted-foreground/40",
+};
 
 export function PublicAreaDetail({
   qrName,
   area,
-  staff,
+  loggedIn,
   conditions,
   backHref,
   detailHref,
@@ -45,7 +75,7 @@ export function PublicAreaDetail({
 }: {
   qrName: string;
   area: ChecklistPublicArea;
-  staff: PublicStaffState;
+  loggedIn: boolean;
   conditions: ChecklistConditionOption[];
   backHref: string | null;
   detailHref: string;
@@ -53,6 +83,71 @@ export function PublicAreaDetail({
 }) {
   const { location, latest, items, history, followUps, timeline, viewingHistory } = area;
   const manualWorks = area.manualWorks;
+  const timelineItems = timeline.slice().reverse();
+  const ongoingEntry =
+    history.find((entry) => entry.status === "berlangsung") ?? null;
+  const progressValue =
+    latest && latest.totalItems > 0
+      ? `${latest.answeredCount}/${latest.totalItems}`
+      : "—";
+  const progressHelper = latest
+    ? latest.totalItems === 0
+      ? "Belum ada item publik"
+      : latest.status === "dilewati"
+        ? "Pemeriksaan dilewati"
+        : "Item publik sudah diisi"
+    : "Belum ada pemeriksaan";
+  const issueHelper = !latest
+    ? "Belum ada pemeriksaan"
+    : latest.totalItems === 0
+      ? "Belum ada item publik"
+      : "Item publik bermasalah";
+
+  const conditionCounts = new Map<
+    string,
+    { label: string; tone: ChecklistConditionTone; count: number }
+  >();
+  for (const item of items) {
+    if (!item.condition) continue;
+    const option = findChecklistCondition(conditions, item.condition);
+    const key = option?.id ?? item.condition;
+    const current = conditionCounts.get(key);
+    if (current) {
+      current.count += 1;
+    } else {
+      conditionCounts.set(key, {
+        label: option?.label ?? item.condition,
+        tone: option?.tone ?? "neutral",
+        count: 1,
+      });
+    }
+  }
+  const uncheckedCount = items.filter((item) => !item.condition).length;
+  const conditionSummary = [
+    ...conditionCounts.values(),
+    ...(uncheckedCount > 0
+      ? [
+          {
+            label: "Belum diperiksa",
+            tone: "neutral" as ChecklistConditionTone,
+            count: uncheckedCount,
+          },
+        ]
+      : []),
+  ];
+  const historyItems: PublicHistoryListItem[] = history.map((entry) => ({
+    id: entry.id,
+    href: `${detailHref}?inspection=${entry.id}`,
+    dateLabel: formatDateHuman(`${entry.occurrenceDate}T12:00:00`, "d MMMM yyyy"),
+    meta: `${entry.templateName} · ${entry.periodLabel}`,
+    counts:
+      entry.totalItems === 0
+        ? "Belum ada item publik"
+        : `${entry.answeredCount}/${entry.totalItems} item publik · ${entry.issueCount} temuan`,
+    status: entry.status,
+    selected: latest?.inspectionId === entry.id,
+  }));
+
   const numberedItems = items.map((item, index) => ({ item, number: index + 1 }));
   const itemBlocks: Array<{ groupPath: string; entries: typeof numberedItems }> = [];
   for (const entry of numberedItems) {
@@ -66,7 +161,7 @@ export function PublicAreaDetail({
   }
 
   return (
-    <PublicShell backHref={backHref}>
+    <PublicShell backHref={backHref} loggedIn={loggedIn} loginNext={loginNext}>
       <div className="flex min-w-0 flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="wrap-anywhere text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
@@ -85,24 +180,97 @@ export function PublicAreaDetail({
         )}
       </div>
 
+      {viewingHistory && latest && latest.status !== "berlangsung" && (
+        <Alert variant="info">
+          <History aria-hidden="true" />
+          <AlertTitle>Hasil pemeriksaan sebelumnya</AlertTitle>
+          <AlertDescription>
+            {formatDateHuman(`${latest.occurrenceDate}T12:00:00`, "d MMMM yyyy")} · {latest.templateName} · {latest.periodLabel}.{" "}
+            {ongoingEntry
+              ? "Ada pemeriksaan yang masih berlangsung."
+              : "Hasil ini bukan kondisi terbaru."}
+          </AlertDescription>
+          <AlertAction className="flex-wrap">
+            {ongoingEntry && (
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={`${detailHref}?inspection=${ongoingEntry.id}`} />}
+              >
+                Lihat yang berlangsung
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={detailHref} />}
+            >
+              Hasil terbaru
+            </Button>
+          </AlertAction>
+        </Alert>
+      )}
+
+      {latest?.status === "berlangsung" && (
+        <Alert variant="warning">
+          <Clock3 aria-hidden="true" />
+          <AlertTitle>Pemeriksaan masih berlangsung</AlertTitle>
+          <AlertDescription>
+            Hasil dapat berubah sampai pemeriksaan selesai.
+          </AlertDescription>
+          {viewingHistory && (
+            <AlertAction>
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={detailHref} />}
+              >
+                Hasil terbaru
+              </Button>
+            </AlertAction>
+          )}
+        </Alert>
+      )}
+
+      {!viewingHistory && latest?.status !== "berlangsung" && ongoingEntry && (
+        <Alert variant="warning">
+          <Clock3 aria-hidden="true" />
+          <AlertTitle>Ada pemeriksaan berlangsung</AlertTitle>
+          <AlertDescription>
+            {formatDateHuman(`${ongoingEntry.occurrenceDate}T12:00:00`, "d MMMM yyyy")} · {ongoingEntry.templateName} · {ongoingEntry.periodLabel}. Hasil yang ditampilkan adalah pemeriksaan terbaru yang sudah memiliki hasil.
+          </AlertDescription>
+          <AlertAction>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`${detailHref}?inspection=${ongoingEntry.id}`} />}
+            >
+              Lihat pemeriksaan
+            </Button>
+          </AlertAction>
+        </Alert>
+      )}
+
       <MobileSummary
         className="md:hidden"
         items={[
-          { label: "Progres item", value: latest ? `${latest.answeredCount}/${latest.totalItems}` : "—", icon: ListChecks, tone: "primary" },
+          { label: "Progres item", value: progressValue, icon: ListChecks, tone: "primary" },
           { label: "Temuan", value: latest?.issueCount ?? 0, icon: TriangleAlert, tone: latest && latest.issueCount > 0 ? "warning" : "neutral" },
-          { label: "Tindak lanjut terbuka", value: followUps.open, icon: ClipboardCheck, tone: followUps.open > 0 ? "warning" : "neutral" },
-          { label: "Pembaruan", value: area.lastUpdated ? formatDateHuman(area.lastUpdated, "d MMM") : "—", icon: Clock3, tone: "info" },
+          { label: "Tindak lanjut area", value: followUps.open, icon: ClipboardCheck, tone: followUps.open > 0 ? "warning" : "neutral" },
+          { label: "Pembaruan item", value: area.lastUpdated ? formatDateHuman(area.lastUpdated, "d MMM") : "—", icon: Clock3, tone: "info" },
         ]}
       />
 
       <div className="hidden grid-cols-2 gap-4 md:grid xl:grid-cols-4">
-        <StatCard label="Progres item" value={latest ? `${latest.answeredCount}/${latest.totalItems}` : "—"} icon={ListChecks} helper="Item sudah diperiksa" tone="primary" />
-        <StatCard label="Temuan" value={latest?.issueCount ?? 0} icon={TriangleAlert} helper="Perlu perhatian atau tidak baik" tone={latest && latest.issueCount > 0 ? "warning" : "neutral"} />
-        <StatCard label="Tindak lanjut" value={followUps.open} suffix="terbuka" icon={ClipboardCheck} helper={`${followUps.done} selesai`} tone={followUps.open > 0 ? "warning" : "neutral"} />
-        <StatCard label="Pembaruan" value={area.lastUpdated ? formatDateHuman(area.lastUpdated, "d MMM") : "—"} icon={Clock3} helper={area.lastUpdated ? `Terakhir ${formatDateTime(area.lastUpdated, "HH:mm")} ${currentTimeZoneLabel()}` : "Belum ada pembaruan"} tone="info" />
+        <StatCard label="Progres item" value={progressValue} icon={ListChecks} helper={progressHelper} tone="primary" />
+        <StatCard label="Temuan" value={latest?.issueCount ?? 0} icon={TriangleAlert} helper={issueHelper} tone={latest && latest.issueCount > 0 ? "warning" : "neutral"} />
+        <StatCard label="Tindak lanjut area" value={followUps.open} suffix="terbuka" icon={ClipboardCheck} helper={`${followUps.done} selesai · semua periode`} tone={followUps.open > 0 ? "warning" : "neutral"} />
+        <StatCard label="Pembaruan item" value={area.lastUpdated ? formatDateHuman(area.lastUpdated, "d MMM") : "—"} icon={Clock3} helper={area.lastUpdated ? `Pemeriksaan ini · ${formatDateTime(area.lastUpdated, "HH:mm")} ${currentTimeZoneLabel()}` : "Belum ada pembaruan item publik"} tone="info" />
       </div>
-
-      <PublicStaffAccess staff={staff} loginNext={loginNext} />
 
       <Frame spacing="default">
         <FrameHeader className="flex-row flex-wrap items-start justify-between gap-3">
@@ -113,12 +281,6 @@ export function PublicAreaDetail({
             </FrameDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {viewingHistory && (
-              <Button size="sm" variant="outline" nativeButton={false} render={<Link href={detailHref} />}>
-                <History aria-hidden="true" />
-                Hasil terbaru
-              </Button>
-            )}
             {latest && (
               <Badge variant="outline">{formatDateHuman(`${latest.occurrenceDate}T12:00:00`, "d MMM yyyy")}</Badge>
             )}
@@ -131,6 +293,51 @@ export function PublicAreaDetail({
             <EmptyState icon={ClipboardList} title="Belum ada item publik" description="Pengelola belum mempublikasikan item pemeriksaan ini." action={<PublicRefreshButton />} />
           ) : (
             <div className="flex min-w-0 flex-col gap-4">
+              <section
+                aria-label="Ringkasan kondisi item publik"
+                className="flex min-w-0 flex-col gap-2 border-b border-border pb-4"
+              >
+                <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-2">
+                  <h3 className="text-xs font-medium text-muted-foreground">
+                    Ringkasan kondisi item publik
+                  </h3>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {items.length} item
+                  </span>
+                </div>
+                <div
+                  aria-hidden="true"
+                  className="flex h-2 w-full overflow-hidden rounded-full bg-muted"
+                >
+                  {conditionSummary.map((entry, index) => (
+                    <span
+                      key={`${entry.label}-${index}`}
+                      className={CONDITION_TONE_CLASS[entry.tone]}
+                      style={{ width: `${(entry.count / items.length) * 100}%` }}
+                    />
+                  ))}
+                </div>
+                <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                  {conditionSummary.map((entry, index) => (
+                    <li
+                      key={`${entry.label}-${index}`}
+                      className="flex items-center gap-1.5 text-xs"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "size-2 shrink-0 rounded-full",
+                          CONDITION_TONE_CLASS[entry.tone],
+                        )}
+                      />
+                      <span className="font-medium text-foreground tabular-nums">
+                        {entry.count}
+                      </span>
+                      <span className="text-muted-foreground">{entry.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
               {itemBlocks.map((block, blockIndex) => (
                 <section key={blockIndex} className="flex min-w-0 flex-col gap-2">
                   {block.groupPath && (
@@ -199,12 +406,6 @@ export function PublicAreaDetail({
                         <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
                         {schedule}
                       </span>
-                      {work.safetyName && (
-                        <span className="inline-flex min-w-0 items-center gap-1">
-                          <HardHat className="size-3.5 shrink-0" aria-hidden="true" />
-                          <span className="wrap-anywhere">Petugas safety {work.safetyName}</span>
-                        </span>
-                      )}
                       {work.status === "selesai" && work.completedAt && (
                         <span className="tabular-nums">
                           Selesai {formatDateHuman(work.completedAt, "d MMM yyyy")}
@@ -219,55 +420,66 @@ export function PublicAreaDetail({
         </Frame>
       )}
 
-      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-2">
-        <PublicSecondarySection title="Riwayat pemeriksaan" description={`${history.length} periode tersedia`}>
+      <div className="grid min-w-0 grid-cols-1 items-start gap-4 lg:grid-cols-5">
+        <PublicSecondarySection
+          className="lg:col-span-2"
+          title="Riwayat pemeriksaan"
+          description={
+            history.length === 0
+              ? "Belum ada pemeriksaan"
+              : `${history.length} pemeriksaan terakhir`
+          }
+        >
           {history.length === 0 ? (
-            <EmptyState icon={History} title="Belum ada riwayat" description="Periode pemeriksaan akan tampil di sini." action={<PublicRefreshButton />} />
+            <EmptyState icon={History} title="Belum ada riwayat" description="Pemeriksaan yang sudah dimulai akan tampil di sini." action={<PublicRefreshButton />} />
           ) : (
-            <ul className="divide-y divide-border">
-              {history.map((entry) => {
-                const selected = latest?.inspectionId === entry.id;
-                return (
-                  <li key={entry.id}>
-                    <Link
-                      href={`${detailHref}?inspection=${entry.id}`}
-                      aria-current={selected ? "page" : undefined}
-                      className={cn("flex min-w-0 flex-col gap-2 py-3 transition-colors outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", selected && "bg-muted dark:bg-muted/50")}
-                    >
-                      <div className="flex min-w-0 items-start gap-2">
-                        <History className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <p className="text-sm font-medium text-foreground">{formatDateHuman(`${entry.occurrenceDate}T12:00:00`, "d MMMM yyyy")}</p>
-                          <p className="wrap-anywhere text-xs text-muted-foreground">{entry.templateName} · {entry.periodLabel}</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <ChecklistStatusBadge status={entry.status} />
-                        {selected && <span className="text-xs text-muted-foreground">Sedang ditampilkan</span>}
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <PublicHistoryList items={historyItems} />
           )}
         </PublicSecondarySection>
 
-        <PublicSecondarySection title="Linimasa pemeriksaan" description="Aktivitas tanpa identitas petugas">
-          {timeline.length === 0 ? (
+        <PublicSecondarySection
+          className="lg:col-span-3"
+          title="Linimasa pemeriksaan"
+          description="Aktivitas tanpa identitas petugas"
+        >
+          {timelineItems.length === 0 ? (
             <EmptyState icon={Clock3} title="Belum ada aktivitas" description="Aktivitas pemeriksaan akan tampil di sini." action={<PublicRefreshButton />} />
           ) : (
-            <ul className="divide-y divide-border">
-              {timeline.map((entry, index) => (
-                <li key={`${entry.at}-${index}`} className="flex items-start gap-3 py-3">
-                  <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <p className="wrap-anywhere text-sm font-medium text-foreground">{entry.label}</p>
-                    <p className="text-xs text-muted-foreground tabular-nums">{formatDateTime(entry.at, "d MMM yyyy, HH:mm")} {currentTimeZoneLabel()}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <div
+              role="region"
+              aria-label="Linimasa pemeriksaan"
+              tabIndex={0}
+              className="min-w-0 overflow-x-auto overscroll-x-contain pb-2 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <Timeline
+                value={timelineItems.length}
+                orientation="horizontal"
+                className="min-w-full"
+              >
+                {timelineItems.map((entry, index) => (
+                  <TimelineItem
+                    key={`${entry.at}-${index}`}
+                    step={index + 1}
+                    className="min-w-40 group-data-[orientation=horizontal]/timeline:mt-0"
+                  >
+                    <TimelineHeader>
+                      <TimelineSeparator className="group-data-[orientation=horizontal]/timeline:top-8" />
+                      <TimelineDate
+                        dateTime={entry.at}
+                        className="mb-10 whitespace-nowrap"
+                      >
+                        {formatDateHuman(entry.at, "d MMM yyyy")}
+                      </TimelineDate>
+                      <TimelineTitle className="wrap-anywhere">{entry.label}</TimelineTitle>
+                      <TimelineIndicator className="group-data-[orientation=horizontal]/timeline:top-8" />
+                    </TimelineHeader>
+                    <TimelineContent className="text-xs tabular-nums">
+                      {formatDateTime(entry.at, "HH:mm")} {currentTimeZoneLabel()}
+                    </TimelineContent>
+                  </TimelineItem>
+                ))}
+              </Timeline>
+            </div>
           )}
         </PublicSecondarySection>
       </div>

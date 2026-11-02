@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft, Eye } from "lucide-react";
+import { ArrowLeft, Eye, LayoutDashboard, LogIn } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { PublicRefreshButton } from "@/components/checklist/public-refresh-button";
 import { Frame, FramePanel } from "@/components/reui/frame";
@@ -11,11 +11,20 @@ export function PublicShell({
   children,
   backHref,
   backLabel = "Semua area",
+  loggedIn = false,
+  loginNext = "/",
+  headerAction,
 }: {
   children: ReactNode;
   backHref?: string | null;
   backLabel?: string;
+  loggedIn?: boolean;
+  loginNext?: string;
+  headerAction?: ReactNode;
 }) {
+  const accountHref = loggedIn
+    ? "/"
+    : `/login?next=${encodeURIComponent(loginNext)}`;
   return (
     <div className="flex min-h-svh flex-col bg-background">
       <a
@@ -43,10 +52,32 @@ export function PublicShell({
               SIBUMA
             </span>
           </div>
-          <Badge variant="outline" className="ml-auto shrink-0">
-            <Eye aria-hidden="true" />
-            Publik
-          </Badge>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {headerAction ?? (
+              <>
+                <Badge
+                  variant="outline"
+                  className="hidden shrink-0 sm:inline-flex"
+                >
+                  <Eye aria-hidden="true" />
+                  Publik
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={accountHref} />}
+                >
+                  {loggedIn ? (
+                    <LayoutDashboard aria-hidden="true" />
+                  ) : (
+                    <LogIn aria-hidden="true" />
+                  )}
+                  {loggedIn ? "Dashboard" : "Masuk petugas"}
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -70,12 +101,16 @@ export function PublicShell({
 export function PublicUnavailable({
   title,
   description,
+  loggedIn = false,
+  loginNext = "/",
 }: {
   title: string;
   description: string;
+  loggedIn?: boolean;
+  loginNext?: string;
 }) {
   return (
-    <PublicShell>
+    <PublicShell loggedIn={loggedIn} loginNext={loginNext}>
       <h1 className="sr-only">{title}</h1>
       <Frame spacing="default">
         <FramePanel>

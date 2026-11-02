@@ -15,11 +15,14 @@ export function ReportDateFilters({
   to,
   onChange,
   className,
+  errorId = "report-date-range-error",
 }: {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;
   className?: string;
+  /** Unique per placement so inline and sheet copies never share an id. */
+  errorId?: string;
 }) {
   const [fromValue, setFromValue] = useState(from);
   const [toValue, setToValue] = useState(to);
@@ -71,7 +74,7 @@ export function ReportDateFilters({
           ariaLabel="Dari tanggal"
           invalid={invalidRange}
           ariaDescribedBy={
-            invalidRange ? "report-date-range-error" : undefined
+            invalidRange ? errorId : undefined
           }
           className="min-w-0 flex-1 sm:w-40 sm:flex-none"
         />
@@ -85,14 +88,14 @@ export function ReportDateFilters({
           ariaLabel="Sampai tanggal"
           invalid={invalidRange}
           ariaDescribedBy={
-            invalidRange ? "report-date-range-error" : undefined
+            invalidRange ? errorId : undefined
           }
           className="min-w-0 flex-1 sm:w-40 sm:flex-none"
         />
       </div>
       {invalidRange && (
         <p
-          id="report-date-range-error"
+          id={errorId}
           role="alert"
           className="text-xs text-destructive"
         >

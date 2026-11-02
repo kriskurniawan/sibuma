@@ -1,7 +1,13 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
-import { Search, X } from "lucide-react";
+import {
+  createContext,
+  useContext,
+  useState,
+  type ReactNode,
+} from "react";
+import Link from "next/link";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { FilterPending } from "@/components/filters/filter-pending";
 import {
   useDebouncedFilterValue,
@@ -9,12 +15,14 @@ import {
   useOptimisticFilterValue,
 } from "@/components/filters/use-filter-navigation";
 import { ReportDateFilters } from "@/components/reports/report-date-filters";
+import { Button } from "@/components/ui/button";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -22,6 +30,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 export interface ReportFilterOption {
@@ -49,6 +65,12 @@ const ReportNavigationContext = createContext<{
   navigate: Navigate;
 } | null>(null);
 
+/** Dynamic options appear inline on desktop and inside the filter sheet on
+ * smaller screens, so their labels and widths follow their placement. */
+const ReportFilterPlacementContext = createContext<"inline" | "sheet">(
+  "inline",
+);
+
 function AutoSelectFilter({
   filter,
   navigate,
@@ -59,8 +81,10 @@ function AutoSelectFilter({
   pending: boolean;
 }) {
   const [value, setValue] = useOptimisticFilterValue(filter.value, pending);
+  const sheet = useContext(ReportFilterPlacementContext) === "sheet";
+  const fieldId = sheet ? `${filter.id}-sheet` : filter.id;
 
-  return (
+  const select = (
     <Select
       value={value}
       onValueChange={(next) => {
@@ -77,9 +101,13 @@ function AutoSelectFilter({
       items={filter.options}
     >
       <SelectTrigger
-        id={filter.id}
+        id={fieldId}
         aria-label={filter.label}
-        className={cn("w-full", filter.className ?? "sm:w-40")}
+        className={
+          sheet
+            ? "w-full"
+            : cn("w-full", filter.className ?? "sm:w-40")
+        }
       >
         <SelectValue placeholder={filter.placeholder} />
       </SelectTrigger>
@@ -91,6 +119,15 @@ function AutoSelectFilter({
         ))}
       </SelectContent>
     </Select>
+  );
+
+  if (!sheet) return select;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={fieldId}>{filter.label}</Label>
+      {select}
+    </div>
   );
 }
 
@@ -184,6 +221,8 @@ export function ReportFilterBar({
   selectFilters = [],
   selectContent,
   summary,
+  activeCount = 0,
+  resetHref,
 }: {
   ariaLabel: string;
   from: string;
@@ -196,47 +235,67 @@ export function ReportFilterBar({
   /** Database-backed selects can stream without replacing search or dates. */
   selectContent?: ReactNode;
   summary?: ReactNode;
+  /** Filters other than search; used for the mobile Filter badge. */
+  activeCount?: number;
+  resetHref: string;
 }) {
   const { isPending, navigate } = useFilterNavigation({ includeSub: "1" });
+  const [open, setOpen] = useState(false);
+  const openLabel =
+    activeCount > 0
+      ? `Buka ${ariaLabel.toLowerCase()}, ${activeCount} filter aktif`
+      : `Buka ${ariaLabel.toLowerCase()}`;
 
   return (
     <ReportNavigationContext.Provider value={{ isPending, navigate }}>
       <div role="group" aria-label={ariaLabel} className="flex flex-col gap-3">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-start">
-          <AutoSearchFilter
-            id={searchId}
-            label={searchLabel}
-            value={search}
-            placeholder={searchPlaceholder}
-            className="w-full xl:w-72"
-            navigate={navigate}
-          />
+          <div className="flex min-w-0 items-center gap-2 xl:w-72 xl:flex-none">
+            <AutoSearchFilter
+              id={searchId}
+              label={searchLabel}
+              value={search}
+              placeholder={searchPlaceholder}
+              className="min-w-0 flex-1"
+              navigate={navigate}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 xl:hidden"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-label={openLabel}
+              onClick={() => setOpen(true)}
+            >
+              <SlidersHorizontal aria-hidden="true" />
+              Filter
+              {activeCount > 0 && (
+                <span className="rounded-full bg-primary px-1.5 text-xs font-medium tabular-nums text-primary-foreground">
+                  {activeCount}
+                </span>
+              )}
+            </Button>
+          </div>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-start">
+          <div className="hidden min-w-0 flex-wrap items-start gap-2 xl:flex">
             <ReportDateFilters
               from={from}
               to={to}
               onChange={(nextFrom, nextTo) =>
                 navigate({ from: nextFrom, to: nextTo })
               }
-              className="col-span-2 sm:col-auto"
             />
 
             {selectContent}
 
-            {selectFilters.map((filter) => (
-              <AutoSelectFilter
-                key={filter.key}
-                filter={filter}
-                navigate={navigate}
-                pending={isPending}
-              />
-            ))}
+            <ReportSelectFilters filters={selectFilters} />
 
-            <FilterPending
-              pending={isPending}
-              className="col-span-2 sm:col-span-1"
-            />
+            <FilterPending pending={isPending} />
+          </div>
+
+          <div className="xl:hidden">
+            <FilterPending pending={isPending} />
           </div>
         </div>
 
@@ -244,6 +303,55 @@ export function ReportFilterBar({
           <div className="text-xs text-muted-foreground">{summary}</div>
         )}
       </div>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="bottom" className="max-h-[85dvh] gap-0">
+          <SheetHeader className="border-b border-border/70">
+            <SheetTitle>Filter laporan</SheetTitle>
+            <SheetDescription>
+              Atur rentang tanggal dan filter laporan. Perubahan langsung
+              diterapkan.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+            <div className="flex flex-col gap-2">
+              <Label>Rentang tanggal</Label>
+              <ReportDateFilters
+                from={from}
+                to={to}
+                errorId="report-date-range-error-sheet"
+                onChange={(nextFrom, nextTo) =>
+                  navigate({ from: nextFrom, to: nextTo })
+                }
+              />
+            </div>
+
+            <ReportFilterPlacementContext.Provider value="sheet">
+              {selectContent}
+              <ReportSelectFilters filters={selectFilters} />
+            </ReportFilterPlacementContext.Provider>
+          </div>
+
+          <SheetFooter className="flex-row gap-2 border-t border-border/70 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <Button
+              variant="outline"
+              className="flex-1"
+              nativeButton={false}
+              render={<Link href={resetHref} />}
+            >
+              Reset
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
+              Selesai
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </ReportNavigationContext.Provider>
   );
 }

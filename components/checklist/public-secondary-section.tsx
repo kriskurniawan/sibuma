@@ -15,6 +15,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
 
 const DESKTOP_QUERY = "(min-width: 48rem)";
 
@@ -33,10 +34,12 @@ export function PublicSecondarySection({
   title,
   description,
   children,
+  className,
 }: {
   title: string;
   description: string;
   children: ReactNode;
+  className?: string;
 }) {
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, () => false);
   const [expanded, setExpanded] = useState(false);
@@ -45,7 +48,7 @@ export function PublicSecondarySection({
     <Collapsible
       open={desktop || expanded}
       onOpenChange={setExpanded}
-      render={<Frame spacing="default" className="min-w-0" />}
+      render={<Frame spacing="default" className={cn("min-w-0", className)} />}
     >
       <FrameHeader className="flex-row items-center justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">

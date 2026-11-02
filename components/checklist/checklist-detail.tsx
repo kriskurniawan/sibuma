@@ -503,13 +503,14 @@ export function ChecklistDetail({
                   <Link
                     href={`/checklist/${location.inspectionId}`}
                     aria-current={location.current ? "page" : undefined}
-                    className={cn(
-                      "flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none sm:px-5",
-                      location.current
-                        ? "bg-muted dark:bg-muted/50"
-                        : "hover:bg-muted/40 focus-visible:bg-muted/40",
-                    )}
+                    className="relative flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none sm:px-5"
                   >
+                    {location.current && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary"
+                      />
+                    )}
                     <div className="flex min-w-0 flex-col gap-0.5">
                       <span className="inline-flex min-w-0 items-center gap-1.5 text-sm font-medium text-foreground">
                         <MapPin
@@ -525,7 +526,18 @@ export function ChecklistDetail({
                         terisi
                       </span>
                     </div>
-                    <ChecklistStatusBadge status={location.status} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      {location.current && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 rounded-full bg-primary"
+                          />
+                          Lokasi ini
+                        </span>
+                      )}
+                      <ChecklistStatusBadge status={location.status} />
+                    </div>
                   </Link>
                 </li>
               ))}

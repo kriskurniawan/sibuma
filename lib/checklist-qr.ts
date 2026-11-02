@@ -15,7 +15,6 @@ import type {
   ChecklistPublicLatest,
   ChecklistPublicLocation,
   ChecklistPublicManualWork,
-  ChecklistPublicStaffTask,
   ChecklistPublicTimelineEntry,
   ChecklistQrCode,
   ChecklistQrMode,
@@ -149,15 +148,17 @@ function publicLocationSelect(scopeFilter: string) {
        SELECT i.id inspection_id,i.status,i.occurrence_date,i.due_at,i.completed_at,
          i.started_at,i.period_label,i.template_name,i.category,
          (SELECT count(*)::integer FROM checklist_answers a
-           WHERE a.inspection_id=i.id AND a.condition IS NOT NULL) answered_count,
+           WHERE a.inspection_id=i.id AND a.public_visible AND a.condition IS NOT NULL) answered_count,
          (SELECT count(*)::integer FROM checklist_answers a
-           WHERE a.inspection_id=i.id) total_items,
+           WHERE a.inspection_id=i.id AND a.public_visible) total_items,
          (SELECT count(*)::integer FROM checklist_answers a
-           WHERE a.inspection_id=i.id AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count,
+           WHERE a.inspection_id=i.id AND a.public_visible
+             AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count,
          (SELECT count(*)::integer FROM checklist_follow_ups f
            WHERE f.inspection_id=i.id AND f.status NOT IN ('selesai','dibatalkan')) open_follow_ups
        FROM checklist_inspections i
        WHERE i.location_id=l.id AND i.owner_id=l.owner_id
+         AND (i.status IN ('berlangsung','selesai','dilewati') OR i.started_at IS NOT NULL)
        ORDER BY (i.status='selesai') DESC,i.occurrence_date DESC,i.due_at DESC,i.id DESC
        LIMIT 1
      ) li ON true
@@ -176,11 +177,12 @@ async function getChecklistPublicInspection(
        i.id inspection_id,i.status,i.occurrence_date,i.due_at,i.completed_at,
        i.started_at,i.period_label,i.template_name,i.category,
        (SELECT count(*)::integer FROM checklist_answers a
-         WHERE a.inspection_id=i.id AND a.condition IS NOT NULL) answered_count,
+         WHERE a.inspection_id=i.id AND a.public_visible AND a.condition IS NOT NULL) answered_count,
        (SELECT count(*)::integer FROM checklist_answers a
-         WHERE a.inspection_id=i.id) total_items,
+         WHERE a.inspection_id=i.id AND a.public_visible) total_items,
        (SELECT count(*)::integer FROM checklist_answers a
-         WHERE a.inspection_id=i.id AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count,
+         WHERE a.inspection_id=i.id AND a.public_visible
+           AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count,
        (SELECT count(*)::integer FROM checklist_follow_ups f
          WHERE f.inspection_id=i.id AND f.status NOT IN ('selesai','dibatalkan')) open_follow_ups
      FROM checklist_inspections i
@@ -188,6 +190,7 @@ async function getChecklistPublicInspection(
      LEFT JOIN checklist_locations p ON p.id=l.parent_id
      WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.location_id=$2 AND i.id=$3
        AND l.active AND l.public_enabled
+       AND (i.status IN ('berlangsung','selesai','dilewati') OR i.started_at IS NOT NULL)
      LIMIT 1`,
     [ownerId, locationId, inspectionId],
   );
@@ -278,10 +281,18 @@ export async function getChecklistPublicArea(
         )
       : Promise.resolve([]),
     query(
-      `SELECT id,occurrence_date,status,completed_at,period_label,template_name
-       FROM checklist_inspections
-       WHERE ($1::text IS NULL OR owner_id=$1) AND location_id=$2
-       ORDER BY occurrence_date DESC,due_at DESC,id DESC
+      `SELECT i.id,i.occurrence_date,i.status,i.completed_at,i.period_label,i.template_name,
+              (SELECT count(*)::integer FROM checklist_answers a
+                WHERE a.inspection_id=i.id AND a.public_visible AND a.condition IS NOT NULL) answered_count,
+              (SELECT count(*)::integer FROM checklist_answers a
+                WHERE a.inspection_id=i.id AND a.public_visible) total_items,
+              (SELECT count(*)::integer FROM checklist_answers a
+                WHERE a.inspection_id=i.id AND a.public_visible
+                  AND a.condition IN (SELECT id FROM checklist_conditions WHERE is_issue)) issue_count
+       FROM checklist_inspections i
+       WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.location_id=$2
+         AND (i.status IN ('berlangsung','selesai','dilewati') OR i.started_at IS NOT NULL)
+       ORDER BY i.occurrence_date DESC,i.due_at DESC,i.id DESC
        LIMIT 24`,
       [ownerId, locationId],
     ),
@@ -304,7 +315,7 @@ export async function getChecklistPublicArea(
         )
       : Promise.resolve([]),
     query(
-      `SELECT w.id,w.title,w.description,w.safety_name,w.status,
+      `SELECT w.id,w.title,w.description,w.status,
               w.start_date,w.target_date,w.completed_at
        FROM manual_works w
        JOIN checklist_locations l ON l.id=w.location_id AND l.owner_id=w.owner_id
@@ -332,6 +343,9 @@ export async function getChecklistPublicArea(
     completedAt: (toPlain(item.completed_at) as string | null) ?? null,
     periodLabel: item.period_label as string,
     templateName: item.template_name as string,
+    answeredCount: Number(item.answered_count),
+    totalItems: Number(item.total_items),
+    issueCount: Number(item.issue_count),
   }));
 
   const manualWorks: ChecklistPublicManualWork[] = manualWorkRows.map(
@@ -339,7 +353,6 @@ export async function getChecklistPublicArea(
       id: work.id as string,
       title: work.title as string,
       description: (work.description as string) ?? "",
-      safetyName: (work.safety_name as string) ?? "",
       status: work.status as ChecklistPublicManualWork["status"],
       startDate: toPlain(work.start_date) as string,
       targetDate: (toPlain(work.target_date) as string | null) ?? null,
@@ -391,47 +404,6 @@ export async function getChecklistPublicArea(
     timeline: timeline.slice(0, 20),
     lastUpdated: latestItemUpdate,
     viewingHistory: displayRow !== row,
-    staffTasks: [],
-  };
-}
-
-export async function getChecklistPublicStaff(
-  user: SessionUser | null,
-  ownerId: string | null,
-  locationId: string,
-): Promise<{
-  loggedIn: boolean;
-  name: string | null;
-  canFill: boolean;
-  tasks: ChecklistPublicStaffTask[];
-}> {
-  if (!user) return { loggedIn: false, name: null, canFill: false, tasks: [] };
-  // Pengamat tidak boleh menerima tugas isi walau sedang membuka area publik.
-  const manager = user.role === "atasan" && user.accessMode === "full";
-  const rows = await query(
-    `SELECT i.id,i.template_name,i.period_label,i.status,i.due_at,i.occurrence_date
-     FROM checklist_inspections i
-     WHERE ($1::text IS NULL OR i.owner_id=$1) AND i.location_id=$2
-       AND i.status IN ('belum_dimulai','berlangsung')
-       AND i.opens_at<=now()
-       AND (($3::boolean AND i.owner_id=$4) OR EXISTS(
-         SELECT 1 FROM checklist_inspection_assignees ia
-         WHERE ia.inspection_id=i.id AND ia.employee_id=$4))
-     ORDER BY i.due_at,i.id`,
-    [ownerId, locationId, manager, user.id],
-  );
-  return {
-    loggedIn: true,
-    name: user.name,
-    canFill: rows.length > 0,
-    tasks: rows.map((row) => ({
-      inspectionId: row.id as string,
-      templateName: row.template_name as string,
-      periodLabel: row.period_label as string,
-      status: row.status as ChecklistPublicStaffTask["status"],
-      dueAt: toPlain(row.due_at) as string,
-      occurrenceDate: toPlain(row.occurrence_date) as string,
-    })),
   };
 }
 

@@ -470,8 +470,8 @@ Ringkasan API utama:
 
 ## 10. Laporan, Excel & PDF
 
-- Filter laporan diproses di server melalui query string (`from`, `to`, `employeeId`, `spklId`, `search`), sehingga tautan laporan dapat dibagikan/di-bookmark.
-- `/laporan` memiliki tiga tab lewat URL `?tab=lembur|checklist|tindak-lanjut`. Filter dan pagination tetap di query string; tab default adalah **lembur**.
+- Filter laporan diproses di server melalui query string (`from`, `to`, `employeeId`, `spklId`, `status`, `search`), sehingga tautan laporan dapat dibagikan/di-bookmark. Di bawah `xl`, tanggal dan pilihan filter dibuka lewat tombol **Filter** pada sheet bawah; kolom pencarian tetap di toolbar.
+- `/laporan` memiliki empat tab lewat URL `?tab=checklist|tindak-lanjut|pekerjaan|lembur`. Filter dan pagination tetap di query string; tab default adalah **checklist**.
 - Laporan checklist memakai tanggal **occurrence/jatuh tempo**, bukan tanggal selesai, sehingga checklist yang belum selesai tetap masuk periode. Rekap memuat status, ketepatan waktu, jumlah item diperiksa, temuan, tindak lanjut terbuka, dan petugas.
 - Laporan tindak lanjut memuat judul, item terkait, prioritas, status, deadline, PIC, lokasi/template, serta progres dan hasil. Hanya atasan yang dapat membuka laporan dan mengekspornya.
 - **Pagination tim/laporan** berjalan di SQL, dikontrol URL `page`/`size` dan DataGrid `manualPagination`. KPI memakai seluruh data/filter, bukan halaman saja. Ringkasan layar laporan dibatasi 20 pekerja dengan durasi tertinggi; jumlah pekerja total tetap penuh.

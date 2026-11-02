@@ -534,6 +534,9 @@ export interface ChecklistPublicHistoryEntry {
   completedAt: string | null;
   periodLabel: string;
   templateName: string;
+  answeredCount: number;
+  totalItems: number;
+  issueCount: number;
 }
 
 export interface ChecklistPublicTimelineEntry {
@@ -541,20 +544,10 @@ export interface ChecklistPublicTimelineEntry {
   label: string;
 }
 
-export interface ChecklistPublicStaffTask {
-  inspectionId: string;
-  templateName: string;
-  periodLabel: string;
-  status: ChecklistInspectionStatus;
-  dueAt: string;
-  occurrenceDate: string;
-}
-
 export interface ChecklistPublicManualWork {
   id: string;
   title: string;
   description: string;
-  safetyName: string;
   status: ManualWorkStatus;
   startDate: string;
   targetDate: string | null;
@@ -571,7 +564,6 @@ export interface ChecklistPublicArea {
   manualWorks: ChecklistPublicManualWork[];
   lastUpdated: string | null;
   viewingHistory: boolean;
-  staffTasks: ChecklistPublicStaffTask[];
 }
 
 export interface ChecklistReportFilters {
