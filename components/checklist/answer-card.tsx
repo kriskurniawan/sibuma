@@ -85,7 +85,9 @@ function needsNote(
   answer: ChecklistAnswer,
   condition: ChecklistCondition | null,
   conditions: ChecklistConditionOption[],
+  note: string,
 ) {
+  if (note.trim().length >= 3) return null;
   if (conditionRequiresNote(condition, conditions)) {
     return `Tuliskan catatan untuk status "${findChecklistCondition(conditions, condition)?.label ?? condition}" (minimal 3 karakter).`;
   }
@@ -145,6 +147,7 @@ export function AnswerCard({
   const [saving, setSaving] = useState(false);
   const [baseVersion, setBaseVersion] = useState(answer.version);
   const [serverChanged, setServerChanged] = useState(false);
+  const savingRef = useRef(false);
   const draftKey = `${DRAFT_PREFIX}${inspectionId}:${answer.id}`;
 
   const serverRef = useRef({
@@ -229,13 +232,8 @@ export function AnswerCard({
     });
   }, [condition, note, baseVersion, dirty, draftKey]);
 
-  const noteHint = needsNote(answer, condition, conditions);
-  const invalid =
-    dirty &&
-    condition !== null &&
-    ((conditionRequiresNote(condition, conditions) ||
-      (isIssueCondition(condition, conditions) && answer.requireNoteOnIssue)) &&
-      note.trim().length < 3);
+  const noteHint = needsNote(answer, condition, conditions, note);
+  const invalid = dirty && noteHint !== null;
   const photoWarning =
     answer.photoPolicy === "wajib" &&
     photos.filter((photo) => photo.kind !== "video").length === 0
@@ -246,11 +244,22 @@ export function AnswerCard({
         ? "Kondisi bermasalah mewajibkan minimal satu foto."
         : null;
 
-  async function save(overwrite = false) {
-    if (invalid) {
-      toast.error(noteHint ?? "Lengkapi catatan sebelum menyimpan.");
+  async function save(
+    overwrite = false,
+    options?: {
+      condition?: ChecklistCondition | null;
+      feedback?: "manual" | "condition";
+    },
+  ) {
+    if (savingRef.current) return;
+    const nextCondition =
+      options?.condition === undefined ? condition : options.condition;
+    const hint = needsNote(answer, nextCondition, conditions, note);
+    if (hint) {
+      toast.error(hint);
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     const expectedVersion = overwrite ? answer.version : baseVersion;
     try {
@@ -258,7 +267,7 @@ export function AnswerCard({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          condition,
+          condition: nextCondition,
           note,
           expectedVersion,
         }),
@@ -281,17 +290,36 @@ export function AnswerCard({
         return;
       }
       const nextVersion = data.answer?.version ?? expectedVersion + 1;
-      serverRef.current = { condition, note, version: nextVersion };
+      serverRef.current = {
+        condition: nextCondition,
+        note,
+        version: nextVersion,
+      };
+      setCondition(nextCondition);
       setBaseVersion(nextVersion);
       setServerChanged(false);
       clearDraft(draftKey);
-      toast.success("Item checklist disimpan.");
+      toast.success(
+        options?.feedback === "condition"
+          ? "Kondisi disimpan."
+          : "Item checklist disimpan.",
+      );
       router.refresh();
     } catch {
       toast.error("Gagal menyimpan item. Periksa koneksi lalu coba lagi.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
+  }
+
+  async function selectCondition(next: ChecklistCondition | null) {
+    if (!canFill || savingRef.current) return;
+    setCondition(next);
+    // A stale base version would only bounce back as a 409. Keep the pick as a
+    // draft and let the conflict banner decide how to resolve it.
+    if (serverChanged) return;
+    await save(false, { condition: next, feedback: "condition" });
   }
 
   function useServerVersion() {
@@ -413,7 +441,7 @@ export function AnswerCard({
                 type="button"
                 disabled={!canFill || saving}
                 aria-pressed={selected}
-                onClick={() => setCondition(option.id)}
+                onClick={() => selectCondition(selected ? null : option.id)}
                 className={cn(
                   "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-60",
                   selected

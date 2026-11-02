@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   CalendarClock,
+  Check,
   CheckCircle2,
   ClipboardCheck,
   Clock3,
@@ -532,6 +533,7 @@ export function ChecklistDetail({
                         </span>
                         {location.current && (
                           <Badge variant="info-light" className="text-xs">
+                            <Check className="size-3" aria-hidden="true" />
                             Dibuka
                           </Badge>
                         )}
