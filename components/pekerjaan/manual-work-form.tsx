@@ -26,11 +26,9 @@ import {
 } from "@/components/reui/frame";
 import {
   Avatar,
-  BackLink,
   Badge,
   FieldError,
   InfoBanner,
-  PageHeader,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -379,10 +377,6 @@ export function ManualWorkForm({
 
   const backHref =
     mode === "edit" && initial ? `/pekerjaan/${initial.id}` : "/pekerjaan";
-  const backLabel =
-    mode === "edit" && initial
-      ? "Kembali ke detail pekerjaan"
-      : "Kembali ke Pekerjaan harian";
   const followUpItems = [
     { value: "", label: "Tidak ditautkan" },
     ...followUps.map((item) => ({
@@ -397,27 +391,6 @@ export function ManualWorkForm({
       className="flex flex-col gap-5 pb-24 xl:pb-0"
       noValidate
     >
-      <BackLink href={backHref}>{backLabel}</BackLink>
-
-      <PageHeader
-        mobileCompact
-        eyebrow="Pekerjaan harian"
-        title={
-          mode === "create"
-            ? canAssign
-              ? "Buat pekerjaan harian"
-              : "Catat pekerjaan harian"
-            : canAssign
-              ? "Ubah pekerjaan harian"
-              : "Ubah catatan pekerjaan"
-        }
-        description={
-          canAssign
-            ? "Catat pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
-            : "Catat pekerjaan yang kamu dan tim kerjakan. Satu pekerjaan boleh berlangsung beberapa hari."
-        }
-      />
-
       {noLocations && !supervisorMissing && (
         <InfoBanner tone="warning" icon={MapPin}>
           Belum ada lokasi checklist yang tersedia.{" "}

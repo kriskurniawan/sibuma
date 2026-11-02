@@ -2,13 +2,11 @@ import Link from "next/link";
 import {
   CheckCircle2,
   ClipboardCheck,
-  Download,
   FileBarChart2,
-  FileSpreadsheet,
-  LayoutList,
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
+import { DataLoadError } from "@/components/data-load-error";
 import {
   Frame,
   FrameDescription,
@@ -17,64 +15,30 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  StatCard,
-} from "@/components/ui";
+import { Badge, EmptyState, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { ChecklistReportGrid } from "@/components/reports/checklist-report-grid";
-import { ReportFilterBar } from "@/components/reports/report-filter-bar";
-import { ReportPrintButton } from "@/components/reports/report-print-button";
-import { isSuperAdmin } from "@/lib/access";
-import { checklistReadOwner } from "@/lib/checklist-access";
 import {
-  getChecklistReportData,
-  getChecklistReportOptions,
-} from "@/lib/checklist-report";
+  firstReportParam as first,
+  reportRange,
+  type ReportParams,
+} from "@/components/reports/report-shell";
+import { checklistReadOwner } from "@/lib/checklist-access";
+import { getChecklistReportData } from "@/lib/checklist-report";
 import type { ChecklistReportFilters } from "@/lib/checklist-types";
 import { pageRequest } from "@/lib/pagination";
-import { currentMonthRange, currentTimeZoneLabel, formatDateHuman } from "@/lib/time";
+import { formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-const STATUS_OPTIONS = [
-  { value: "", label: "Semua status" },
-  { value: "aktif", label: "Belum selesai" },
-  { value: "terlambat", label: "Terlambat" },
-  { value: "belum_dimulai", label: "Belum diisi" },
-  { value: "berlangsung", label: "Berlangsung" },
-  { value: "selesai", label: "Selesai" },
-  { value: "dilewati", label: "Dilewati" },
-];
-
-const SCOPE_OPTIONS = [
-  { value: "1", label: "Termasuk sub-lokasi" },
-  { value: "0", label: "Hanya area ini" },
-];
-
+/** Only report data suspends. The page owns the shared header and filter shell. */
 export async function ChecklistReportScreen({
   user,
   params,
 }: {
   user: SessionUser;
-  params: SearchParams;
+  params: ReportParams;
 }) {
-  const fallback = currentMonthRange();
-  let from = first(params.from) ?? fallback.from;
-  let to = first(params.to) ?? fallback.to;
-  if (!DATE_PATTERN.test(from)) from = fallback.from;
-  if (!DATE_PATTERN.test(to)) to = fallback.to;
-  if (from > to) [from, to] = [to, from];
-
+  const { from, to } = reportRange("checklist", params);
   const filters: ChecklistReportFilters = {
     from,
     to,
@@ -84,198 +48,19 @@ export async function ChecklistReportScreen({
     status: first(params.status) || undefined,
     search: first(params.search)?.trim() || undefined,
   };
-
   const printing = first(params.print) === "1";
   const ownerId = checklistReadOwner(user);
-  const [data, options] = await Promise.all([
-    getChecklistReportData(
-      ownerId,
-      filters,
-      printing
-        ? undefined
-        : pageRequest(first(params.page), first(params.size)),
-    ),
-    getChecklistReportOptions(ownerId),
-  ]);
-
-  const exportParams = new URLSearchParams({ from, to });
-  if (filters.locationId) exportParams.set("locationId", filters.locationId);
-  exportParams.set("includeSub", filters.includeSubLocations === false ? "0" : "1");
-  if (filters.templateId) exportParams.set("templateId", filters.templateId);
-  if (filters.status) exportParams.set("status", filters.status);
-  if (filters.search) exportParams.set("search", filters.search);
-  const pdfHref = `/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), kind: "rekap", format: "pdf" }).toString()}`;
-
+  const data = await getChecklistReportData(
+    ownerId,
+    filters,
+    printing ? undefined : pageRequest(first(params.page), first(params.size)),
+  ).catch(() => null);
+  if (!data)
+    return <DataLoadError message="Data laporan checklist gagal dimuat." />;
   const periodLabel = `${formatDateHuman(`${from}T12:00:00`, "d MMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMM yyyy")}`;
-  const isFiltered = Boolean(
-    filters.locationId || filters.templateId || filters.status || filters.search,
-  );
-
-  const locationOptions = [
-    { value: "", label: "Semua area" },
-    ...options.locations.map((location) => ({
-      value: location.id,
-      label: location.path,
-    })),
-  ];
-  const templateOptions = [
-    { value: "", label: "Semua template" },
-    ...options.templates.map((template) => ({
-      value: template.id,
-      label: template.name,
-    })),
-  ];
-
+  const gridKey = JSON.stringify(filters);
   return (
-    <div className="flex flex-col gap-6">
-      <div className="no-print">
-        <PageHeader
-          mobileCompact
-          eyebrow="Rekap checklist"
-          title="Laporan checklist."
-          description="Tinjau pemeriksaan berdasarkan periode jatuh tempo, termasuk checklist yang belum selesai. Unduh Excel berisi rekap dan rincian item, CSV untuk integrasi, atau PDF untuk arsip."
-          action={
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={`/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), kind: "laporan", format: "xlsx" }).toString()}`}
-                  />
-                }
-              >
-                <FileSpreadsheet aria-hidden="true" />
-                Unduh Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={`/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), kind: "rekap" }).toString()}`}
-                  />
-                }
-              >
-                <Download aria-hidden="true" />
-                CSV rekap
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={`/api/reports/checklist/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), kind: "item" }).toString()}`}
-                  />
-                }
-              >
-                <LayoutList aria-hidden="true" />
-                CSV item
-              </Button>
-              <ReportPrintButton href={pdfHref} />
-            </div>
-          }
-        />
-      </div>
-
-      <div className="print-only">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          SIBUMA · Sistem Building Management
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-          Rekap checklist {periodLabel}
-        </h1>
-        <p className="mt-1 text-xs font-medium text-muted-foreground">
-          Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
-          {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")}{" "}
-          {currentTimeZoneLabel()}
-        </p>
-      </div>
-
-      <Frame className="no-print">
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <FrameTitle className="max-md:sr-only">
-              Periode &amp; filter
-            </FrameTitle>
-            <FrameDescription className="text-xs">
-              Berdasarkan tanggal jatuh tempo (occurrence), bukan hanya waktu
-              selesai. Default bulan berjalan.
-            </FrameDescription>
-          </div>
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              render={<Link href="/laporan?tab=checklist" />}
-            >
-              <RotateCcw aria-hidden="true" />
-              Reset filter
-            </Button>
-          )}
-        </FrameHeader>
-
-        <FramePanel>
-          <ReportFilterBar
-            ariaLabel="Filter laporan checklist"
-            from={from}
-            to={to}
-            search={filters.search ?? ""}
-            searchId="checklist-search"
-            searchLabel="Cari laporan checklist"
-            searchPlaceholder="Template, area, kategori…"
-            selectFilters={[
-              {
-                key: "locationId",
-                id: "checklist-location",
-                label: "Area",
-                value: filters.locationId ?? "",
-                placeholder: "Semua area",
-                options: locationOptions,
-                className: "sm:w-44",
-                resetKeys: ["includeSub"],
-              },
-              ...(filters.locationId
-                ? [
-                    {
-                      key: "includeSub",
-                      id: "checklist-scope",
-                      label: "Cakupan area",
-                      value:
-                        filters.includeSubLocations === false ? "0" : "1",
-                      options: SCOPE_OPTIONS,
-                      className: "sm:w-44",
-                    },
-                  ]
-                : []),
-              {
-                key: "templateId",
-                id: "checklist-template",
-                label: "Template",
-                value: filters.templateId ?? "",
-                placeholder: "Semua template",
-                options: templateOptions,
-                className: "sm:w-48",
-              },
-              {
-                key: "status",
-                id: "checklist-status",
-                label: "Status",
-                value: filters.status ?? "",
-                placeholder: "Semua status",
-                options: STATUS_OPTIONS,
-                className: "sm:w-40",
-              },
-            ]}
-            summary={`${data.total} pemeriksaan pada ${periodLabel}.`}
-          />
-        </FramePanel>
-      </Frame>
-
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total pemeriksaan"
@@ -309,7 +94,6 @@ export async function ChecklistReportScreen({
           tone={data.totals.openFollowUps > 0 ? "warning" : "success"}
         />
       </div>
-
       <Frame>
         <FrameHeader className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
@@ -322,7 +106,6 @@ export async function ChecklistReportScreen({
           </div>
           <Badge variant="outline">{periodLabel}</Badge>
         </FrameHeader>
-
         {data.rows.length === 0 ? (
           <FramePanel>
             <EmptyState
@@ -343,7 +126,7 @@ export async function ChecklistReportScreen({
         ) : (
           <FramePanel className="p-0">
             <ChecklistReportGrid
-              key={exportParams.toString()}
+              key={gridKey}
               rows={data.rows}
               total={data.total}
               pagination={
@@ -356,7 +139,6 @@ export async function ChecklistReportScreen({
             />
           </FramePanel>
         )}
-
         <FrameFooter className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-1.5">
             <ClipboardCheck className="size-3.5 shrink-0" aria-hidden="true" />
@@ -364,7 +146,8 @@ export async function ChecklistReportScreen({
           </span>
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="size-3.5 shrink-0" aria-hidden="true" />
-            {data.totals.completed} selesai · {data.totals.pending} belum selesai
+            {data.totals.completed} selesai · {data.totals.pending} belum
+            selesai
           </span>
         </FrameFooter>
       </Frame>

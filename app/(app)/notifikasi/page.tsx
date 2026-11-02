@@ -1,32 +1,25 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { NotificationInbox } from "@/components/notifications/notification-inbox";
-import { PushActivationButton } from "@/components/notifications/push-activation-button";
-import { PageHeader } from "@/components/ui";
+import { DataLoadError } from "@/components/data-load-error";
+import { NotificationInbox, NotificationInboxFrame, NotificationInboxSkeleton } from "@/components/notifications/notification-inbox";
+import { NotificationPageShell } from "@/components/notifications/notification-page-shell";
+import { FramePanel } from "@/components/reui/frame";
 import { getCurrentUser } from "@/lib/auth";
 import { getNotificationInbox } from "@/lib/notification-store";
 
 export const metadata = { title: "Notifikasi" };
 
+async function InboxRegion({ userId }: { userId: string }) {
+  let inbox;
+  try { inbox = await getNotificationInbox(userId, { limit: 50 }); }
+  catch {
+    return <NotificationInboxFrame description="Notifikasi belum tersedia."><FramePanel><DataLoadError message="Kotak masuk belum dapat dimuat." /></FramePanel></NotificationInboxFrame>;
+  }
+  return <NotificationInbox initialItems={inbox.items} initialUnreadCount={inbox.unreadCount} initialNextCursor={inbox.nextCursor} />;
+}
+
 export default async function NotificationPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-
-  const inbox = await getNotificationInbox(user.id, { limit: 50 });
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        eyebrow="Akun"
-        title="Notifikasi"
-        description="Pekerjaan baru dan catatan untukmu. Pengaturan notifikasi perangkat ada di Profil."
-        action={<PushActivationButton />}
-        mobileCompact
-      />
-      <NotificationInbox
-        initialItems={inbox.items}
-        initialUnreadCount={inbox.unreadCount}
-        initialNextCursor={inbox.nextCursor}
-      />
-    </div>
-  );
+  return <NotificationPageShell><Suspense fallback={<NotificationInboxSkeleton />}><InboxRegion userId={user.id} /></Suspense></NotificationPageShell>;
 }

@@ -1,3 +1,6 @@
+"use client";
+
+import type { ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -12,7 +15,9 @@ import {
   Plus,
   RefreshCw,
 } from "lucide-react";
-import { ManualWorkFilters } from "@/components/pekerjaan/manual-work-filters";
+import { DataLoadError } from "@/components/data-load-error";
+import { MobileFab } from "@/components/mobile-fab";
+import { useSessionUser } from "@/components/session-user-provider";
 import { ManualWorkPagination } from "@/components/pekerjaan/manual-work-pagination";
 import {
   ManualWorkOverdueBadge,
@@ -28,10 +33,13 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { Avatar, EmptyState, StatCard } from "@/components/ui";
+import { Avatar, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { isReadOnly } from "@/lib/access";
+import type { SessionUser } from "@/lib/types";
 import type {
-  ManualWorkFilterOptions,
+  ManualWorkFilters,
   ManualWorkRow,
   ManualWorkTotals,
 } from "@/lib/manual-work-types";
@@ -130,7 +138,16 @@ export function ManualWorkListRow({
   );
 }
 
-export function ManualWorkSummary({ totals }: { totals: ManualWorkTotals }) {
+export function ManualWorkSummary({
+  totals,
+  error = false,
+}: {
+  totals?: ManualWorkTotals;
+  error?: boolean;
+}) {
+  const value = (key: keyof ManualWorkTotals) =>
+    totals ? totals[key] : error ? "—" : <Skeleton className="h-7 w-12" />;
+
   return (
     <>
       <MobileSummary
@@ -138,31 +155,31 @@ export function ManualWorkSummary({ totals }: { totals: ManualWorkTotals }) {
         items={[
           {
             label: "Aktif",
-            value: totals.active,
+            value: value("active"),
             icon: Hammer,
             tone: "primary",
             href: "/pekerjaan?status=aktif",
-            ariaLabel: `Buka ${totals.active} pekerjaan aktif`,
+            ariaLabel: "Buka pekerjaan aktif",
           },
           {
             label: "Terlambat",
-            value: totals.overdue,
+            value: value("overdue"),
             icon: AlertTriangle,
-            tone: totals.overdue > 0 ? "destructive" : "neutral",
+            tone: (totals?.overdue ?? 0) > 0 ? "destructive" : "neutral",
             href: "/pekerjaan?status=terlambat",
-            ariaLabel: `Buka ${totals.overdue} pekerjaan terlambat`,
+            ariaLabel: "Buka pekerjaan terlambat",
           },
           {
             label: "Belum mulai",
-            value: totals.notStarted,
+            value: value("notStarted"),
             icon: Clock3,
-            tone: totals.notStarted > 0 ? "warning" : "neutral",
+            tone: (totals?.notStarted ?? 0) > 0 ? "warning" : "neutral",
             href: "/pekerjaan?status=belum_mulai",
-            ariaLabel: `Buka ${totals.notStarted} pekerjaan belum mulai`,
+            ariaLabel: "Buka pekerjaan belum mulai",
           },
           {
             label: "Selesai bulan ini",
-            value: totals.completedThisMonth,
+            value: value("completedThisMonth"),
             icon: CheckCircle2,
             tone: "success",
           },
@@ -172,30 +189,30 @@ export function ManualWorkSummary({ totals }: { totals: ManualWorkTotals }) {
       <div className="hidden grid-cols-2 gap-3 md:grid xl:grid-cols-4">
         <StatCard
           label="Pekerjaan aktif"
-          value={totals.active}
+          value={value("active")}
           suffix="pekerjaan"
           icon={Hammer}
           helper="Terbuka atau sedang dikerjakan"
         />
         <StatCard
           label="Terlambat"
-          value={totals.overdue}
+          value={value("overdue")}
           suffix="pekerjaan"
           icon={AlertTriangle}
-          tone={totals.overdue > 0 ? "destructive" : "neutral"}
+          tone={(totals?.overdue ?? 0) > 0 ? "destructive" : "neutral"}
           helper="Melewati target selesai"
         />
         <StatCard
           label="Belum mulai"
-          value={totals.notStarted}
+          value={value("notStarted")}
           suffix="pekerjaan"
           icon={Clock3}
-          tone={totals.notStarted > 0 ? "warning" : "neutral"}
+          tone={(totals?.notStarted ?? 0) > 0 ? "warning" : "neutral"}
           helper="Menunggu dikerjakan"
         />
         <StatCard
           label="Selesai bulan ini"
-          value={totals.completedThisMonth}
+          value={value("completedThisMonth")}
           suffix="pekerjaan"
           icon={CheckCircle2}
           tone="success"
@@ -206,146 +223,177 @@ export function ManualWorkSummary({ totals }: { totals: ManualWorkTotals }) {
   );
 }
 
-export function ManualWorkListFrame({
-  items,
-  total,
-  totals,
-  pagination,
-  filters,
-  filterOptions,
-  canManage,
-  canAssign,
-  readOnly,
-  photoLimit,
+export function ManualWorkPageShell({
+  summary,
+  children,
+  user: snapshot,
 }: {
-  items: ManualWorkRow[];
-  total: number;
-  totals: ManualWorkTotals;
-  pagination?: PageRequest;
-  filters: {
-    status: string;
-    search: string;
-    divisionId: string;
-    employeeId: string;
-  };
-  filterOptions: ManualWorkFilterOptions;
-  canManage: boolean;
-  canAssign: boolean;
-  readOnly: boolean;
-  photoLimit: number;
+  summary: ReactNode;
+  children: ReactNode;
+  /** Fresh page user; the layout snapshot is only a loading fallback. */
+  user?: SessionUser;
 }) {
-  const filtered =
-    filters.status !== "semua" ||
-    filters.search.length > 0 ||
-    Boolean(filters.divisionId) ||
-    Boolean(filters.employeeId);
-  const listDescription =
-    filters.status === "semua"
-      ? totals.active > 0
-        ? `${total} pekerjaan, ${totals.active} aktif di atas.`
-        : `${total} pekerjaan.`
-      : `${total} pekerjaan sesuai filter.`;
+  const sessionUser = useSessionUser();
+  const user = snapshot ?? sessionUser;
+  const canManage = !isReadOnly(user) && user.role !== "super_admin";
+  const canAssign = user.role === "atasan";
+  const label = canAssign ? "Buat pekerjaan" : "Catat pekerjaan";
 
+  return (
+    <div className="flex flex-col gap-5 pb-8">
+      <PageHeader
+        mobileCompact
+        eyebrow="Pekerjaan harian"
+        title="Pekerjaan Harian"
+        description={
+          canAssign
+            ? "Pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
+            : "Pekerjaan lintas divisi dengan dokumentasi foto dan video. Pekerjaan yang kamu catat langsung aktif."
+        }
+        action={canManage ? (
+          <div className="hidden md:block">
+            <Button size="sm" nativeButton={false} render={<Link href="/pekerjaan/baru" />}>
+              <Plus aria-hidden="true" />
+              {label}
+            </Button>
+          </div>
+        ) : undefined}
+      />
+      {summary}
+      {children}
+      {canManage && (
+        <MobileFab href="/pekerjaan/baru">
+          <Plus aria-hidden="true" />
+          {label}
+        </MobileFab>
+      )}
+    </div>
+  );
+}
+
+/** The same chrome wraps streamed data and the route loading fallback. */
+export function ManualWorkListFrame({
+  description,
+  controls,
+  children,
+  footer,
+}: {
+  description: ReactNode;
+  controls: ReactNode;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   return (
     <Frame>
       <FrameHeader className="flex flex-row flex-wrap items-end justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <FrameTitle className="max-md:sr-only">Daftar pekerjaan</FrameTitle>
-          <FrameDescription className="hidden text-xs md:block">
-            {listDescription}
-          </FrameDescription>
+          <FrameTitle>Daftar pekerjaan</FrameTitle>
+          <FrameDescription className="text-xs">{description}</FrameDescription>
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums md:hidden">
-          {total} hasil
-        </span>
       </FrameHeader>
-
-      <FramePanel>
-        <ManualWorkFilters
-          status={filters.status}
-          search={filters.search}
-          divisionId={filters.divisionId}
-          employeeId={filters.employeeId}
-          divisions={filterOptions.divisions}
-          workers={filterOptions.workers}
-        />
-      </FramePanel>
-
-      <FramePanel className="p-0">
-        {items.length === 0 ? (
-          <EmptyState
-            icon={filtered ? Hammer : ListChecks}
-            title={
-              filtered ? "Tidak ada pekerjaan yang cocok" : "Belum ada pekerjaan"
-            }
-            description={
-              filtered
-                ? "Ubah kata kunci atau filter status, divisi, dan pekerja untuk melihat pekerjaan lain."
-                : canManage
-                  ? canAssign
-                    ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
-                    : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
-                  : readOnly
-                    ? "Belum ada pekerjaan harian."
-                    : "Pekerjaan baru akan muncul di sini."
-            }
-            action={
-              filtered ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link href="/pekerjaan" />}
-                >
-                  <RefreshCw aria-hidden="true" />
-                  Reset filter
-                </Button>
-              ) : canManage ? (
-                <div className="max-md:hidden">
-                  <Button
-                    size="sm"
-                    nativeButton={false}
-                    render={<Link href="/pekerjaan/baru" />}
-                  >
-                    <Plus aria-hidden="true" />
-                    {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  nativeButton={false}
-                  render={<Link href="/pekerjaan" />}
-                >
-                  <RefreshCw aria-hidden="true" />
-                  Muat ulang
-                </Button>
-              )
-            }
-          />
-        ) : (
-          <div className="divide-y divide-border/70">
-            {items.map((row) => (
-              <ManualWorkListRow
-                key={row.work.id}
-                row={row}
-                photoLimit={photoLimit}
-              />
-            ))}
-          </div>
-        )}
-      </FramePanel>
-
-      {pagination && total > pagination.pageSize && (
-        <FrameFooter>
-          <ManualWorkPagination
-            page={pagination.pageIndex}
-            pageSize={pagination.pageSize}
-            total={total}
-          />
-        </FrameFooter>
-      )}
+      <FramePanel>{controls}</FramePanel>
+      {children}
+      {footer}
     </Frame>
+  );
+}
+
+export function ManualWorkListDescription({
+  total,
+  totals,
+  filters,
+}: {
+  total: number;
+  totals: ManualWorkTotals;
+  filters: Required<ManualWorkFilters>;
+}) {
+  return filters.status === "semua"
+    ? totals.active > 0
+      ? `${total} pekerjaan, ${totals.active} aktif di atas.`
+      : `${total} pekerjaan.`
+    : `${total} pekerjaan sesuai filter.`;
+}
+
+export function ManualWorkListContent({
+  items,
+  filters,
+  photoLimit,
+  user: snapshot,
+}: {
+  items: ManualWorkRow[];
+  filters: Required<ManualWorkFilters>;
+  photoLimit: number;
+  /** Fresh page user; the layout snapshot is only a loading fallback. */
+  user?: SessionUser;
+}) {
+  const sessionUser = useSessionUser();
+  const user = snapshot ?? sessionUser;
+  const readOnly = isReadOnly(user);
+  const canManage = !readOnly && user.role !== "super_admin";
+  const canAssign = user.role === "atasan";
+  const filtered = filters.status !== "semua" || filters.search.length > 0 ||
+    Boolean(filters.divisionId) || Boolean(filters.employeeId);
+
+  return (
+    <FramePanel className="p-0">
+      {items.length === 0 ? (
+        <EmptyState
+          icon={filtered ? Hammer : ListChecks}
+          title={filtered ? "Tidak ada pekerjaan yang cocok" : "Belum ada pekerjaan"}
+          description={filtered
+            ? "Ubah kata kunci atau filter status, divisi, dan pekerja untuk melihat pekerjaan lain."
+            : canManage
+              ? canAssign
+                ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
+                : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
+              : "Belum ada pekerjaan harian."}
+          action={filtered ? (
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/pekerjaan" />}>
+              <RefreshCw aria-hidden="true" />
+              Reset filter
+            </Button>
+          ) : canManage ? (
+            <div className="max-md:hidden">
+              <Button size="sm" nativeButton={false} render={<Link href="/pekerjaan/baru" />}>
+                <Plus aria-hidden="true" />
+                {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+              </Button>
+            </div>
+          ) : (
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/pekerjaan" />}>
+              <RefreshCw aria-hidden="true" />
+              Muat ulang
+            </Button>
+          )}
+        />
+      ) : (
+        <div className="divide-y divide-border/70">
+          {items.map((row) => <ManualWorkListRow key={row.work.id} row={row} photoLimit={photoLimit} />)}
+        </div>
+      )}
+    </FramePanel>
+  );
+}
+
+export function ManualWorkListFooter({
+  total,
+  pagination,
+}: {
+  total: number;
+  pagination?: PageRequest;
+}) {
+  return pagination && total > pagination.pageSize ? (
+    <FrameFooter>
+      <ManualWorkPagination page={pagination.pageIndex} pageSize={pagination.pageSize} total={total} />
+    </FrameFooter>
+  ) : null;
+}
+
+export function ManualWorkSummaryError() {
+  return (
+    <div className="flex flex-col gap-3">
+      <ManualWorkSummary error />
+      <DataLoadError message="Ringkasan pekerjaan gagal dimuat." />
+    </div>
   );
 }

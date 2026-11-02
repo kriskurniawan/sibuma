@@ -13,6 +13,7 @@ import {
   SpklStatusBadge,
 } from "@/components/ui";
 import { Frame, FramePanel } from "@/components/reui/frame";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   currentTimeZoneLabel,
   durationLabel,
@@ -134,6 +135,41 @@ export function SpklCard({
         </FramePanel>
       </Frame>
     </Link>
+  );
+}
+
+export function SpklListRowSkeleton({
+  context = "worker",
+}: {
+  context?: "worker" | "supervisor";
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2 px-4 py-3" aria-hidden="true">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <Skeleton className="h-4 w-40 max-w-full" />
+          <Skeleton className="h-4 w-32 max-w-full" />
+        </div>
+        <Skeleton className="h-5 w-24 shrink-0 rounded-full" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-32" />
+        {context === "worker" && <Skeleton className="h-4 w-16" />}
+        <Skeleton className="h-4 w-24" />
+      </div>
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Skeleton className="size-6 shrink-0 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {context === "supervisor" && <Skeleton className="h-4 w-8" />}
+          <Skeleton className="h-4 w-8" />
+          <ChevronRight className="size-4 text-muted-foreground" />
+        </div>
+      </div>
+    </div>
   );
 }
 

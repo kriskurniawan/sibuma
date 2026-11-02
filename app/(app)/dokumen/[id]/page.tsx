@@ -1,4 +1,8 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { DataLoadError } from "@/components/data-load-error";
+import { DocumentDetailShell } from "@/components/dokumen/document-detail-shell";
+import { DocumentDetailSkeleton } from "@/components/dokumen/document-detail-skeleton";
 import { DocumentDetailView } from "@/components/dokumen/document-detail-view";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
@@ -13,32 +17,50 @@ import { loadWorkDocumentShareOptions } from "@/lib/work-document-sharing";
 
 export const metadata = { title: "Detail Dokumen" };
 
-export default async function DocumentDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+type PageProps = { params: Promise<{ id: string }> };
+
+export default function DocumentDetailPage({ params }: PageProps) {
+  return (
+    <DocumentDetailShell>
+      <Suspense fallback={<DocumentDetailSkeleton />}>
+        <DocumentDetailData params={params} />
+      </Suspense>
+    </DocumentDetailShell>
+  );
+}
+
+async function DocumentDetailData({ params }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const [document, settings] = await Promise.all([
-    getWorkDocumentDetail(user, id),
-    getWorkDocumentSettings(),
-  ]);
+  let result;
+  try {
+    result = await Promise.all([
+      getWorkDocumentDetail(user, id),
+      getWorkDocumentSettings(),
+    ]);
+  } catch {
+    return <DataLoadError message="Dokumen gagal dimuat. Coba lagi." />;
+  }
+  const [document, settings] = result;
   if (!document) notFound();
 
   const readOnly = isReadOnly(user);
   // Hanya pemilik yang dapat memindahkan berkas, jadi folder milik pengguna
   // lain tidak perlu dimuat.
-  const folders =
-    document.isOwner && !readOnly
-      ? await listWorkDocumentFolders(user.id)
-      : [];
-  const shareOptions =
-    document.isOwner && !readOnly
-      ? await loadWorkDocumentShareOptions(user.id)
-      : { divisions: [], supervisors: [] };
+  let ownerData;
+  try {
+    ownerData = await Promise.all([
+      document.isOwner && !readOnly ? listWorkDocumentFolders(user.id) : [],
+      document.isOwner && !readOnly
+        ? loadWorkDocumentShareOptions(user.id)
+        : { divisions: [], supervisors: [] },
+    ]);
+  } catch {
+    return <DataLoadError message="Pengaturan dokumen gagal dimuat. Coba lagi." />;
+  }
+  const [folders, shareOptions] = ownerData;
 
   return (
     <DocumentDetailView

@@ -39,8 +39,9 @@ export function PushSettings() {
 
       <FramePanel className="flex flex-col gap-3">
         {loading ? (
-          <div className="flex items-center justify-between gap-3">
-            <Skeleton className="h-4 w-40" />
+          <div className="flex items-center justify-between gap-3" aria-busy="true" aria-live="polite">
+            <span className="sr-only">Memeriksa pengaturan notifikasi perangkat…</span>
+            <span className="text-sm font-medium">Notifikasi perangkat</span>
             <Skeleton className="h-[18.4px] w-8 rounded-full" />
           </div>
         ) : (

@@ -3,7 +3,6 @@
 import { BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { usePushSettings } from "./use-push-settings";
 
@@ -11,7 +10,7 @@ export function PushActivationButton() {
   const { loading, busy, canActivate, activate } = usePushSettings();
 
   if (loading) {
-    return <Skeleton className="h-8 w-40" />;
+    return <Button type="button" size="sm" disabled title="Memeriksa dukungan dan pengaturan notifikasi perangkat"><BellRing aria-hidden="true" />Aktifkan notifikasi</Button>;
   }
 
   if (!canActivate) return null;

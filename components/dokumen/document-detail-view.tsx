@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { BackLink, Badge, DataRow, InfoBanner, PageHeader } from "@/components/ui";
+import { Badge, DataRow, InfoBanner, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/time";
 import {
   formatDocumentBytes,
@@ -276,9 +276,7 @@ export function DocumentDetailView({
   );
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
-      <BackLink href="/dokumen">Kembali ke Dokumen kerja</BackLink>
-
+    <div className="flex flex-col gap-5">
       <div className="hidden md:block">
         <PageHeader
           eyebrow="Dokumen kerja"

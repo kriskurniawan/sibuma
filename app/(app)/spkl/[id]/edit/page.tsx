@@ -1,4 +1,10 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { SpklFormShell } from "@/components/spkl/spkl-route-shell";
+import { SpklFormDataSkeleton } from "@/components/spkl/spkl-route-skeletons";
+import { DataLoadError } from "@/components/data-load-error";
+import { Frame, FramePanel } from "@/components/reui/frame";
+import type { SessionUser } from "@/lib/types";
 import { SpklForm } from "@/components/spkl/spkl-form";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
@@ -26,9 +32,23 @@ export default async function EditSpklPage({
   if (user.role !== "atasan") redirect("/");
   if (isReadOnly(user)) redirect(`/spkl/${(await params).id}`);
 
+  return (
+    <SpklFormShell mode="edit">
+      <Suspense fallback={<SpklFormDataSkeleton mode="edit" />}>
+        <EditSpklData user={user} params={params} />
+      </Suspense>
+    </SpklFormShell>
+  );
+}
+
+async function EditSpklData({ user, params }: {
+  user: SessionUser;
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const [detail, team, policy, schedules, divisions, locations] =
-    await Promise.all([
+  let data;
+  try {
+    data = await Promise.all([
       getSpklDetail(id, user),
       getTeam(user.id),
       getPolicy(),
@@ -36,6 +56,10 @@ export default async function EditSpklPage({
       getDivisions(user.id),
       listWorkLocations({ includeInactive: true }),
     ]);
+  } catch {
+    return <Frame><FramePanel><DataLoadError message="Data SPKL gagal dimuat." /></FramePanel></Frame>;
+  }
+  const [detail, team, policy, schedules, divisions, locations] = data;
 
   if (!detail) notFound();
   if (!detail.canManage) redirect(`/spkl/${id}`);
@@ -54,6 +78,7 @@ export default async function EditSpklPage({
 
   return (
     <SpklForm
+      hideHeading
       mode="edit"
       team={team.filter((employee) => employee.active)}
       divisions={divisions}

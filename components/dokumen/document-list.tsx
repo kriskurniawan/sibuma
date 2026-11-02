@@ -53,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { PageRequest } from "@/lib/pagination";
 import { formatDateTime } from "@/lib/time";
@@ -186,6 +187,35 @@ const gridLabels = {
   selectRow: "Pilih dokumen",
   selectAll: "Pilih semua dokumen di halaman ini",
 };
+
+export function DocumentListSkeleton({ tab, readOnly }: { tab: WorkDocumentTab; readOnly: boolean }) {
+  const selectable = !readOnly && BULK_ACTIONS[tab].length > 0;
+  const table = useTable({
+    features: dataGridFeatures,
+    data: [] as WorkDocumentRow[],
+    columns: selectable ? [selectionColumn, ...columns] : columns,
+    manualPagination: true,
+    rowCount: 0,
+    state: { pagination: { pageIndex: 0, pageSize: 6 } },
+    enableRowSelection: false,
+    getRowId: (row) => row.id,
+  });
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <span className="sr-only">Memuat daftar dokumen…</span>
+      <DataGrid table={table} recordCount={0} isLoading tableLayout={{ dense: true, width: "auto", headerBorder: true }} tableClassNames={{ base: "min-w-[58rem]", headerRow: "bg-muted/40" }} i18n={{ labels: gridLabels }}>
+        <DataGridContainer className="hidden md:block"><DataGridScrollArea><DataGridTable /></DataGridScrollArea></DataGridContainer>
+        <div className="divide-y divide-border/70 md:hidden">
+          {selectable && <div className="flex items-center justify-between gap-3 bg-muted/40 px-4 py-2.5"><span className="text-xs font-medium text-muted-foreground">Pilih semua di halaman ini</span><DataGridTableRowSelectAll /></div>}
+          {Array.from({ length: 6 }, (_, index) => <div key={index} className="flex flex-col gap-3 p-4">
+            <div className="flex items-start gap-3"><Skeleton className="size-8 shrink-0" /><div className="flex min-w-0 flex-1 flex-col gap-1"><Skeleton className="h-4 w-52 max-w-full" /><Skeleton className="h-3 w-36 max-w-full" /></div><Skeleton className="h-5 w-12 rounded-full" /></div>
+            <Skeleton className="h-3 w-full max-w-64" />
+          </div>)}
+        </div>
+      </DataGrid>
+    </div>
+  );
+}
 
 function bulkActionConfirmation(
   action: BulkAction,

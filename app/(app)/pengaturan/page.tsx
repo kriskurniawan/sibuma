@@ -1,88 +1,74 @@
-import type { ReactNode } from "react";
-import Link from "next/link";
+import { cache, Suspense, type ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { ScrollText } from "lucide-react";
+import { DataLoadError } from "@/components/data-load-error";
 import { ChecklistConditionSettings } from "@/components/settings/checklist-condition-settings";
 import { DocumentSettings } from "@/components/settings/document-settings";
 import { PhotoLimitSettings } from "@/components/settings/photo-limit-settings";
 import { PolicyForm } from "@/components/settings/policy-form";
-import { SettingsTabs } from "@/components/settings/settings-tabs";
+import { SettingsDataSkeleton, SettingsPageShell } from "@/components/settings/settings-page-shell";
 import { WorkLocationSettings } from "@/components/settings/work-location-settings";
-import { PageHeader } from "@/components/ui";
-import { Button } from "@/components/ui/button";
-import { TabsContent } from "@/components/ui/tabs";
 import { can } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
 import { listChecklistConditions } from "@/lib/checklist-conditions";
 import { getPolicy } from "@/lib/queries";
 import { getPhotoLimits } from "@/lib/photo-limits";
-import { SETTINGS_TABS, type SettingsTab } from "@/lib/settings-tabs";
+import type { SettingsTab } from "@/lib/settings-tabs";
 import { getWorkDocumentSettings } from "@/lib/work-document-settings";
 import { listWorkLocations } from "@/lib/work-locations";
 
-export const metadata = {
-  title: "Pengaturan",
-};
+export const metadata = { title: "Pengaturan" };
+
+const loadPolicy = cache(getPolicy);
+
+async function PolicyRegion() {
+  let policy;
+  try { policy = await loadPolicy(); }
+  catch { return <DataLoadError message="Kebijakan lembur belum dapat dimuat." />; }
+  return <PolicyForm policy={policy} />;
+}
+
+async function LocationsRegion() {
+  let data;
+  try { data = await Promise.all([listWorkLocations({ includeInactive: true }), loadPolicy()]); }
+  catch { return <DataLoadError message="Pengaturan lokasi belum dapat dimuat." />; }
+  const [locations, policy] = data;
+  return <WorkLocationSettings locations={locations} defaultCenter={policy.defaultLocation} defaultRadiusMeters={policy.defaultRadiusMeters} />;
+}
+
+async function ConditionsRegion() {
+  let conditions;
+  try { conditions = await listChecklistConditions({ includeInactive: true }); }
+  catch { return <DataLoadError message="Status checklist belum dapat dimuat." />; }
+  return <ChecklistConditionSettings conditions={conditions} />;
+}
+
+async function DocumentsRegion() {
+  let settings;
+  try { settings = await getWorkDocumentSettings(); }
+  catch { return <DataLoadError message="Pengaturan dokumen belum dapat dimuat." />; }
+  return <DocumentSettings settings={settings} />;
+}
+
+async function MediaRegion() {
+  let limits;
+  try { limits = await getPhotoLimits(); }
+  catch { return <DataLoadError message="Batas dokumentasi belum dapat dimuat." />; }
+  return <PhotoLimitSettings limits={limits} />;
+}
+
+function region(tab: SettingsTab, children: ReactNode) {
+  return <Suspense fallback={<SettingsDataSkeleton tab={tab} />}>{children}</Suspense>;
+}
 
 export default async function SettingsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   if (!can(user.role, "policy.manage")) redirect("/");
-
-  const [policy, conditions, locations, documentSettings, photoLimits] =
-    await Promise.all([
-      getPolicy(),
-      listChecklistConditions({ includeInactive: true }),
-      listWorkLocations({ includeInactive: true }),
-      getWorkDocumentSettings(),
-      getPhotoLimits(),
-    ]);
-
-  const panels: Record<SettingsTab, ReactNode> = {
-    kebijakan: <PolicyForm policy={policy} />,
-    lokasi: (
-      <WorkLocationSettings
-        locations={locations}
-        defaultCenter={policy.defaultLocation}
-        defaultRadiusMeters={policy.defaultRadiusMeters}
-      />
-    ),
-    checklist: <ChecklistConditionSettings conditions={conditions} />,
-    dokumen: <DocumentSettings settings={documentSettings} />,
-    media: <PhotoLimitSettings limits={photoLimits} />,
-  };
-
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        mobileCompact
-        eyebrow="Kelola"
-        title="Pengaturan."
-        description="Kebijakan, lokasi, checklist, dan batas dokumentasi."
-        descriptionClassName="hidden md:block"
-        action={
-          <Button
-            size="sm"
-            variant="outline"
-            className="max-md:w-fit"
-            nativeButton={false}
-            render={<Link href="/audit" />}
-          >
-            <ScrollText aria-hidden="true" />
-            Lihat log audit
-          </Button>
-        }
-      />
-
-      <div className="w-full max-w-4xl">
-        <SettingsTabs>
-          {SETTINGS_TABS.map((tab) => (
-            <TabsContent key={tab.value} value={tab.value} keepMounted>
-              {panels[tab.value]}
-            </TabsContent>
-          ))}
-        </SettingsTabs>
-      </div>
-    </div>
-  );
+  return <SettingsPageShell panels={{
+    kebijakan: region("kebijakan", <PolicyRegion />),
+    lokasi: region("lokasi", <LocationsRegion />),
+    checklist: region("checklist", <ConditionsRegion />),
+    dokumen: region("dokumen", <DocumentsRegion />),
+    media: region("media", <MediaRegion />),
+  }} />;
 }

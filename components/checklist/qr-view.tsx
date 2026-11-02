@@ -12,7 +12,6 @@ import {
   Plus,
   QrCode,
   ScanLine,
-  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -22,12 +21,9 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
-  BackLink,
   Badge,
   EmptyState,
-  PageHeader,
   StatCard,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -43,7 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Modal } from "@/components/modal";
-import { MobileFab } from "@/components/mobile-fab";
+import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import { MobileSummary } from "@/components/mobile-summary";
 import {
   checklistQrPath,
@@ -55,13 +51,7 @@ import {
 
 type QrRow = ChecklistQrCode & { locationName: string | null };
 
-export function ChecklistQrView({
-  setup,
-  readOnly = false,
-}: {
-  setup: ChecklistQrSetup;
-  readOnly?: boolean;
-}) {
+export function ChecklistQrView({ setup }: { setup: ChecklistQrSetup }) {
   const router = useRouter();
   const [origin, setOrigin] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -84,6 +74,19 @@ export function ChecklistQrView({
     setFormOpen(true);
   }
 
+  useDialogIntent("qr-new", () => openForm(null));
+  useEffect(() => {
+    function openFromHash() {
+      if (window.location.hash !== "#qr-baru") return;
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      setEditing(null);
+      setFormOpen(true);
+    }
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, []);
+
   function urlFor(code: QrRow) {
     return `${origin}${checklistQrPath(code)}`;
   }
@@ -100,36 +103,7 @@ export function ChecklistQrView({
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <BackLink href={readOnly ? "/checklist" : "/checklist/template"}>
-        {readOnly ? "Kembali ke Checklist" : "Kembali ke Template & lokasi"}
-      </BackLink>
-
-      <PageHeader
-        mobileCompact
-        eyebrow="Akses pengunjung"
-        title="QR area."
-        description="Kelola tautan QR untuk pengunjung dan petugas."
-        descriptionClassName="hidden md:block"
-        action={
-          <div className="max-md:hidden">
-            <Button type="button" size="sm" onClick={() => openForm(null)}>
-              <Plus aria-hidden="true" />
-              QR baru
-            </Button>
-          </div>
-        }
-      />
-
-      <Alert>
-        <ShieldCheck />
-        <AlertDescription>
-          {readOnly
-            ? "QR dari akun pengamat mencakup seluruh area publik perusahaan. Hanya area dan item publik tampil ke pengunjung; data internal tetap privat."
-            : "Hanya area dan item publik tampil ke pengunjung. Data internal tetap privat; petugas tetap perlu penugasan untuk mengisi."}
-        </AlertDescription>
-      </Alert>
-
+    <>
       <MobileSummary
         columns={3}
         className="md:hidden"
@@ -306,11 +280,6 @@ export function ChecklistQrView({
         </FramePanel>
       </Frame>
 
-      <MobileFab onClick={() => openForm(null)}>
-        <Plus aria-hidden="true" />
-        QR baru
-      </MobileFab>
-
       <QrFormDialog
         open={formOpen}
         onClose={() => setFormOpen(false)}
@@ -343,7 +312,7 @@ export function ChecklistQrView({
           </div>
         )}
       </Modal>
-    </div>
+    </>
   );
 }
 

@@ -22,13 +22,11 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { MobileFab } from "@/components/mobile-fab";
+import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import {
   Avatar,
-  BackLink,
   Badge,
   EmptyState,
-  PageHeader,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -235,26 +233,21 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
     setDialogOpen(true);
   }
 
+  useDialogIntent("schedule-new", () => openSchedule(null));
+  useEffect(() => {
+    function openFromHash() {
+      if (window.location.hash !== "#jadwal-baru") return;
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      setEditing(null);
+      setDialogOpen(true);
+    }
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, []);
+
   return (
-    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
-
-      <PageHeader
-        mobileCompact
-        eyebrow="Pengaturan checklist"
-        title="Jadwal"
-        description="Checklist otomatis sesuai kalender dan penugasan tim."
-        descriptionClassName="hidden md:block"
-        action={
-          <div className="max-md:hidden">
-            <Button type="button" size="sm" onClick={() => openSchedule(null)}>
-              <Plus aria-hidden="true" />
-              Jadwal baru
-            </Button>
-          </div>
-        }
-      />
-
+    <>
       <Frame spacing="default" className="min-w-0">
         <div className="hidden md:block">
           <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
@@ -423,11 +416,6 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
         </FramePanel>
       </Frame>
 
-      <MobileFab onClick={() => openSchedule(null)}>
-        <Plus aria-hidden="true" />
-        Jadwal baru
-      </MobileFab>
-
       <ScheduleDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -435,7 +423,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
         setup={setup}
         onSaved={() => router.refresh()}
       />
-    </div>
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, use, useMemo } from "react";
+import { DataLoadError } from "@/components/data-load-error";
 import type { PageRequest } from "@/lib/pagination";
 import { useServerGridPagination } from "@/components/server-grid-pagination";
 import { Camera, PencilLine, Phone, Power } from "lucide-react";
@@ -19,13 +20,14 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { avatarUrl } from "@/lib/avatar-url";
-import type { Division, Employee } from "@/lib/types";
+import type { Employee } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { durationLabel } from "@/lib/time";
 import {
   TEAM_PAGE_SIZES,
   teamGridI18n,
   type TeamWorkerRow,
+  type TeamDivisionOptionsPromise,
 } from "@/components/team/team-grid-shared";
 
 interface TeamWorkersGridProps {
@@ -33,7 +35,7 @@ interface TeamWorkersGridProps {
   total: number;
   pagination: PageRequest;
   printRows?: TeamWorkerRow[];
-  divisionById: Map<string, Division>;
+  divisionOptions: TeamDivisionOptionsPromise;
   busyId: string | null;
   readOnly?: boolean;
   onEdit: (employee: Employee) => void;
@@ -52,6 +54,37 @@ const PRINT_TABLE_CLASSES = {
 
 function workerStatus(employee: Employee) {
   return employee.active ? "Aktif" : "Nonaktif";
+}
+
+function WorkerDivisionValue({ id, options, compact = false }: {
+  id: string;
+  options: TeamDivisionOptionsPromise;
+  compact?: boolean;
+}) {
+  const divisions = use(options);
+  if (!divisions) return <span className="text-xs text-muted-foreground">Divisi belum dapat dimuat</span>;
+  const division = divisions.find((item) => item.id === id);
+  if (!division) return <Badge variant="warning-light">Tanpa divisi</Badge>;
+  if (compact) return <>{division.name}{!division.active && " (nonaktif)"}</>;
+  return <div className="flex flex-wrap items-center gap-1.5">
+    <span className="truncate text-sm text-foreground">{division.name}</span>
+    {!division.active && <Badge variant="outline">Nonaktif</Badge>}
+  </div>;
+}
+
+function WorkerDivision({ id, options, compact = false }: {
+  id?: string | null;
+  options: TeamDivisionOptionsPromise;
+  compact?: boolean;
+}) {
+  if (!id) return compact ? <>Tanpa divisi</> : <Badge variant="warning-light">Tanpa divisi</Badge>;
+  return <Suspense fallback={<Skeleton className="inline-block h-4 w-24 align-middle" role="status" aria-label="Memuat divisi pekerja" />}>
+    <WorkerDivisionValue id={id} options={options} compact={compact} />
+  </Suspense>;
+}
+
+function DivisionOptionsError({ options }: { options: TeamDivisionOptionsPromise }) {
+  return use(options) ? null : <div className="p-4 print:hidden"><DataLoadError message="Label divisi belum dapat dimuat. Data pekerja tetap tersedia." /></div>;
 }
 
 function PrintWorkersTable({
@@ -107,7 +140,7 @@ export function TeamWorkersGrid({
   total,
   pagination,
   printRows,
-  divisionById,
+  divisionOptions,
   busyId,
   readOnly = false,
   onEdit,
@@ -153,33 +186,13 @@ export function TeamWorkersGrid({
       },
       {
         id: "division",
-        accessorFn: (row) =>
-          (row.employee.divisionId
-            ? divisionById.get(row.employee.divisionId)?.name
-            : undefined) ?? "Tanpa divisi",
+        accessorFn: (row) => row.employee.divisionId ?? "Tanpa divisi",
         header: "Divisi",
         meta: {
           headerClassName: "whitespace-nowrap",
           cellClassName: "max-w-44",
         },
-        cell: ({ row }) => {
-          const division = row.original.employee.divisionId
-            ? divisionById.get(row.original.employee.divisionId)
-            : undefined;
-          if (!division) {
-            return <Badge variant="warning-light">Tanpa divisi</Badge>;
-          }
-          return (
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="truncate text-sm text-foreground">
-                {division.name}
-              </span>
-              {!division.active && (
-                <Badge variant="outline">Nonaktif</Badge>
-              )}
-            </div>
-          );
-        },
+        cell: ({ row }) => <WorkerDivision id={row.original.employee.divisionId} options={divisionOptions} />,
       },
       {
         id: "phone",
@@ -263,7 +276,7 @@ export function TeamWorkersGrid({
         ),
       },
     ],
-    [divisionById],
+    [divisionOptions],
   );
 
   const columns = useMemo<ColumnDef<DataGridFeatures, TeamWorkerRow>[]>(() => {
@@ -346,9 +359,6 @@ export function TeamWorkersGrid({
                 </div>
               ) : pageRows.map((row) => {
                 const employee = row.employee;
-                const division = employee.divisionId
-                  ? divisionById.get(employee.divisionId)
-                  : undefined;
                 const busy = busyId === employee.id;
                 return (
                   <article
@@ -389,8 +399,7 @@ export function TeamWorkersGrid({
                             {employee.email ?? "Email belum diisi"}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {division?.name ?? "Tanpa divisi"}
-                            {division && !division.active && " (nonaktif)"}
+                            <WorkerDivision id={employee.divisionId} options={divisionOptions} compact />
                           </p>
                         </div>
                       </div>
@@ -461,6 +470,7 @@ export function TeamWorkersGrid({
         </DataGrid>
       </div>
 
+      <Suspense fallback={null}><DivisionOptionsError options={divisionOptions} /></Suspense>
       {printRows && <PrintWorkersTable rows={printRows} columns={dataColumns} />}
     </>
   );

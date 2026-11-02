@@ -1,17 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
-import {
-  BarChart3,
-  ClipboardList,
-  Plus,
-  Search,
-  TimerReset,
-  X,
-} from "lucide-react";
+import { BarChart3, ClipboardList, Plus, Search, TimerReset } from "lucide-react";
+import { DataLoadError } from "@/components/data-load-error";
 import { MobileFab } from "@/components/mobile-fab";
-import { SpklListRow } from "@/components/spkl/spkl-card";
+import { useSessionUser } from "@/components/session-user-provider";
+import { SpklListRow, SpklListRowSkeleton } from "@/components/spkl/spkl-card";
 import {
   Frame,
   FrameDescription,
@@ -22,57 +17,18 @@ import {
 import { EmptyState, PageHeader } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { SPKL_STATUS_LABEL } from "@/lib/constants";
-import type { SpklListItem, SpklStatus } from "@/lib/types";
+  SpklListControlsProvider,
+  SpklListCount,
+  SpklListToolbar,
+  useSpklListControls,
+  type SpklListCountSlots,
+} from "@/components/lembur/spkl-list-controls";
+import { isReadOnly } from "@/lib/access";
+import type { SpklListItem } from "@/lib/types";
 
-const FILTERS: Array<{ value: "semua" | SpklStatus; label: string }> = [
-  { value: "semua", label: "Semua" },
-  { value: "berlangsung", label: SPKL_STATUS_LABEL.berlangsung },
-  { value: "terjadwal", label: SPKL_STATUS_LABEL.terjadwal },
-  { value: "selesai", label: SPKL_STATUS_LABEL.selesai },
-  { value: "dibatalkan", label: SPKL_STATUS_LABEL.dibatalkan },
-];
-
-export function LemburView({
-  items,
-  readOnly = false,
-}: {
-  items: SpklListItem[];
-  readOnly?: boolean;
-}) {
-  const [filter, setFilter] = useState<"semua" | SpklStatus>("semua");
-  const [search, setSearch] = useState("");
-
-  const counts = useMemo(() => {
-    const value: Record<string, number> = { semua: items.length };
-    for (const item of items) {
-      value[item.status] = (value[item.status] ?? 0) + 1;
-    }
-    return value;
-  }, [items]);
-
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return items.filter((item) => {
-      if (filter !== "semua" && item.status !== filter) return false;
-      if (!query) return true;
-      const workerNames = item.workers.map((worker) => worker.name).join(" ");
-      return `${item.spkl.title} ${item.spkl.number} ${item.spkl.location.address ?? ""} ${workerNames}`
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [filter, items, search]);
-
-  const resetFilters = () => {
-    setFilter("semua");
-    setSearch("");
-  };
+/** Static identity/actions are shared by the route and its loading fallback. */
+export function LemburPageShell({ children }: { children: ReactNode }) {
+  const readOnly = isReadOnly(useSessionUser());
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,13 +48,14 @@ export function LemburView({
               nativeButton={false}
               render={<Link href="/laporan?tab=lembur" />}
               variant="outline"
+              size="sm"
             >
               <BarChart3 aria-hidden="true" />
               Laporan
             </Button>
             {!readOnly && (
               <div className="max-md:hidden">
-                <Button nativeButton={false} render={<Link href="/spkl/baru" />}>
+                <Button nativeButton={false} render={<Link href="/spkl/baru" />} size="sm">
                   <Plus aria-hidden="true" />
                   Buat SPKL
                 </Button>
@@ -107,116 +64,7 @@ export function LemburView({
           </div>
         }
       />
-
-      <Frame>
-        <FrameHeader className="gap-3">
-          <div className="flex flex-col gap-1">
-            <FrameTitle className="max-md:sr-only">Daftar SPKL</FrameTitle>
-            <FrameDescription className="max-md:hidden text-xs">
-              {items.length} SPKL · {counts.berlangsung ?? 0} berlangsung ·{" "}
-              {counts.terjadwal ?? 0} terjadwal
-            </FrameDescription>
-          </div>
-
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="no-scrollbar -mx-1 min-w-0 overflow-x-auto px-1">
-              <Tabs
-                value={filter}
-                onValueChange={(value) =>
-                  setFilter(value as "semua" | SpklStatus)
-                }
-              >
-                <TabsList className="w-max">
-                  {FILTERS.map((item) => (
-                    <TabsTrigger key={item.value} value={item.value}>
-                      {item.label}
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
-                        {counts[item.value] ?? 0}
-                      </span>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            </div>
-
-            <InputGroup className="w-full lg:w-72">
-              <InputGroupAddon>
-                <Search aria-hidden="true" />
-              </InputGroupAddon>
-              <InputGroupInput
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Cari judul, nomor SPKL, atau pekerja…"
-                aria-label="Cari SPKL"
-              />
-              {search && (
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    type="button"
-                    size="icon-xs"
-                    onClick={() => setSearch("")}
-                    aria-label="Hapus pencarian"
-                  >
-                    <X aria-hidden="true" />
-                  </InputGroupButton>
-                </InputGroupAddon>
-              )}
-            </InputGroup>
-          </div>
-        </FrameHeader>
-
-        {filtered.length > 0 ? (
-          <FramePanel className="divide-y divide-border/70 p-0">
-            {filtered.map((item) => (
-              <SpklListRow
-                key={item.spkl.id}
-                item={item}
-                context="supervisor"
-              />
-            ))}
-          </FramePanel>
-        ) : (
-          <FramePanel>
-            <EmptyState
-              icon={items.length === 0 ? ClipboardList : Search}
-              title={
-                items.length === 0
-                  ? "Belum ada SPKL"
-                  : "Tidak ada SPKL yang cocok"
-              }
-              description={
-                items.length === 0
-                  ? readOnly
-                    ? "Belum ada penugasan lembur untuk tim ini."
-                    : "Buat SPKL untuk menugaskan tim."
-                  : "Coba kata kunci lain atau tampilkan semua status."
-              }
-              action={
-                items.length === 0 ? (
-                  readOnly ? undefined : (
-                    <div className="max-md:hidden">
-                      <Button
-                        nativeButton={false}
-                        render={<Link href="/spkl/baru" />}
-                      >
-                        <Plus aria-hidden="true" />
-                        Buat SPKL
-                      </Button>
-                    </div>
-                  )
-                ) : (
-                  <Button type="button" variant="outline" onClick={resetFilters}>
-                    <TimerReset aria-hidden="true" />
-                    Tampilkan semua
-                  </Button>
-                )
-              }
-            />
-          </FramePanel>
-        )}
-
-      </Frame>
-
+      {children}
       {!readOnly && (
         <MobileFab href="/spkl/baru">
           <Plus aria-hidden="true" />
@@ -224,5 +72,105 @@ export function LemburView({
         </MobileFab>
       )}
     </div>
+  );
+}
+
+/** The toolbar/provider stay mounted while only numbers and rows stream. */
+export function LemburView({
+  counts = {},
+  children,
+}: {
+  counts?: SpklListCountSlots;
+  children: ReactNode;
+}) {
+  return (
+    <SpklListControlsProvider>
+      <Frame spacing="xs">
+        <FrameHeader className="gap-3">
+          <div className="flex flex-col gap-1">
+            <FrameTitle className="max-md:sr-only">Daftar SPKL</FrameTitle>
+            <FrameDescription className="max-md:hidden text-xs">
+              <span className="inline-flex flex-wrap items-center gap-1">
+                {counts.semua ?? <SpklListCount />}
+                <span>SPKL ·</span>
+                {counts.berlangsung ?? <SpklListCount />}
+                <span>berlangsung ·</span>
+                {counts.terjadwal ?? <SpklListCount />}
+                <span>terjadwal</span>
+              </span>
+            </FrameDescription>
+          </div>
+          <SpklListToolbar
+            counts={counts}
+            searchPlaceholder="Cari judul, nomor SPKL, atau pekerja…"
+            searchLabel="Cari SPKL"
+            searchClassName="w-full lg:w-72"
+          />
+        </FrameHeader>
+        {children}
+      </Frame>
+    </SpklListControlsProvider>
+  );
+}
+
+/** Streamed rows consume the persistent shell's current filters. */
+export function LemburRows({
+  items,
+  error = false,
+}: {
+  items?: SpklListItem[];
+  error?: boolean;
+}) {
+  const readOnly = isReadOnly(useSessionUser());
+  const { filter, search, resetFilters } = useSpklListControls();
+  const loading = items === undefined && !error;
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return (items ?? []).filter((item) => {
+      if (filter !== "semua" && item.status !== filter) return false;
+      if (!query) return true;
+      const workerNames = item.workers.map((worker) => worker.name).join(" ");
+      return `${item.spkl.title} ${item.spkl.number} ${item.spkl.location.address ?? ""} ${workerNames}`
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [filter, items, search]);
+
+  return error ? (
+    <FramePanel><DataLoadError message="Daftar SPKL belum dapat dimuat." /></FramePanel>
+  ) : loading ? (
+    <FramePanel className="divide-y divide-border/70" aria-busy="true" role="status">
+      <span className="sr-only">Memuat daftar SPKL…</span>
+      {Array.from({ length: 6 }, (_, index) => <SpklListRowSkeleton key={index} context="supervisor" />)}
+    </FramePanel>
+  ) : filtered.length > 0 ? (
+    <FramePanel className="divide-y divide-border/70">
+      {filtered.map((item) => <SpklListRow key={item.spkl.id} item={item} context="supervisor" />)}
+    </FramePanel>
+  ) : (
+    <FramePanel>
+      <EmptyState
+        icon={items?.length === 0 ? ClipboardList : Search}
+        title={items?.length === 0 ? "Belum ada SPKL" : "Tidak ada SPKL yang cocok"}
+        description={items?.length === 0
+          ? readOnly ? "Belum ada penugasan lembur untuk tim ini." : "Buat SPKL untuk menugaskan tim."
+          : "Coba kata kunci lain atau tampilkan semua status."}
+        action={items?.length === 0 ? (
+          readOnly ? (
+            <Button nativeButton={false} render={<Link href="/laporan?tab=lembur" />} variant="outline" size="sm">
+              <BarChart3 aria-hidden="true" />Lihat laporan
+            </Button>
+          ) : (
+            <Button nativeButton={false} render={<Link href="/spkl/baru" />} size="sm">
+              <Plus aria-hidden="true" />Buat SPKL
+            </Button>
+          )
+        ) : (
+          <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
+            <TimerReset aria-hidden="true" />Tampilkan semua
+          </Button>
+        )}
+      />
+    </FramePanel>
   );
 }

@@ -27,7 +27,7 @@ export function ManualWorkPagination({
     else params.delete("size");
     const query = params.toString();
     startTransition(() => {
-      router.push(query ? `${pathname}?${query}` : pathname);
+      router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
     });
   }
 

@@ -9,9 +9,14 @@ export interface TeamWorkerRow {
 
 export interface TeamDivisionRow {
   division: Division;
-  workerCount: number;
-  activeWorkerCount: number;
 }
+
+export type TeamDivisionOptionsPromise = Promise<Division[] | null>;
+export type TeamDivisionCountsPromise = Promise<{
+  id: string;
+  total: number;
+  active: number;
+}[] | null>;
 
 export const TEAM_PAGE_SIZES = [10, 25, 50, 100];
 

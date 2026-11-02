@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE, SESSION_DAYS } from "./constants";
 import { getPolicyRow, select } from "./db";
@@ -35,6 +36,7 @@ function signature(payload: string) {
 }
 
 export function createSessionToken(employeeId: string) {
+  // Server-only token lifetime, not UI render state: must use the current clock.
   const expires = Date.now() + SESSION_DAYS * 24 * 60 * 60 * 1000;
   const payload: SessionPayload = { employeeId, exp: expires };
   const encoded = base64UrlEncode(JSON.stringify(payload));
@@ -52,6 +54,7 @@ export function verifySessionToken(token: string): SessionPayload | null {
 
   try {
     const payload = JSON.parse(base64UrlDecode(encoded)) as SessionPayload;
+    // Server-side authorization expiry must be checked against the current clock.
     if (
       typeof payload.employeeId !== "string" ||
       typeof payload.exp !== "number" ||
@@ -73,7 +76,7 @@ export const sessionCookieOptions = {
   maxAge: SESSION_DAYS * 24 * 60 * 60,
 };
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
+async function loadCurrentUser(): Promise<SessionUser | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -90,6 +93,9 @@ export async function getCurrentUser(): Promise<SessionUser | null> {
   if (!employee || !canEmployeeLogin(employee, employees)) return null;
   return toSessionUser(employee, employees);
 }
+
+/** Deduplicate auth/policy reads within one server render, never across users. */
+export const getCurrentUser = cache(loadCurrentUser);
 
 export function toSessionUser(
   employee: Employee,

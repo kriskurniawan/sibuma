@@ -20,6 +20,7 @@ import { AttendanceSection } from "@/components/spkl/attendance-section";
 import { DocumentationPanel } from "@/components/spkl/documentation-panel";
 import { LiveDuration } from "@/components/spkl/live-duration";
 import { SpklManageActions } from "@/components/spkl/spkl-manage-actions";
+import { SpklBackLink } from "@/components/spkl/spkl-route-shell";
 import { MapView, type MapMarker } from "@/components/maps/map-view";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import {
@@ -33,7 +34,6 @@ import {
 import {
   AttendanceBadge,
   AvatarStack,
-  BackLink,
   Badge,
   DataRow,
   ProgressBar,
@@ -57,6 +57,20 @@ import {
 import type { SessionUser, SpklDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+export function SpklDesktopStatus({ detail }: { detail: SpklDetail }) {
+  const running = detail.myAttendance?.status === "berjalan";
+  const early = running && detail.myAttendance?.checkInAt
+    ? isEarlyCheckIn(detail.myAttendance.checkInAt, detail.spkl.startAt)
+    : false;
+  return (
+    <div className="ml-auto flex flex-wrap items-center gap-2">
+      <SpklStatusBadge status={detail.status} />
+      {running && <Badge variant="warning-light" dot>Sesi aktif</Badge>}
+      {early && <Badge variant="info-light">Absen lebih awal</Badge>}
+    </div>
+  );
+}
+
 interface SpklDetailViewProps {
   user: SessionUser;
   detail: SpklDetail;
@@ -68,6 +82,7 @@ interface SpklDetailViewProps {
   videoLimit: number;
   videoMaxBytes: number;
   videoEnabled: boolean;
+  hideDesktopHeader?: boolean;
 }
 
 export function SpklDetailView({
@@ -78,6 +93,7 @@ export function SpklDetailView({
   videoLimit,
   videoMaxBytes,
   videoEnabled,
+  hideDesktopHeader = false,
 }: SpklDetailViewProps) {
   const [dialog, setDialog] = useState<"checkin" | "checkout" | null>(null);
   const { spkl, status, myAttendance } = detail;
@@ -150,12 +166,6 @@ export function SpklDetailView({
 
   const showCheckIn = isWorker && detail.canCheckIn;
   const showCheckOut = isWorker && detail.canCheckOut;
-  const backTarget =
-    user.role === "super_admin"
-      ? { href: "/laporan?tab=lembur", label: "Kembali ke laporan" }
-      : user.role === "atasan"
-        ? { href: "/lembur", label: "Kembali ke lembur" }
-        : { href: "/riwayat", label: "Kembali ke lembur" };
 
   // Absensi pribadi tampil lebih dulu di mobile, lalu kembali ke kolom samping
   // pada layar lebar tanpa mengubah urutan desktop.
@@ -300,20 +310,9 @@ export function SpklDetailView({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
-        <BackLink href={backTarget.href}>{backTarget.label}</BackLink>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          <SpklStatusBadge status={status} />
-          {running && (
-            <Badge variant="warning-light" dot>
-              Sesi aktif
-            </Badge>
-          )}
-          {earlyCheckIn && (
-            <Badge variant="info-light">Absen lebih awal</Badge>
-          )}
-        </div>
-      </div>
+      {!hideDesktopHeader && (
+        <SpklBackLink><SpklDesktopStatus detail={detail} /></SpklBackLink>
+      )}
 
       {status === "dibatalkan" && (
         <Alert variant="destructive">

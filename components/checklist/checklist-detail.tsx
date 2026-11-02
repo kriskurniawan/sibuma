@@ -38,7 +38,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Avatar,
-  BackLink,
   Badge,
   EmptyState,
   InfoBanner,
@@ -411,8 +410,6 @@ export function ChecklistDetail({
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
-
       <div className="hidden md:block">
         <PageHeader
           eyebrow={`${inspection.category} · ${inspection.periodLabel}`}

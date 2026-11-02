@@ -10,7 +10,6 @@ import {
   MapPin,
   Pencil,
   Plus,
-  QrCode,
   Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -21,7 +20,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { BackLink, Badge, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, EmptyState } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -36,7 +35,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/modal";
-import { MobileFab } from "@/components/mobile-fab";
 import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import {
   TemplateItemEditor,
@@ -142,53 +140,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
-
-      <PageHeader
-        mobileCompact
-        eyebrow="Pengaturan checklist"
-        title="Template & lokasi"
-        description="Kelola item pemeriksaan dan lokasi tim."
-        descriptionClassName="hidden md:block"
-        action={
-          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
-            <div className="max-md:hidden">
-              <Button
-                size="sm"
-                type="button"
-                aria-haspopup="dialog"
-                aria-expanded={templateOpen}
-                data-dialog-intent="template-new"
-              >
-                <Plus aria-hidden="true" />
-                Template baru
-              </Button>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/checklist/qr" />}
-            >
-              <QrCode aria-hidden="true" />
-              Kelola QR area
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              type="button"
-              aria-haspopup="dialog"
-              aria-expanded={locationOpen && editingLocation === null}
-              data-dialog-intent="location-new"
-            >
-              <MapPin aria-hidden="true" />
-              Lokasi baru
-            </Button>
-          </div>
-        }
-      />
-
+    <>
       <Frame spacing="default" className="min-w-0">
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
@@ -381,11 +333,6 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         </FramePanel>
       </Frame>
 
-      <MobileFab onClick={openTemplate}>
-        <Plus aria-hidden="true" />
-        Template baru
-      </MobileFab>
-
       <LocationDialog
         open={locationOpen}
         onClose={closeLocation}
@@ -400,7 +347,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
         locations={setup.locations}
         onCreated={(id) => router.push(`/checklist/template/${id}`)}
       />
-    </div>
+    </>
   );
 }
 

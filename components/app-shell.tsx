@@ -44,6 +44,7 @@ import { EmailChangeNotice } from "@/components/email-change-notice";
 import { LogoMark } from "@/components/logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PwaInstallButton } from "@/components/pwa-install-button";
+import { SessionUserProvider } from "@/components/session-user-provider";
 import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import {
@@ -453,11 +454,13 @@ export function AppShell({
   user,
   workActiveCount,
   notificationUnreadCount,
+  overtimePeriodStartDay,
   children,
 }: {
   user: SessionUser;
   workActiveCount: number;
   notificationUnreadCount: number;
+  overtimePeriodStartDay: number;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -802,7 +805,9 @@ export function AppShell({
               className="mb-6"
             />
           )}
-          {children}
+          <SessionUserProvider user={user} overtimePeriodStartDay={overtimePeriodStartDay}>
+            {children}
+          </SessionUserProvider>
         </div>
       </SidebarInset>
 

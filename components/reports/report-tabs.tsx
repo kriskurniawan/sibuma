@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -11,6 +12,34 @@ const TABS = [
   { value: "pekerjaan", label: "Pekerjaan harian" },
   { value: "lembur", label: "Lembur" },
 ];
+
+/** Real navigation remains available if URL-dependent tabs suspend. */
+export function ReportTabsFallback() {
+  return (
+    <Tabs value={null} className="no-print">
+      <TabsList variant="line" className="max-w-full overflow-x-auto">
+        {TABS.map((tab) => (
+          <TabsTrigger
+            key={tab.value}
+            value={tab.value}
+            nativeButton={false}
+            render={
+              <Link
+                href={
+                  tab.value === DEFAULT_TAB
+                    ? "/laporan"
+                    : `/laporan?tab=${tab.value}`
+                }
+              />
+            }
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
+  );
+}
 
 export function ReportTabs() {
   const pathname = usePathname();

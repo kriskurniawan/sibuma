@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { FilterPending } from "@/components/filters/filter-pending";
 import {
@@ -39,18 +40,24 @@ const STATUS_OPTIONS = [
 export function ChecklistFollowUpFilters({
   filters,
 }: {
-  filters: { status: string; search: string; mine: boolean };
+  filters?: { status: string; search: string; mine: boolean };
 }) {
+  const params = useSearchParams();
+  const currentFilters = filters ?? {
+    status: params.get("status") ?? "aktif",
+    search: params.get("search") ?? "",
+    mine: params.get("mine") === "1",
+  };
   const { isPending, navigate } = useFilterNavigation({
     status: "aktif",
     mine: "",
   });
   const [status, setStatus] = useOptimisticFilterValue(
-    filters.status,
+    currentFilters.status,
     isPending,
   );
-  const [mine, setMine] = useOptimisticFilterValue(filters.mine, isPending);
-  const search = useDebouncedFilterValue(filters.search, (next) =>
+  const [mine, setMine] = useOptimisticFilterValue(currentFilters.mine, isPending);
+  const search = useDebouncedFilterValue(currentFilters.search, (next) =>
     navigate({ search: next }),
   );
   const filtered =

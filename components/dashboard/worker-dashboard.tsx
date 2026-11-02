@@ -1,497 +1,272 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { AlertTriangle, ArrowRight, CalendarClock, CalendarDays, CheckCircle2, ClipboardCheck, ClipboardList, MapPin, Wrench } from "lucide-react";
+import { ChecklistAssigneeStack, ChecklistSummaryRow, FollowUpSummaryRow } from "@/components/dashboard/checklist-summary";
+import { ManualWorkSummaryContent, manualWorkDescription } from "@/components/dashboard/manual-work-summary";
+import { DashboardFocusSectionSkeleton, DashboardQueueSectionSkeleton, OperationalDashboardShell } from "@/components/dashboard/dashboard-shell";
+import { DashboardRegion, DashboardValue, type DashboardChecklists, type DashboardFollowUps, type DashboardManualWorks, type DashboardRequest } from "@/components/dashboard/dashboard-data";
 import {
-  AlertTriangle,
-  ArrowRight,
-  CalendarClock,
-  CalendarDays,
-  CheckCircle2,
-  ClipboardCheck,
-  ClipboardList,
-  MapPin,
-  Wrench,
-} from "lucide-react";
-import {
-  ChecklistAssigneeStack,
-  ChecklistSummaryRow,
-  FollowUpSummaryRow,
-} from "@/components/dashboard/checklist-summary";
-import { ManualWorkSummary } from "@/components/dashboard/manual-work-summary";
-import { QrScanButton } from "@/components/checklist/qr-scanner";
+  DashboardRowsSkeleton,
+  DashboardStatsSkeleton,
+  DashboardSummarySkeleton,
+} from "@/components/dashboard/dashboard-skeletons";
+import { DataLoadError } from "@/components/data-load-error";
 import { MobileSummary } from "@/components/mobile-summary";
 import { IconTile } from "@/components/reui/icon-tile";
-import {
-  ChecklistOverdueBadge,
-  ChecklistStatusBadge,
-} from "@/components/checklist/checklist-badges";
-import {
-  Frame,
-  FrameDescription,
-  FrameHeader,
-  FramePanel,
-  FrameTitle,
-} from "@/components/reui/frame";
-import {
-  Badge,
-  EmptyState,
-  PageHeader,
-  ProgressBar,
-  SpklStatusBadge,
-  StatCard,
-} from "@/components/ui";
+import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame";
+import { ChecklistOverdueBadge, ChecklistStatusBadge } from "@/components/checklist/checklist-badges";
+import { Badge, EmptyState, ProgressBar, SpklStatusBadge, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import type {
-  ChecklistFollowUpRow,
-  ChecklistInspectionRow,
-  ChecklistTotals,
-} from "@/lib/checklist-types";
-import type {
-  ManualWorkRow,
-  ManualWorkTotals,
-} from "@/lib/manual-work-types";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { WorkerOverview } from "@/lib/queries";
 import { isReadOnly } from "@/lib/access";
 import type { SessionUser } from "@/lib/types";
 import { checklistHasOpened } from "@/lib/checklist-schedule";
-import {
-  currentTimeZoneLabel,
-  formatDateHuman,
-  formatDateTime,
-  formatTime,
-  greeting,
-} from "@/lib/time";
+import { currentTimeZoneLabel, formatDateHuman, formatDateTime, formatTime } from "@/lib/time";
+
+function checklistFocus(data: DashboardChecklists) {
+  return data.items.find((row) => row.overdue)
+    ?? data.items.find((row) => row.inspection.status === "berlangsung")
+    ?? data.items[0]
+    ?? null;
+}
 
 export function WorkerDashboard({
   user,
   overview,
   checklists,
-  checklistTotals,
   followUps,
-  myFollowUpTotal,
   manualWorks,
-  manualWorkTotals,
 }: {
   user: SessionUser;
-  overview: WorkerOverview;
-  checklists: ChecklistInspectionRow[];
-  checklistTotals: ChecklistTotals;
-  followUps: ChecklistFollowUpRow[];
-  myFollowUpTotal: number;
-  manualWorks: ManualWorkRow[];
-  manualWorkTotals: ManualWorkTotals;
+  overview: DashboardRequest<WorkerOverview>;
+  checklists: DashboardRequest<DashboardChecklists>;
+  followUps: DashboardRequest<DashboardFollowUps>;
+  manualWorks: DashboardRequest<DashboardManualWorks>;
 }) {
-  const firstName = user.name.split(" ")[0];
   const readOnly = isReadOnly(user);
-  const focus =
-    checklists.find((row) => row.overdue) ??
-    checklists.find((row) => row.inspection.status === "berlangsung") ??
-    checklists[0] ??
-    null;
-  const queue = focus
-    ? checklists.filter((row) => row.inspection.id !== focus.inspection.id)
-    : [];
-  const progress =
-    focus && focus.totalItems > 0
-      ? Math.round((focus.answeredCount / focus.totalItems) * 100)
-      : 0;
-  const focusStarted = focus
-    ? checklistHasOpened(focus.inspection.opensAt)
-    : false;
-  const overtime = overview.activeItem ?? overview.nextItem;
-
   return (
-    <div className="flex flex-col gap-6 lg:gap-8">
-      <PageHeader
-        eyebrow={formatDateHuman(new Date().toISOString(), "EEEE, d MMMM yyyy")}
-        title={`${greeting()}, ${firstName}.`}
-        description="Checklist area kerjamu hari ini, lengkap dengan deadline dan tindak lanjutnya."
-        descriptionClassName="hidden sm:block"
-        action={
-          <div className="hidden flex-wrap items-center gap-2 sm:flex">
-            <Button
-              size="sm"
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/checklist" />}
-            >
-              <ClipboardList />
-              Semua checklist
-            </Button>
-            <QrScanButton className="hidden md:inline-flex" />
+    <OperationalDashboardShell
+      user={user}
+      focusBlock={
+        <Suspense fallback={<DashboardFocusSectionSkeleton />}>
+          <WorkerFocusBlock data={checklists} />
+        </Suspense>
+      }
+      summary={
+        <DashboardRegion data={checklists} fallback={<DashboardSummarySkeleton />} message="Ringkasan checklist belum dapat dimuat.">
+          {(data) => <WorkerSummary data={data} followUps={followUps} />}
+        </DashboardRegion>
+      }
+      stats={
+        <>
+          <DashboardRegion data={checklists} fallback={<DashboardStatsSkeleton labels={["Checklist aktif", "Terlambat", "Selesai bulan ini"]} />} message="Statistik checklist belum dapat dimuat.">
+            {(data) => <WorkerStats data={data} />}
+          </DashboardRegion>
+          <DashboardRegion data={followUps} fallback={<DashboardStatsSkeleton labels={["Tindak lanjut saya"]} />} message="Statistik tindak lanjut belum dapat dimuat.">
+            {(data) => <StatCard label="Tindak lanjut saya" value={data.total} suffix="temuan" icon={Wrench} tone={data.total > 0 ? "warning" : "neutral"} helper={data.total > 0 ? "Ditugaskan kepadamu" : "Tidak ada tugas terbuka"} />}
+          </DashboardRegion>
+        </>
+      }
+      overtime={
+        <DashboardRegion data={overview} fallback={<DashboardRowsSkeleton kind="overtime" count={1} />} message="Jadwal lembur belum dapat dimuat.">
+          {(data) => <WorkerOvertime overview={data} />}
+        </DashboardRegion>
+      }
+      queueBlock={
+        <Suspense fallback={<DashboardQueueSectionSkeleton />}>
+          <WorkerQueueBlock data={checklists} />
+        </Suspense>
+      }
+      followUpDescription={
+        <DashboardValue data={followUps} fallback={<Skeleton className="h-3 w-40" />}>
+          {(data) => data.total > 0 ? `${data.total} temuan terbuka` : "Temuan yang ditugaskan kepadamu"}
+        </DashboardValue>
+      }
+      followUps={
+        <DashboardRegion data={followUps} fallback={<DashboardRowsSkeleton kind="follow-up" count={2} />} message="Tindak lanjut belum dapat dimuat.">
+          {(data) => <WorkerFollowUps data={data} />}
+        </DashboardRegion>
+      }
+      manualWorkDescription={
+        <DashboardValue data={manualWorks} fallback={<Skeleton className="h-4 w-40" />}>
+          {(data) => manualWorkDescription(data.totals)}
+        </DashboardValue>
+      }
+      manualWorks={
+        <DashboardRegion data={manualWorks} fallback={<DashboardRowsSkeleton kind="manual-work" count={3} />} message="Pekerjaan harian belum dapat dimuat.">
+          {(data) => <ManualWorkSummaryContent items={data.items} canManage={!readOnly} canAssign={false} readOnly={readOnly} />}
+        </DashboardRegion>
+      }
+    />
+  );
+}
+
+/** The whole focus card is data-gated: workers see nothing when no checklist is active. */
+async function WorkerFocusBlock({ data }: { data: DashboardRequest<DashboardChecklists> }) {
+  const result = await data;
+  if (!result.ok) return null;
+  const focus = checklistFocus(result.data);
+  if (!focus) return null;
+  return (
+    <section aria-label="Fokus berikutnya">
+      <Frame>
+        <FrameHeader className="gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Fokus berikutnya</span>
+            {focus.overdue ? <ChecklistOverdueBadge /> : <ChecklistStatusBadge status={focus.inspection.status} />}
           </div>
-        }
-      />
+          <WorkerFocusHeading data={result.data} />
+        </FrameHeader>
+        <FramePanel className="flex flex-col gap-4">
+          <WorkerFocus data={result.data} />
+        </FramePanel>
+      </Frame>
+    </section>
+  );
+}
 
-      {focus && (
-        <section aria-label="Fokus berikutnya">
-          <Frame>
-            <FrameHeader className="gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Fokus berikutnya
-                </span>
-                {focus.overdue ? (
-                  <ChecklistOverdueBadge />
-                ) : (
-                  <ChecklistStatusBadge status={focus.inspection.status} />
-                )}
-              </div>
-              <FrameTitle>
-                <Link
-                  href={`/checklist/${focus.inspection.id}`}
-                  className="transition-colors hover:text-primary hover:underline"
-                >
-                  {focus.inspection.templateName}
-                </Link>
-              </FrameTitle>
-              <FrameDescription className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">
-                    {focus.inspection.locationName}
-                  </span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <CalendarClock className="size-3.5" aria-hidden="true" />
-                  Deadline{" "}
-                  {formatDateTime(
-                    focus.inspection.dueAt,
-                    "EEEE, d MMM · HH:mm",
-                  )}
-                </span>
-              </FrameDescription>
-            </FrameHeader>
-
-            <FramePanel className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium tabular-nums text-foreground">
-                    {focus.answeredCount}/{focus.totalItems} item
-                  </p>
-                  <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                    {progress}%
-                  </span>
-                </div>
-                <ProgressBar
-                  value={focus.answeredCount}
-                  max={focus.totalItems}
-                  tone={
-                    focus.totalItems > 0 &&
-                    focus.answeredCount === focus.totalItems
-                      ? "success"
-                      : "primary"
-                  }
-                />
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <ChecklistAssigneeStack people={focus.assignees} max={4} />
-                  <span className="truncate text-xs text-muted-foreground">
-                    {focus.assignees.length > 0
-                      ? `${focus.assignees.length} anggota`
-                      : "Tanpa anggota"}
-                    {focus.openFollowUps > 0
-                      ? ` · ${focus.openFollowUps} temuan`
-                      : ""}
-                  </span>
-                </div>
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto"
-                  nativeButton={false}
-                  render={<Link href={`/checklist/${focus.inspection.id}`} />}
-                >
-                  {focus.answeredCount > 0
-                    ? "Lanjutkan checklist"
-                    : focusStarted
-                      ? "Mulai checklist"
-                      : "Lihat checklist"}
-                  <ArrowRight />
-                </Button>
-              </div>
-            </FramePanel>
-          </Frame>
-        </section>
-      )}
-
-      <MobileSummary
-        className="sm:hidden"
-        items={[
-          {
-            label: "Checklist aktif",
-            value: checklistTotals.todo,
-            icon: ClipboardList,
-            tone: "primary",
-            href: "/checklist?status=aktif",
-            ariaLabel: `Buka ${checklistTotals.todo} checklist aktif`,
-          },
-          {
-            label: "Terlambat",
-            value: checklistTotals.overdue,
-            icon: AlertTriangle,
-            tone: checklistTotals.overdue > 0 ? "destructive" : "neutral",
-            href: "/checklist?status=terlambat",
-            ariaLabel: `Buka ${checklistTotals.overdue} checklist terlambat`,
-          },
-          {
-            label: "Selesai bulan ini",
-            value: checklistTotals.completedThisMonth,
-            icon: CheckCircle2,
-            tone: "success",
-          },
-          {
-            label: "Tindak lanjut saya",
-            value: myFollowUpTotal,
-            icon: Wrench,
-            tone: myFollowUpTotal > 0 ? "warning" : "neutral",
-            href: "/checklist/tindak-lanjut?mine=1",
-            ariaLabel: `Buka tindak lanjut saya, ${myFollowUpTotal} belum selesai`,
-          },
-        ]}
-      />
-
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-[auto_1fr]">
-        <Frame
-          spacing="sm"
-          className="order-1 min-w-0 sm:order-3 xl:col-start-2 xl:row-start-2"
-        >
+/** Queue visibility depends on settled data: a lone focus hides the empty extra panel on mobile. */
+async function WorkerQueueBlock({ data }: { data: DashboardRequest<DashboardChecklists> }) {
+  const result = await data;
+  const focus = result.ok ? checklistFocus(result.data) : null;
+  const queue = result.ok && focus
+    ? result.data.items.filter((row) => row.inspection.id !== focus.inspection.id)
+    : [];
+  const sectionClass = focus && queue.length === 0 ? "hidden sm:flex" : "flex";
+  return (
+    <section aria-label="Antrean checklist" className={`${sectionClass} order-2 min-w-0 flex-col gap-3 sm:order-1 xl:row-span-2`}>
+      <Frame spacing="sm">
+        {focus && (
           <FrameHeader className="flex-row items-start justify-between gap-3">
-            <FrameTitle>Jadwal lembur</FrameTitle>
-            <Link
-              href="/riwayat"
-              className="text-xs font-medium text-primary transition-colors hover:underline"
-            >
-              Lembur
-            </Link>
-          </FrameHeader>
-          <FramePanel className="flex flex-col gap-3">
-            {overtime ? (
-              <div className="relative flex items-start gap-3">
-                <IconTile variant="soft" aria-hidden="true">
-                  <CalendarDays />
-                </IconTile>
-                <div className="flex min-w-0 flex-1 flex-col gap-1">
-                  <Link
-                    href={`/spkl/${overtime.spkl.id}`}
-                    className="line-clamp-2 text-sm font-medium text-foreground after:absolute after:inset-0 transition-colors hover:text-primary focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring"
-                  >
-                    {overtime.spkl.title}
-                  </Link>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDateHuman(overtime.spkl.startAt, "d MMM, HH:mm")}–
-                    {formatTime(overtime.spkl.endAt)}{" "}
-                    {currentTimeZoneLabel()}
-                  </p>
-                  <div>
-                    <SpklStatusBadge status={overtime.status} />
-                  </div>
-                </div>
-                <ArrowRight
-                  className="size-4 shrink-0 text-muted-foreground"
-                  aria-hidden="true"
-                />
-              </div>
-            ) : (
-              <EmptyState
-                icon={CalendarDays}
-                title="Tidak ada jadwal lembur"
-                description="Penugasan baru dari atasan akan muncul di sini."
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    nativeButton={false}
-                    render={<Link href="/riwayat" />}
-                  >
-                    Lihat lembur
-                  </Button>
-                }
-              />
-            )}
-          </FramePanel>
-        </Frame>
-
-        <section
-          className={`${focus && queue.length === 0 ? "hidden sm:flex" : "flex"} order-2 min-w-0 flex-col gap-3 sm:order-1 xl:row-span-2`}
-        >
-          {focus ? (
-            <Frame spacing="sm">
-              <FrameHeader className="flex-row items-start justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <FrameTitle>Antrean checklist</FrameTitle>
-                  <FrameDescription className="hidden text-xs sm:block">
-                    Pekerjaan aktif lainnya.
-                  </FrameDescription>
-                </div>
-                {checklists.length > 1 && (
-                  <Link
-                    href="/checklist"
-                    className="text-xs font-medium text-primary transition-colors hover:underline"
-                  >
-                    Semua
-                  </Link>
-                )}
-              </FrameHeader>
-              <FramePanel className="flex flex-col justify-center">
-                {queue.length > 0 ? (
-                  queue.map((row, index) => (
-                    <div key={row.inspection.id}>
-                      {index > 0 && <Separator />}
-                      <ChecklistSummaryRow row={row} />
-                    </div>
-                  ))
-                ) : (
-                  <EmptyState
-                    icon={ClipboardCheck}
-                    title="Tidak ada checklist lain"
-                    description="Semua checklist aktifmu sudah tampil di atas."
-                    action={
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        nativeButton={false}
-                        render={<Link href="/checklist?status=selesai" />}
-                      >
-                        Lihat checklist selesai
-                      </Button>
-                    }
-                  />
-                )}
-              </FramePanel>
-            </Frame>
-          ) : (
-            <Frame>
-              <FramePanel>
-                <EmptyState
-                  icon={ClipboardList}
-                  title="Tidak ada checklist aktif"
-                  description="Checklist baru muncul otomatis sesuai jadwal area kerjamu."
-                  action={
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      nativeButton={false}
-                      render={<Link href="/checklist?status=selesai" />}
-                    >
-                      Lihat checklist selesai
-                    </Button>
-                  }
-                />
-              </FramePanel>
-            </Frame>
-          )}
-        </section>
-
-        <Frame
-          spacing="sm"
-          className="order-3 min-w-0 sm:order-2 xl:col-start-2 xl:row-start-1"
-        >
-          <FrameHeader className="flex-row items-start justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <FrameTitle>Tindak lanjut saya</FrameTitle>
-              <FrameDescription className="text-xs">
-                {myFollowUpTotal > 0
-                  ? `${myFollowUpTotal} temuan terbuka`
-                  : "Temuan yang ditugaskan kepadamu"}
-              </FrameDescription>
+            <div className="flex flex-col gap-1">
+              <FrameTitle>Antrean checklist</FrameTitle>
+              <FrameDescription className="hidden text-xs sm:block">Pekerjaan aktif lainnya.</FrameDescription>
             </div>
-            <Link
-              href="/checklist/tindak-lanjut?mine=1"
-              className="text-xs font-medium text-primary transition-colors hover:underline"
-            >
-              Semua
-            </Link>
-          </FrameHeader>
-          <FramePanel className="flex flex-col justify-center">
-            {followUps.length > 0 ? (
-              followUps.map((row, index) => (
-                <div key={row.followUp.id}>
-                  {index > 0 && <Separator />}
-                  <FollowUpSummaryRow row={row} />
-                </div>
-              ))
-            ) : (
-              <EmptyState
-                icon={CheckCircle2}
-                title="Tidak ada tindak lanjut"
-                description="Temuan baru yang ditugaskan akan muncul di sini."
-                action={
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    nativeButton={false}
-                    render={<Link href="/checklist?status=selesai" />}
-                  >
-                    Lihat checklist selesai
-                  </Button>
-                }
-              />
+            {result.ok && result.data.items.length > 1 && (
+              <Link href="/checklist" className="text-xs font-medium text-primary transition-colors hover:underline">Semua</Link>
             )}
-          </FramePanel>
-        </Frame>
+          </FrameHeader>
+        )}
+        <FramePanel className="flex flex-col justify-center">
+          {result.ok ? <WorkerChecklists data={result.data} /> : <DataLoadError message="Antrean checklist belum dapat dimuat." />}
+        </FramePanel>
+      </Frame>
+    </section>
+  );
+}
+
+function WorkerFocusHeading({ data }: { data: DashboardChecklists }) {
+  const focus = checklistFocus(data);
+  if (!focus) return null;
+  return <>
+    <FrameTitle>
+      <Link href={`/checklist/${focus.inspection.id}`} className="transition-colors hover:text-primary hover:underline">{focus.inspection.templateName}</Link>
+    </FrameTitle>
+    <FrameDescription className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
+      <span className="flex min-w-0 items-center gap-1.5"><MapPin className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{focus.inspection.locationName}</span></span>
+      <span className="flex items-center gap-1.5"><CalendarClock className="size-3.5" aria-hidden="true" />Deadline {formatDateTime(focus.inspection.dueAt, "EEEE, d MMM · HH:mm")}</span>
+    </FrameDescription>
+  </>;
+}
+
+function WorkerFocus({ data }: { data: DashboardChecklists }) {
+  const focus = checklistFocus(data);
+  if (!focus) {
+    return <EmptyState icon={ClipboardList} title="Tidak ada checklist aktif" description="Checklist baru muncul otomatis sesuai jadwal area kerjamu." action={<CompletedChecklistsButton />} />;
+  }
+  const progress = focus.totalItems > 0 ? Math.round((focus.answeredCount / focus.totalItems) * 100) : 0;
+  return (
+    <>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-medium tabular-nums text-foreground">{focus.answeredCount}/{focus.totalItems} item</p>
+          <span className="text-xs font-medium tabular-nums text-muted-foreground">{progress}%</span>
+        </div>
+        <ProgressBar value={focus.answeredCount} max={focus.totalItems} tone={focus.totalItems > 0 && focus.answeredCount === focus.totalItems ? "success" : "primary"} />
       </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ChecklistAssigneeStack people={focus.assignees} max={4} />
+          <span className="truncate text-xs text-muted-foreground">
+            {focus.assignees.length > 0 ? `${focus.assignees.length} anggota` : "Tanpa anggota"}{focus.openFollowUps > 0 ? ` · ${focus.openFollowUps} temuan` : ""}
+          </span>
+        </div>
+        <Button size="lg" className="w-full sm:w-auto" nativeButton={false} render={<Link href={`/checklist/${focus.inspection.id}`} />}>
+          {focus.answeredCount > 0 ? "Lanjutkan checklist" : checklistHasOpened(focus.inspection.opensAt) ? "Mulai checklist" : "Lihat checklist"}<ArrowRight aria-hidden="true" />
+        </Button>
+      </div>
+    </>
+  );
+}
 
-      <ManualWorkSummary
-        items={manualWorks}
-        totals={manualWorkTotals}
-        canManage={!readOnly}
-        canAssign={false}
-        readOnly={readOnly}
-      />
+function WorkerSummary({ data: { totals }, followUps }: { data: DashboardChecklists; followUps: DashboardRequest<DashboardFollowUps> }) {
+  return (
+    <DashboardValue data={followUps} fallback={<WorkerSummaryItems totals={totals} />} unavailable={<WorkerSummaryItems totals={totals} unavailable />}>
+      {(data) => <WorkerSummaryItems totals={totals} followUpTotal={data.total} />}
+    </DashboardValue>
+  );
+}
 
-      <section
-        aria-label="Ringkasan checklist saya"
-        className="hidden grid-cols-2 gap-3 sm:grid xl:grid-cols-4"
-      >
-        <StatCard
-          label="Checklist aktif"
-          value={checklistTotals.todo}
-          suffix="checklist"
-          icon={ClipboardList}
-          helper={
-            checklistTotals.overdue > 0 ? (
-              <Badge variant="warning-light">
-                {checklistTotals.overdue} terlambat
-              </Badge>
-            ) : (
-              <Badge variant="success-light">Sesuai deadline</Badge>
-            )
-          }
-        />
-        <StatCard
-          label="Terlambat"
-          value={checklistTotals.overdue}
-          suffix="checklist"
-          icon={CalendarClock}
-          tone={checklistTotals.overdue > 0 ? "destructive" : "neutral"}
-          helper={
-            checklistTotals.overdue > 0
-              ? "Selesaikan secepatnya"
-              : "Tidak ada keterlambatan"
-          }
-        />
-        <StatCard
-          label="Selesai bulan ini"
-          value={checklistTotals.completedThisMonth}
-          suffix="checklist"
-          icon={CheckCircle2}
-          tone="success"
-          helper="Sejak awal bulan"
-        />
-        <StatCard
-          label="Tindak lanjut saya"
-          value={myFollowUpTotal}
-          suffix="temuan"
-          icon={Wrench}
-          tone={myFollowUpTotal > 0 ? "warning" : "neutral"}
-          helper={
-            myFollowUpTotal > 0
-              ? "Ditugaskan kepadamu"
-              : "Tidak ada tugas terbuka"
-          }
-        />
-      </section>
+function WorkerSummaryItems({ totals, followUpTotal, unavailable = false }: {
+  totals: DashboardChecklists["totals"];
+  followUpTotal?: number;
+  unavailable?: boolean;
+}) {
+  return <MobileSummary items={[
+    { label: "Checklist aktif", value: totals.todo, icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: `Buka ${totals.todo} checklist aktif` },
+    { label: "Terlambat", value: totals.overdue, icon: AlertTriangle, tone: totals.overdue > 0 ? "destructive" : "neutral", href: "/checklist?status=terlambat", ariaLabel: `Buka ${totals.overdue} checklist terlambat` },
+    { label: "Selesai bulan ini", value: totals.completedThisMonth, icon: CheckCircle2, tone: "success" },
+    { label: "Tindak lanjut saya", value: followUpTotal ?? (unavailable ? "—" : <Skeleton className="h-7 w-12" />), icon: Wrench, tone: followUpTotal && followUpTotal > 0 ? "warning" : "neutral", href: "/checklist/tindak-lanjut?mine=1", ariaLabel: followUpTotal === undefined ? "Buka tindak lanjut saya" : `Buka tindak lanjut saya, ${followUpTotal} belum selesai` },
+  ]} />;
+}
+
+function WorkerStats({ data: { totals } }: { data: DashboardChecklists }) {
+  return <>
+    <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai deadline</Badge>} />
+    <StatCard label="Terlambat" value={totals.overdue} suffix="checklist" icon={CalendarClock} tone={totals.overdue > 0 ? "destructive" : "neutral"} helper={totals.overdue > 0 ? "Selesaikan secepatnya" : "Tidak ada keterlambatan"} />
+    <StatCard label="Selesai bulan ini" value={totals.completedThisMonth} suffix="checklist" icon={CheckCircle2} tone="success" helper="Sejak awal bulan" />
+  </>;
+}
+
+function WorkerOvertime({ overview }: { overview: WorkerOverview }) {
+  const overtime = overview.activeItem ?? overview.nextItem;
+  return overtime ? (
+    <div className="relative flex items-start gap-3">
+      <IconTile variant="soft" aria-hidden="true"><CalendarDays /></IconTile>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <Link href={`/spkl/${overtime.spkl.id}`} className="line-clamp-2 text-sm font-medium text-foreground after:absolute after:inset-0 transition-colors hover:text-primary focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-ring">{overtime.spkl.title}</Link>
+        <p className="text-xs text-muted-foreground">{formatDateHuman(overtime.spkl.startAt, "d MMM, HH:mm")}–{formatTime(overtime.spkl.endAt)} {currentTimeZoneLabel()}</p>
+        <div><SpklStatusBadge status={overtime.status} /></div>
+      </div>
+      <ArrowRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
     </div>
+  ) : (
+    <EmptyState icon={CalendarDays} title="Tidak ada jadwal lembur" description="Penugasan baru dari atasan akan muncul di sini." action={
+      <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/riwayat" />}>Lihat lembur</Button>
+    } />
+  );
+}
+
+function CompletedChecklistsButton() {
+  return <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist?status=selesai" />}>Lihat checklist selesai</Button>;
+}
+
+function WorkerChecklists({ data }: { data: DashboardChecklists }) {
+  const focus = checklistFocus(data);
+  const queue = focus ? data.items.filter((row) => row.inspection.id !== focus.inspection.id) : [];
+  return queue.length > 0 ? queue.map((row, index) => (
+    <div key={row.inspection.id}>{index > 0 && <Separator />}<ChecklistSummaryRow row={row} /></div>
+  )) : (
+    <EmptyState icon={focus ? ClipboardCheck : ClipboardList} title={focus ? "Tidak ada checklist lain" : "Tidak ada checklist aktif"} description={focus ? "Semua checklist aktifmu sudah tampil di atas." : "Checklist baru muncul otomatis sesuai jadwal area kerjamu."} action={<CompletedChecklistsButton />} />
+  );
+}
+
+function WorkerFollowUps({ data }: { data: DashboardFollowUps }) {
+  return data.items.length > 0 ? data.items.map((row, index) => (
+    <div key={row.followUp.id}>{index > 0 && <Separator />}<FollowUpSummaryRow row={row} /></div>
+  )) : (
+    <EmptyState icon={CheckCircle2} title="Tidak ada tindak lanjut" description="Temuan baru yang ditugaskan akan muncul di sini." action={<CompletedChecklistsButton />} />
   );
 }

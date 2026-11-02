@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FolderClosed, FolderMinus, FolderOpen, FolderPlus, Files } from "lucide-react";
@@ -13,6 +13,7 @@ import {
 } from "@/components/reui/frame";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { WorkDocumentFolder } from "@/lib/work-document-types";
 
@@ -24,16 +25,20 @@ export function DocumentFolders({
   activeFolder,
   unfiledCount,
   readOnly,
+  loading = false,
+  error,
 }: {
   folders: WorkDocumentFolder[];
   activeFolder: DocumentFolderFilter;
-  unfiledCount: number;
+  unfiledCount?: number;
   readOnly: boolean;
+  loading?: boolean;
+  error?: ReactNode;
 }) {
   const searchParams = useSearchParams();
   const [createOpen, setCreateOpen] = useState(false);
   const allCount =
-    unfiledCount + folders.reduce((sum, folder) => sum + folder.documentCount, 0);
+    (unfiledCount ?? 0) + folders.reduce((sum, folder) => sum + folder.documentCount, 0);
 
   function hrefFor(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -62,18 +67,20 @@ export function DocumentFolders({
           <FrameTitle>Folder</FrameTitle>
           {!readOnly && (
             <Button
+              type="button"
               size="icon-sm"
               variant="ghost"
               aria-label="Buat folder baru"
               title="Buat folder baru"
+              disabled={loading}
               onClick={() => setCreateOpen(true)}
             >
               <FolderPlus aria-hidden="true" />
             </Button>
           )}
         </FrameHeader>
-        <FramePanel className="p-1">
-          <nav aria-label="Folder dokumen" className="flex flex-col gap-0.5">
+        <FramePanel className={error ? undefined : "p-1"}>
+          {error ?? <nav aria-label="Folder dokumen" className="flex flex-col gap-0.5">
             {items.map((item) => {
               const active = item.value === activeFolder;
               const Icon = active ? FolderOpen : item.icon;
@@ -91,16 +98,19 @@ export function DocumentFolders({
                 >
                   <Icon className="size-4 shrink-0" aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                  <Badge
-                    variant={active ? "primary-light" : "outline"}
-                    className="tabular-nums"
-                  >
-                    {item.count}
-                  </Badge>
+                  {loading ? <Skeleton className="h-4 w-6 rounded-full" /> : (
+                    <Badge
+                      variant={active ? "primary-light" : "outline"}
+                      className="tabular-nums"
+                    >
+                      {item.count}
+                    </Badge>
+                  )}
                 </Link>
               );
             })}
-          </nav>
+            {loading && <Skeleton className="m-2 h-4 w-32" />}
+          </nav>}
         </FramePanel>
       </Frame>
 

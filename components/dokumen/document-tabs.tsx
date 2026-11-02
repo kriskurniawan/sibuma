@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { WorkDocumentTab } from "@/lib/work-document-types";
 
 const TABS: Array<{
@@ -24,7 +25,7 @@ export function DocumentTabs({
   counts,
 }: {
   tab: WorkDocumentTab;
-  counts: { saya: number; dibagikan: number; sampah: number };
+  counts?: { saya: number; dibagikan: number; sampah: number } | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -49,7 +50,7 @@ export function DocumentTabs({
             <TabsTrigger
               key={item.value}
               value={item.value}
-              aria-label={`${item.label}, ${counts[item.value]} dokumen`}
+              aria-label={counts ? `${item.label}, ${counts[item.value]} dokumen` : item.label}
             >
               <span className={item.compactLabel ? "sm:hidden" : undefined}>
                 {item.compactLabel ?? item.label}
@@ -57,9 +58,11 @@ export function DocumentTabs({
               {item.compactLabel && (
                 <span className="hidden sm:inline">{item.label}</span>
               )}
-              <Badge variant="outline" className="tabular-nums">
-                {counts[item.value]}
-              </Badge>
+              {counts ? (
+                <Badge variant="outline" className="tabular-nums">
+                  {counts[item.value]}
+                </Badge>
+              ) : counts === undefined ? <Skeleton className="h-4 w-5 rounded-full" /> : null}
             </TabsTrigger>
           ))}
         </TabsList>

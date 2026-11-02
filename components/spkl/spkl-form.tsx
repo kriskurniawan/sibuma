@@ -39,11 +39,9 @@ import { IconTile } from "@/components/reui/icon-tile";
 import {
   Avatar,
   AvatarStack,
-  BackLink,
   Badge as StateBadge,
   EmptyState,
   FieldError,
-  PageHeader,
 } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -66,6 +64,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { TimeField } from "@/components/time-field";
+import { SpklFormHeading } from "@/components/spkl/spkl-route-shell";
 import type { ScheduledItem, ScheduleWarning } from "@/lib/schedule";
 import { scheduleWarnings } from "@/lib/schedule";
 import {
@@ -106,6 +105,7 @@ interface SpklFormProps {
   initial?: SpklFormInitial;
   defaultDate: string;
   schedules: ScheduledItem[];
+  hideHeading?: boolean;
 }
 
 type Errors = Record<string, string | undefined>;
@@ -128,6 +128,7 @@ export function SpklForm({
   initial,
   defaultDate,
   schedules,
+  hideHeading = false,
 }: SpklFormProps) {
   const router = useRouter();
   const activeDivisions = useMemo(
@@ -403,11 +404,7 @@ export function SpklForm({
   if (activeDivisions.length === 0) {
     return (
       <div className="flex flex-col gap-5">
-        <PageHeader
-          mobileCompact
-          title={mode === "create" ? "Buat SPKL baru." : "Ubah SPKL."}
-          description="Buat divisi aktif terlebih dahulu agar pekerja bisa dikelompokkan."
-        />
+        {!hideHeading && <SpklFormHeading mode={mode} />}
         <Frame>
           <FramePanel>
             <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -438,13 +435,7 @@ export function SpklForm({
   if (team.length === 0) {
     return (
       <div className="flex flex-col gap-5">
-        <PageHeader
-          mobileCompact
-          title={
-            mode === "create" ? "Buat SPKL baru." : "Ubah SPKL."
-          }
-          description="Tambahkan pekerja aktif ke timmu sebelum membuat SPKL."
-        />
+        {!hideHeading && <SpklFormHeading mode={mode} />}
         <Frame>
           <FramePanel>
             <div className="flex flex-col items-center gap-4 py-8 text-center">
@@ -478,21 +469,7 @@ export function SpklForm({
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5 pb-24 xl:pb-0">
-      <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
-        <BackLink href={initial ? `/spkl/${initial.id}` : "/lembur"}>
-          {initial ? "Kembali ke detail SPKL" : "Kembali ke lembur"}
-        </BackLink>
-        <StateBadge variant="primary-light" dot className="ml-auto">
-          {mode === "create" ? "SPKL baru" : "Ubah SPKL"}
-        </StateBadge>
-      </div>
-
-      <PageHeader
-        mobileCompact
-        title={mode === "create" ? "Buat SPKL" : "Ubah SPKL"}
-        description="Tentukan pekerjaan, jadwal, lokasi, dan pekerja."
-        descriptionClassName="hidden md:block"
-      />
+      {!hideHeading && <SpklFormHeading mode={mode} />}
 
       <div className="grid gap-5 xl:grid-cols-[1.45fr_0.55fr]">
         <div className="flex min-w-0 flex-col gap-5">

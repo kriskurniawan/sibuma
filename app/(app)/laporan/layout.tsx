@@ -1,5 +1,8 @@
 import { Suspense } from "react";
-import { ReportTabs } from "@/components/reports/report-tabs";
+import {
+  ReportTabs,
+  ReportTabsFallback,
+} from "@/components/reports/report-tabs";
 
 export default function LaporanLayout({
   children,
@@ -8,7 +11,7 @@ export default function LaporanLayout({
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <Suspense fallback={null}>
+      <Suspense fallback={<ReportTabsFallback />}>
         <ReportTabs />
       </Suspense>
       {children}

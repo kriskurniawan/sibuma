@@ -3,13 +3,12 @@ import {
   Camera,
   CheckCircle2,
   Clock3,
-  Download,
   FileBarChart2,
-  FileSpreadsheet,
   Hammer,
   RotateCcw,
   TriangleAlert,
 } from "lucide-react";
+import { DataLoadError } from "@/components/data-load-error";
 import {
   Frame,
   FrameDescription,
@@ -18,59 +17,30 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { Badge, EmptyState, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { ManualWorkReportGrid } from "@/components/reports/manual-work-report-grid";
-import { ReportFilterBar } from "@/components/reports/report-filter-bar";
-import { ReportPrintButton } from "@/components/reports/report-print-button";
-import { isSuperAdmin, readOwnerId } from "@/lib/access";
 import {
-  getManualWorkReportData,
-  getManualWorkReportOptions,
-} from "@/lib/manual-work-report";
+  firstReportParam as first,
+  reportRange,
+  type ReportParams,
+} from "@/components/reports/report-shell";
+import { readOwnerId } from "@/lib/access";
+import { getManualWorkReportData } from "@/lib/manual-work-report";
 import type { ManualWorkReportFilters } from "@/lib/manual-work-types";
 import { pageRequest } from "@/lib/pagination";
 import { getPhotoLimits } from "@/lib/photo-limits";
-import { currentMonthRange, currentTimeZoneLabel, formatDateHuman } from "@/lib/time";
+import { formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
-
-type SearchParams = Record<string, string | string[] | undefined>;
-
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-function first(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-const STATUS_OPTIONS = [
-  { value: "", label: "Semua status" },
-  { value: "aktif", label: "Masih aktif" },
-  { value: "terlambat", label: "Terlambat" },
-  { value: "terbuka", label: "Terbuka" },
-  { value: "dikerjakan", label: "Dikerjakan" },
-  { value: "selesai", label: "Selesai" },
-  { value: "dibatalkan", label: "Dibatalkan" },
-];
-
-const SCOPE_OPTIONS = [
-  { value: "1", label: "Termasuk sub-lokasi" },
-  { value: "0", label: "Hanya area ini" },
-];
 
 export async function ManualWorkReportScreen({
   user,
   params,
 }: {
   user: SessionUser;
-  params: SearchParams;
+  params: ReportParams;
 }) {
-  const fallback = currentMonthRange();
-  let from = first(params.from) ?? fallback.from;
-  let to = first(params.to) ?? fallback.to;
-  if (!DATE_PATTERN.test(from)) from = fallback.from;
-  if (!DATE_PATTERN.test(to)) to = fallback.to;
-  if (from > to) [from, to] = [to, from];
-
+  const { from, to } = reportRange("pekerjaan", params);
   const filters: ManualWorkReportFilters = {
     from,
     to,
@@ -80,10 +50,9 @@ export async function ManualWorkReportScreen({
     employeeId: first(params.employeeId) || undefined,
     search: first(params.search)?.trim() || undefined,
   };
-
   const printing = first(params.print) === "1";
   const ownerId = readOwnerId(user);
-  const [data, options, photoLimits] = await Promise.all([
+  const result = await Promise.all([
     getManualWorkReportData(
       ownerId,
       filters,
@@ -91,184 +60,16 @@ export async function ManualWorkReportScreen({
         ? undefined
         : pageRequest(first(params.page), first(params.size)),
     ),
-    getManualWorkReportOptions(ownerId),
     getPhotoLimits(),
-  ]);
-
-  const exportParams = new URLSearchParams({ from, to });
-  if (filters.locationId) exportParams.set("locationId", filters.locationId);
-  exportParams.set(
-    "includeSub",
-    filters.includeSubLocations === false ? "0" : "1",
-  );
-  if (filters.status) exportParams.set("status", filters.status);
-  if (filters.employeeId) exportParams.set("employeeId", filters.employeeId);
-  if (filters.search) exportParams.set("search", filters.search);
-  const pdfHref = `/api/reports/pekerjaan/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), format: "pdf" }).toString()}`;
-
+  ]).catch(() => null);
+  if (!result)
+    return (
+      <DataLoadError message="Data laporan pekerjaan harian gagal dimuat." />
+    );
+  const [data, photoLimits] = result;
   const periodLabel = `${formatDateHuman(`${from}T12:00:00`, "d MMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMM yyyy")}`;
-  const isFiltered = Boolean(
-    filters.locationId ||
-      filters.status ||
-      filters.employeeId ||
-      filters.search,
-  );
-
-  const locationOptions = [
-    { value: "", label: "Semua area" },
-    ...options.locations.map((location) => ({
-      value: location.id,
-      label: location.path,
-    })),
-  ];
-  const employeeOptions = [
-    { value: "", label: "Semua pekerja" },
-    ...options.employees.map((employee) => ({
-      value: employee.id,
-      label: employee.name,
-    })),
-  ];
-
   return (
-    <div className="flex flex-col gap-6">
-      <div className="no-print">
-        <PageHeader
-          mobileCompact
-          eyebrow={isSuperAdmin(user) ? "Rekap organisasi" : "Rekap pekerjaan"}
-          title="Laporan pekerjaan harian."
-          description={
-            isSuperAdmin(user)
-              ? "Tinjau pekerjaan harian seluruh tim berdasarkan tanggal mulai, termasuk pekerja yang terlibat dan dokumentasi foto. Unduh Excel untuk rekap, CSV untuk integrasi, atau PDF untuk arsip."
-              : "Tinjau pekerjaan harian tim berdasarkan tanggal mulai, termasuk pekerja yang terlibat dan dokumentasi foto. Unduh Excel untuk rekap, CSV untuk integrasi, atau PDF untuk arsip."
-          }
-          action={
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={`/api/reports/pekerjaan/export?${new URLSearchParams({ ...Object.fromEntries(exportParams), format: "xlsx" }).toString()}`}
-                  />
-                }
-              >
-                <FileSpreadsheet aria-hidden="true" />
-                Unduh Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={`/api/reports/pekerjaan/export?${exportParams.toString()}`}
-                  />
-                }
-              >
-                <Download aria-hidden="true" />
-                Unduh CSV
-              </Button>
-              <ReportPrintButton href={pdfHref} />
-            </div>
-          }
-        />
-      </div>
-
-      <div className="print-only">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          SIBUMA · Sistem Building Management
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-foreground">
-          Rekap pekerjaan harian {periodLabel}
-        </h1>
-        <p className="mt-1 text-xs font-medium text-muted-foreground">
-          Atasan: {isSuperAdmin(user) ? "Super admin" : user.name} · Dicetak{" "}
-          {formatDateHuman(new Date().toISOString(), "d MMMM yyyy, HH:mm")}{" "}
-          {currentTimeZoneLabel()}
-        </p>
-      </div>
-
-      <Frame className="no-print">
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <FrameTitle className="max-md:sr-only">
-              Periode &amp; filter
-            </FrameTitle>
-            <FrameDescription className="text-xs">
-              Berdasarkan tanggal mulai pekerjaan. Default bulan berjalan.
-            </FrameDescription>
-          </div>
-          {isFiltered && (
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              render={<Link href="/laporan?tab=pekerjaan" />}
-            >
-              <RotateCcw aria-hidden="true" />
-              Reset filter
-            </Button>
-          )}
-        </FrameHeader>
-
-        <FramePanel>
-          <ReportFilterBar
-            ariaLabel="Filter laporan pekerjaan harian"
-            from={from}
-            to={to}
-            search={filters.search ?? ""}
-            searchId="pekerjaan-search"
-            searchLabel="Cari laporan pekerjaan harian"
-            searchPlaceholder="Judul, lokasi, pekerja…"
-            selectFilters={[
-              {
-                key: "locationId",
-                id: "pekerjaan-location",
-                label: "Area",
-                value: filters.locationId ?? "",
-                placeholder: "Semua area",
-                options: locationOptions,
-                className: "sm:w-44",
-                resetKeys: ["includeSub"],
-              },
-              ...(filters.locationId
-                ? [
-                    {
-                      key: "includeSub",
-                      id: "pekerjaan-scope",
-                      label: "Cakupan area",
-                      value:
-                        filters.includeSubLocations === false ? "0" : "1",
-                      options: SCOPE_OPTIONS,
-                      className: "sm:w-44",
-                    },
-                  ]
-                : []),
-              {
-                key: "employeeId",
-                id: "pekerjaan-employee",
-                label: "Pekerja",
-                value: filters.employeeId ?? "",
-                placeholder: "Semua pekerja",
-                options: employeeOptions,
-                className: "sm:w-44",
-              },
-              {
-                key: "status",
-                id: "pekerjaan-status",
-                label: "Status",
-                value: filters.status ?? "",
-                placeholder: "Semua status",
-                options: STATUS_OPTIONS,
-                className: "sm:w-40",
-              },
-            ]}
-            summary={`${data.total} pekerjaan pada ${periodLabel}.`}
-          />
-        </FramePanel>
-      </Frame>
-
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Total pekerjaan"
@@ -303,7 +104,6 @@ export async function ManualWorkReportScreen({
           tone="info"
         />
       </div>
-
       <Frame>
         <FrameHeader className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5">
@@ -316,7 +116,6 @@ export async function ManualWorkReportScreen({
           </div>
           <Badge variant="outline">{periodLabel}</Badge>
         </FrameHeader>
-
         {data.rows.length === 0 ? (
           <FramePanel>
             <EmptyState
@@ -337,7 +136,7 @@ export async function ManualWorkReportScreen({
         ) : (
           <FramePanel className="p-0">
             <ManualWorkReportGrid
-              key={exportParams.toString()}
+              key={JSON.stringify(filters)}
               rows={data.rows}
               total={data.total}
               pagination={
@@ -351,7 +150,6 @@ export async function ManualWorkReportScreen({
             />
           </FramePanel>
         )}
-
         <FrameFooter className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span className="flex items-center gap-1.5">
             <Hammer className="size-3.5 shrink-0" aria-hidden="true" />

@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   Frame,
   FrameDescription,
@@ -6,14 +7,15 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { Badge, ProgressBar } from "@/components/ui";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   formatDocumentBytes,
   type WorkDocumentUsage,
 } from "@/lib/work-document-types";
 
-export function DocumentUsagePanel({ usage }: { usage: WorkDocumentUsage }) {
+export function DocumentUsagePanel({ usage, error }: { usage?: WorkDocumentUsage; error?: ReactNode }) {
   const percent =
-    usage.quotaBytes <= 0
+    !usage || usage.quotaBytes <= 0
       ? 0
       : Math.min(100, Math.round((usage.usedBytes / usage.quotaBytes) * 100));
   const tone = percent >= 90 ? "destructive" : percent >= 70 ? "warning" : "primary";
@@ -33,11 +35,12 @@ export function DocumentUsagePanel({ usage }: { usage: WorkDocumentUsage }) {
             Termasuk berkas di sampah sampai dihapus permanen.
           </FrameDescription>
         </div>
-        <Badge variant={variant} className="tabular-nums">
+        {usage ? <Badge variant={variant} className="tabular-nums">
           {percent}% terpakai
-        </Badge>
+        </Badge> : error ? null : <Skeleton className="h-5 w-24 rounded-full" />}
       </FrameHeader>
-      <FramePanel className="flex flex-col gap-3">
+      <FramePanel className="flex flex-col gap-3" aria-busy={!usage && !error} aria-live="polite">
+        {error ?? (usage ? <>
         <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
           <span className="text-2xl font-semibold tracking-tight text-foreground tabular-nums">
             {formatDocumentBytes(usage.usedBytes)}
@@ -68,6 +71,19 @@ export function DocumentUsagePanel({ usage }: { usage: WorkDocumentUsage }) {
             </span>
           </div>
         </div>
+        </> : <>
+          <span className="sr-only">Memuat kuota dokumen…</span>
+          <Skeleton className="h-7 w-28" />
+          <Skeleton className="h-2 w-full rounded-full" />
+          <div className="grid grid-cols-3 gap-3">
+            {["Dokumen aktif", "Dibagikan", "Sampah"].map((label) => (
+              <div key={label} className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-xs text-muted-foreground">{label}</span>
+                <Skeleton className="h-4 w-10" />
+              </div>
+            ))}
+          </div>
+        </>)}
       </FramePanel>
     </Frame>
   );

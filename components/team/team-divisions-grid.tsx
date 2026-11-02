@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, use, useMemo } from "react";
+import { DataLoadError } from "@/components/data-load-error";
 import { Building2, PencilLine, Power, UserPlus } from "lucide-react";
 import { useTable, type ColumnDef } from "@tanstack/react-table";
 import {
@@ -16,15 +17,18 @@ import { IconTile } from "@/components/reui/icon-tile";
 import { Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Division } from "@/lib/types";
 import {
   TEAM_PAGE_SIZES,
   teamGridI18n,
   type TeamDivisionRow,
+  type TeamDivisionCountsPromise,
 } from "@/components/team/team-grid-shared";
 
 interface TeamDivisionsGridProps {
   rows: TeamDivisionRow[];
+  divisionCounts: TeamDivisionCountsPromise;
   activeDivisionTotal: number;
   busyId: string | null;
   readOnly?: boolean;
@@ -43,18 +47,58 @@ const PRINT_TABLE_CLASSES = {
   headerRow: "bg-muted/40",
 };
 
-function deactivationBlockedReason(
-  row: TeamDivisionRow,
-  activeDivisionTotal: number,
-) {
-  if (!row.division.active) return undefined;
-  if (row.workerCount > 0) {
-    return "Pindahkan pekerja ke divisi lain terlebih dahulu.";
-  }
-  if (activeDivisionTotal <= 1) {
-    return "Minimal satu divisi aktif harus tersedia.";
-  }
-  return undefined;
+function DivisionWorkerCount({ id, data, compact = false }: { id: string; data: TeamDivisionCountsPromise; compact?: boolean }) {
+  const counts = use(data);
+  if (!counts) return <span className="text-xs text-muted-foreground">Jumlah pekerja belum tersedia</span>;
+  // Absence means zero only after the complete counts query succeeds.
+  const count = counts.find((row) => row.id === id);
+  return <span className="inline-flex items-baseline gap-1.5">
+    <span className="text-sm font-medium text-foreground tabular-nums">{count?.total ?? 0}</span>
+    <span className="text-xs text-muted-foreground tabular-nums">{compact && "pekerja · "}{count?.active ?? 0} aktif</span>
+  </span>;
+}
+
+function DivisionToggleButton({ division, busy, blockedReason, onToggle }: {
+  division: Division;
+  busy: boolean;
+  blockedReason?: string;
+  onToggle: (division: Division) => void;
+}) {
+  return <Button type="button" variant="ghost" size="sm" onClick={() => onToggle(division)} disabled={busy || Boolean(blockedReason)} title={blockedReason}>
+    {busy ? <Spinner /> : <Power aria-hidden="true" />}
+    {division.active ? "Nonaktifkan" : "Aktifkan"}
+  </Button>;
+}
+
+function DivisionDeactivate({ division, busy, data, onToggle }: {
+  division: Division;
+  busy: boolean;
+  data: TeamDivisionCountsPromise;
+  onToggle: (division: Division) => void;
+}) {
+  const counts = use(data);
+  const count = counts?.find((row) => row.id === division.id);
+  const blockedReason = !counts
+    ? "Jumlah pekerja belum dapat dimuat. Coba lagi terlebih dahulu."
+    : count && count.total > 0 ? "Pindahkan pekerja ke divisi lain terlebih dahulu." : undefined;
+  return <DivisionToggleButton division={division} busy={busy} blockedReason={blockedReason} onToggle={onToggle} />;
+}
+
+function DivisionToggle({ division, busy, data, activeDivisionTotal, onToggle }: {
+  division: Division;
+  busy: boolean;
+  data: TeamDivisionCountsPromise;
+  activeDivisionTotal: number;
+  onToggle: (division: Division) => void;
+}) {
+  if (!division.active || activeDivisionTotal <= 1) return <DivisionToggleButton division={division} busy={busy} blockedReason={division.active ? "Minimal satu divisi aktif harus tersedia." : undefined} onToggle={onToggle} />;
+  return <Suspense fallback={<DivisionToggleButton division={division} busy={busy} blockedReason="Menunggu jumlah pekerja divisi." onToggle={onToggle} />}>
+    <DivisionDeactivate division={division} busy={busy} data={data} onToggle={onToggle} />
+  </Suspense>;
+}
+
+function DivisionCountsError({ data }: { data: TeamDivisionCountsPromise }) {
+  return use(data) ? null : <div className="p-4 print:hidden"><DataLoadError message="Jumlah pekerja divisi belum dapat dimuat. Nonaktifkan divisi dikunci sampai jumlah pekerja tersedia." /></div>;
 }
 
 function PrintDivisionsTable({
@@ -107,6 +151,7 @@ function PrintDivisionsTable({
 
 export function TeamDivisionsGrid({
   rows,
+  divisionCounts,
   activeDivisionTotal,
   busyId,
   readOnly = false,
@@ -162,21 +207,16 @@ export function TeamDivisionsGrid({
       },
       {
         id: "workers",
-        accessorFn: (row) => row.workerCount,
+        accessorFn: (row) => row.division.id,
         header: "Jumlah pekerja",
         meta: {
           headerClassName: "whitespace-nowrap",
           cellClassName: "whitespace-nowrap",
         },
         cell: ({ row }) => (
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm font-medium text-foreground tabular-nums">
-              {row.original.workerCount}
-            </span>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {row.original.activeWorkerCount} aktif
-            </span>
-          </div>
+          <Suspense fallback={<Skeleton className="h-4 w-28" role="status" aria-label="Memuat jumlah pekerja divisi" />}>
+            <DivisionWorkerCount id={row.original.division.id} data={divisionCounts} />
+          </Suspense>
         ),
       },
       {
@@ -197,7 +237,7 @@ export function TeamDivisionsGrid({
         ),
       },
     ],
-    [],
+    [divisionCounts],
   );
 
   const columns = useMemo<ColumnDef<DataGridFeatures, TeamDivisionRow>[]>(() => {
@@ -211,10 +251,6 @@ export function TeamDivisionsGrid({
       cell: ({ row }) => {
         const division = row.original.division;
         const busy = busyId === division.id;
-        const blockedReason = deactivationBlockedReason(
-          row.original,
-          activeDivisionTotal,
-        );
         return (
           <div className="flex justify-end gap-1">
             {division.active && (
@@ -237,23 +273,13 @@ export function TeamDivisionsGrid({
               <PencilLine aria-hidden="true" />
               Ubah
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => onToggle(division)}
-              disabled={busy || Boolean(blockedReason)}
-              title={blockedReason}
-            >
-              {busy ? <Spinner /> : <Power aria-hidden="true" />}
-              {division.active ? "Nonaktifkan" : "Aktifkan"}
-            </Button>
+            <DivisionToggle division={division} busy={busy} data={divisionCounts} activeDivisionTotal={activeDivisionTotal} onToggle={onToggle} />
           </div>
         );
       },
     };
     return readOnly ? dataColumns : [...dataColumns, actionColumn];
-  }, [activeDivisionTotal, busyId, dataColumns, onAdd, onEdit, onToggle, readOnly]);
+  }, [activeDivisionTotal, busyId, dataColumns, divisionCounts, onAdd, onEdit, onToggle, readOnly]);
 
   const table = useTable({
     features: dataGridFeatures,
@@ -290,10 +316,6 @@ export function TeamDivisionsGrid({
               {pageRows.map((row) => {
                 const division = row.division;
                 const busy = busyId === division.id;
-                const blockedReason = deactivationBlockedReason(
-                  row,
-                  activeDivisionTotal,
-                );
                 return (
                   <article
                     key={division.id}
@@ -330,15 +352,9 @@ export function TeamDivisionsGrid({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
-                      <p className="text-xs text-muted-foreground">
-                        <span className="text-sm font-medium text-foreground tabular-nums">
-                          {row.workerCount}
-                        </span>{" "}
-                        pekerja ·{" "}
-                        <span className="tabular-nums">
-                          {row.activeWorkerCount} aktif
-                        </span>
-                      </p>
+                      <Suspense fallback={<Skeleton className="h-4 w-28" role="status" aria-label="Memuat jumlah pekerja divisi" />}>
+                        <DivisionWorkerCount id={division.id} data={divisionCounts} compact />
+                      </Suspense>
                       {!readOnly && (
                         <div className="flex flex-wrap justify-end gap-1">
                           {division.active && (
@@ -361,17 +377,7 @@ export function TeamDivisionsGrid({
                             <PencilLine aria-hidden="true" />
                             Ubah
                           </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onToggle(division)}
-                            disabled={busy || Boolean(blockedReason)}
-                            title={blockedReason}
-                          >
-                            {busy ? <Spinner /> : <Power aria-hidden="true" />}
-                            {division.active ? "Nonaktifkan" : "Aktifkan"}
-                          </Button>
+                          <DivisionToggle division={division} busy={busy} data={divisionCounts} activeDivisionTotal={activeDivisionTotal} onToggle={onToggle} />
                         </div>
                       )}
                     </div>
@@ -387,6 +393,7 @@ export function TeamDivisionsGrid({
         </DataGrid>
       </div>
 
+      <Suspense fallback={null}><DivisionCountsError data={divisionCounts} /></Suspense>
       <PrintDivisionsTable
         key={rows.length}
         rows={rows}

@@ -1,49 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type FormEvent } from "react";
+import { Suspense, use, useEffect, useMemo, useState, type FormEvent } from "react";
+import { TeamListSkeleton, useTeamPageState } from "@/components/team/team-page-shell";
+import { useFilterNavigation } from "@/components/filters/use-filter-navigation";
+import { DataLoadError } from "@/components/data-load-error";
 import type { PageRequest } from "@/lib/pagination";
-import type { getTeamTotals } from "@/lib/team-queries";
-import { ReportPrintButton } from "@/components/reports/report-print-button";
-import { MobileFab } from "@/components/mobile-fab";
-import { MobileSummary } from "@/components/mobile-summary";
 import { useRouter } from "next/navigation";
 import {
-  BadgeCheck,
   Building2,
-  Camera,
-  Clock3,
   FolderPlus,
-  LockKeyhole,
   Power,
+  RefreshCw,
   Save,
   Search,
   UserPlus,
   UsersRound,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
 import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import {
-  Frame,
-  FrameDescription,
-  FrameFooter,
-  FrameHeader,
-  FramePanel,
-  FrameTitle,
-} from "@/components/reui/frame";
 import { TeamDivisionsGrid } from "@/components/team/team-divisions-grid";
-import type {
-  TeamDivisionRow,
-  TeamWorkerRow,
-} from "@/components/team/team-grid-shared";
+import type { TeamDivisionCountsPromise, TeamDivisionOptionsPromise, TeamWorkerRow } from "@/components/team/team-grid-shared";
 import { TeamWorkersGrid } from "@/components/team/team-workers-grid";
 import {
   EmptyState,
   FieldError,
-  PageHeader,
-  StatCard,
 } from "@/components/ui";
 import {
   AlertDialog,
@@ -57,12 +39,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@/components/ui/input-group";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -72,22 +48,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import type { Division, Employee } from "@/lib/types";
 
-type TeamTab = "pekerja" | "divisi";
 type StatusFilter = "semua" | "aktif" | "nonaktif";
 
 interface TeamViewProps {
   team: TeamWorkerRow[];
   total: number;
   pagination: PageRequest;
-  totals: Awaited<ReturnType<typeof getTeamTotals>>;
+  divisionCounts: TeamDivisionCountsPromise;
   filters: { search: string; division: string; status: StatusFilter };
   printRows?: TeamWorkerRow[];
-  divisions: Division[];
+  divisionOptions: TeamDivisionOptionsPromise;
   readOnly?: boolean;
 }
 
@@ -119,22 +94,121 @@ const EMPTY_DIVISION_FORM: DivisionForm = {
   description: "",
 };
 
-const STATUS_FILTER_ITEMS: Record<string, string> = {
-  semua: "Semua status",
-  aktif: "Aktif",
-  nonaktif: "Nonaktif",
-};
-
-export function TeamView({ team, total, pagination, totals, filters, printRows, divisions, readOnly = false }: TeamViewProps) {
+/** Only division options gate this tab; counts and destructive safeguards
+ * resolve separately inside the grid, without hiding the division rows. */
+function DivisionTabContent({
+  divisionOptions,
+  divisionCounts,
+  busyId,
+  readOnly,
+  onCreateDivision,
+  onAdd,
+  onEdit,
+  onToggle,
+}: {
+  divisionOptions: TeamDivisionOptionsPromise;
+  divisionCounts: TeamDivisionCountsPromise;
+  busyId: string | null;
+  readOnly: boolean;
+  onCreateDivision: () => void;
+  onAdd: (division: Division) => void;
+  onEdit: (division: Division) => void;
+  onToggle: (division: Division) => void;
+}) {
   const router = useRouter();
-  const [tab, setTab] = useState<TeamTab>("pekerja");
-  const [workerSearch, setWorkerSearch] = useState(filters.search);
-  const [workerDivisionFilter, setWorkerDivisionFilter] = useState(filters.division);
-  const [workerStatusFilter, setWorkerStatusFilter] =
-    useState<StatusFilter>(filters.status);
-  const [divisionSearch, setDivisionSearch] = useState("");
-  const [divisionStatusFilter, setDivisionStatusFilter] =
-    useState<StatusFilter>("semua");
+  const pageState = useTeamPageState();
+  const divisions = use(divisionOptions);
+  if (!divisions) {
+    return <div className="p-4"><DataLoadError message="Data divisi belum dapat dimuat." /></div>;
+  }
+  const query = (pageState?.divisionSearch ?? "").trim().toLowerCase();
+  const status = pageState?.divisionStatus ?? "semua";
+  const rows = divisions.filter((division) => {
+    if (status === "aktif" && !division.active) return false;
+    if (status === "nonaktif" && division.active) return false;
+    return !query || `${division.name} ${division.description}`.toLowerCase().includes(query);
+  }).map((division) => ({ division }));
+
+  if (divisions.length === 0) {
+    return (
+      <div className="p-4">
+        <EmptyState
+          icon={Building2}
+          title="Belum ada divisi"
+          description={
+            readOnly
+              ? "Belum ada divisi di tim ini."
+              : "Buat divisi pertama untuk mengelompokkan pekerja dan menyusun SPKL."
+          }
+          action={
+            readOnly ? (
+              <Button type="button" size="sm" variant="outline" onClick={() => router.refresh()}><RefreshCw aria-hidden="true" />Muat ulang</Button>
+            ) : (
+              <div className="max-md:hidden">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onCreateDivision}
+                  data-dialog-intent="division-new"
+                >
+                  <FolderPlus />
+                  Buat divisi
+                </Button>
+              </div>
+            )
+          }
+        />
+      </div>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <div className="p-4">
+        <EmptyState
+          icon={Search}
+          title="Tidak ada divisi yang cocok"
+          description="Ubah kata kunci atau filter status divisi."
+          action={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={pageState?.clearDivisionFilters}
+            >
+              Hapus filter
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+  return (
+    <TeamDivisionsGrid
+      rows={rows}
+      divisionCounts={divisionCounts}
+      activeDivisionTotal={divisions.filter((division) => division.active).length}
+      busyId={busyId}
+      readOnly={readOnly}
+      onAdd={onAdd}
+      onEdit={onEdit}
+      onToggle={onToggle}
+    />
+  );
+}
+
+export function TeamView({ team, total, pagination, divisionCounts, filters, printRows, divisionOptions, readOnly = false }: TeamViewProps) {
+  const router = useRouter();
+  const pageState = useTeamPageState();
+  const { navigate } = useFilterNavigation({ division: "semua", status: "semua" });
+  const tab = pageState?.tab ?? "pekerja";
+  const workerDivisionFilter = pageState?.workerDivision ?? filters.division;
+  const [resolvedOptions, setResolvedOptions] = useState<{
+    source: TeamDivisionOptionsPromise;
+    divisions: Division[] | null;
+  } | null>(null);
+  const [pendingEmployeeAction, setPendingEmployeeAction] = useState<
+    { mode: "create"; divisionId?: string } | { mode: "edit"; employee: Employee } | null
+  >(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Employee | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<Employee | null>(
@@ -161,94 +235,60 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
     useState<Division | null>(null);
   const [divisionBusyId, setDivisionBusyId] = useState<string | null>(null);
 
+  // Observe options without suspending the rows. The promise identity keeps a
+  // refresh from reusing stale options for a new action.
+  useEffect(() => {
+    let current = true;
+    void divisionOptions.then((divisions) => {
+      if (current) setResolvedOptions({ source: divisionOptions, divisions });
+    });
+    return () => { current = false; };
+  }, [divisionOptions]);
+  const optionsReady = resolvedOptions?.source === divisionOptions;
+  const divisions = optionsReady ? resolvedOptions?.divisions : undefined;
   const activeDivisions = useMemo(
-    () => divisions.filter((division) => division.active),
+    () => divisions?.filter((division) => division.active) ?? [],
     [divisions],
   );
   const firstActiveDivisionId = activeDivisions[0]?.id ?? "";
   const divisionItems = useMemo(
     () =>
       Object.fromEntries(
-        divisions.map((division) => [
+        (divisions ?? []).map((division) => [
           division.id,
           division.active ? division.name : `${division.name} (nonaktif)`,
         ]),
       ),
     [divisions],
   );
-  const divisionById = useMemo(
-    () => new Map(divisions.map((division) => [division.id, division])),
-    [divisions],
-  );
-  const hasUnassigned = totals.unassigned > 0;
-  const workerDivisionItems = useMemo(() => {
-    const items: Record<string, string> = { semua: "Semua divisi" };
-    if (hasUnassigned) items.tanpa = "Tanpa divisi";
-    for (const division of divisions) {
-      items[division.id] = division.active
-        ? division.name
-        : `${division.name} (nonaktif)`;
-    }
-    return items;
-  }, [divisions, hasUnassigned]);
-  const divisionWorkerCounts = useMemo(() => new Map(totals.divisions.map((row) => [row.id, row])), [totals.divisions]);
   const filteredWorkers = team;
-  const [filterPending, startFilterTransition] = useTransition();
-  useEffect(() => {
-    setWorkerSearch(filters.search);
-    setWorkerDivisionFilter(filters.division);
-    setWorkerStatusFilter(filters.status);
-  }, [filters.search, filters.division, filters.status]);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (workerSearch === filters.search && workerDivisionFilter === filters.division && workerStatusFilter === filters.status) return;
-      const params = new URLSearchParams({ search: workerSearch, division: workerDivisionFilter, status: workerStatusFilter, size: String(pagination.pageSize) });
-      startFilterTransition(() => router.replace('/tim?' + params.toString(), { scroll: false }));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [workerSearch, workerDivisionFilter, workerStatusFilter, filters, pagination.pageSize, router]);
 
   // Klik sebelum hidrasi tidak memiliki handler React. Hook ini membuka dialog
   // yang sama setelah komponen siap, sehingga klik pertama tidak hilang.
   useDialogIntent("worker-new", openAddFromHeader);
-  useDialogIntent("division-new", () => setDivisionModal({ mode: "create" }));
+  useDialogIntent("division-new", () => { if (!readOnly) openCreateDivision(); });
 
-  const filteredDivisions = useMemo(() => {
-    const query = divisionSearch.trim().toLowerCase();
-    if (!query && divisionStatusFilter === "semua") return divisions;
-    return divisions.filter((division) => {
-      if (divisionStatusFilter === "aktif" && !division.active) return false;
-      if (divisionStatusFilter === "nonaktif" && division.active) return false;
-      if (!query) return true;
-      return `${division.name} ${division.description}`
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [divisionSearch, divisionStatusFilter, divisions]);
-  const divisionRows = useMemo<TeamDivisionRow[]>(
-    () =>
-      filteredDivisions.map((division) => {
-        const counts = divisionWorkerCounts.get(division.id);
-        return {
-          division,
-          workerCount: counts?.total ?? 0,
-          activeWorkerCount: counts?.active ?? 0,
-        };
-      }),
-    [divisionWorkerCounts, filteredDivisions],
-  );
+  useEffect(() => {
+    if (!pendingEmployeeAction || !optionsReady || !divisions || readOnly) return;
+    if (pendingEmployeeAction.mode === "edit") {
+      openEdit(pendingEmployeeAction.employee);
+    } else if (activeDivisions.length === 0) {
+      setPendingEmployeeAction(null);
+      openCreateDivision();
+    } else {
+      const selected = divisions.find((division) => division.id === pendingEmployeeAction.divisionId);
+      openAdd(selected?.active ? selected.id : undefined);
+    }
+  }, [pendingEmployeeAction, optionsReady, divisions, readOnly, activeDivisions]);
+
   const workerFiltersActive =
-    workerSearch.trim().length > 0 ||
+    filters.search.trim().length > 0 ||
     workerDivisionFilter !== "semua" ||
-    workerStatusFilter !== "semua";
-  const divisionFiltersActive =
-    divisionSearch.trim().length > 0 || divisionStatusFilter !== "semua";
-
-  const totalMinutes = totals.minutes;
-  const totalSessions = totals.sessions;
-  const totalDocuments = totals.documents;
+    filters.status !== "semua";
 
   function openAdd(divisionId?: string) {
+    if (readOnly) return;
+    setPendingEmployeeAction(null);
     setEditing(null);
     setForm({
       ...EMPTY_FORM,
@@ -260,6 +300,16 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
   }
 
   function openAddFromHeader() {
+    if (readOnly) return;
+    // Retain the static action while only its division prerequisite is pending.
+    if (!divisions) {
+      setPendingEmployeeAction({ mode: "create", divisionId: workerDivisionFilter });
+      return;
+    }
+    if (activeDivisions.length === 0) {
+      openCreateDivision();
+      return;
+    }
     const selected = divisions.find(
       (division) => division.id === workerDivisionFilter,
     );
@@ -267,17 +317,21 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
   }
 
   function clearWorkerFilters() {
-    setWorkerSearch("");
-    setWorkerDivisionFilter("semua");
-    setWorkerStatusFilter("semua");
+    navigate({ search: null, division: null, status: null });
   }
 
-  function clearDivisionFilters() {
-    setDivisionSearch("");
-    setDivisionStatusFilter("semua");
+  function requestEdit(employee: Employee) {
+    if (readOnly) return;
+    if (!divisions) {
+      setPendingEmployeeAction({ mode: "edit", employee });
+      return;
+    }
+    openEdit(employee);
   }
 
   function openEdit(employee: Employee) {
+    if (readOnly) return;
+    setPendingEmployeeAction(null);
     setAddOpen(false);
     setEditing(employee);
     setForm({
@@ -407,6 +461,8 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
     deactivateTarget !== null && busyId === deactivateTarget.id;
 
   function openCreateDivision() {
+    if (readOnly) return;
+    setPendingEmployeeAction(null);
     setDivisionModal({ mode: "create" });
     setDivisionForm(EMPTY_DIVISION_FORM);
     setDivisionErrors({});
@@ -525,272 +581,10 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
     divisionBusyId === deactivateDivisionTarget.id;
 
   return (
-    <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader
-        mobileCompact
-        className="no-print"
-        eyebrow={readOnly ? "Lihat tim" : "Kelola tim"}
-        title="Tim."
-        description={
-          readOnly
-            ? "Pekerja, divisi, dan beban kerja tim."
-            : "Kelola pekerja, divisi, dan penempatan tim."
-        }
-        descriptionClassName="hidden md:block"
-        action={
-          <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto print:hidden">
-            {!readOnly && (
-              <div className="flex shrink-0 items-center gap-2 max-md:hidden">
-                {divisions.length === 0 ? (
-                  <Button
-                    type="button"
-                    onClick={openCreateDivision}
-                    size="sm"
-                    data-dialog-intent="division-new"
-                  >
-                    <FolderPlus />
-                    Buat divisi
-                  </Button>
-                ) : tab === "divisi" || activeDivisions.length === 0 ? (
-                  <Button
-                    type="button"
-                    onClick={openCreateDivision}
-                    size="sm"
-                    data-dialog-intent="division-new"
-                  >
-                    <FolderPlus />
-                    Tambah divisi
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      type="button"
-                      onClick={openAddFromHeader}
-                      size="sm"
-                      data-dialog-intent="worker-new"
-                    >
-                      <UserPlus />
-                      Tambah pekerja
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={openCreateDivision}
-                      size="sm"
-                      data-dialog-intent="division-new"
-                    >
-                      <FolderPlus />
-                      Tambah divisi
-                    </Button>
-                  </>
-                )}
-              </div>
-            )}
-            <ReportPrintButton variant="outline" />
-          </div>
-        }
-      />
-
-      <MobileSummary
-        className="no-print md:hidden"
-        items={[
-          {
-            label: "Pekerja aktif",
-            value: `${totals.active}/${totals.total}`,
-            tone: "primary",
-          },
-          {
-            label: "Durasi periode ini",
-            tone: "info",
-            value: (
-              <>
-                <span>
-                  {Math.floor(totalMinutes / 60)}
-                  <span className="text-sm font-medium text-muted-foreground"> jam</span>
-                </span>
-                <span>
-                  {totalMinutes % 60}
-                  <span className="text-sm font-medium text-muted-foreground"> mnt</span>
-                </span>
-              </>
-            ),
-          },
-          { label: "Sesi absensi", value: totalSessions, tone: "primary" },
-          { label: "Foto kerja", value: totalDocuments, tone: "primary" },
-        ]}
-      />
-
-      <div className="no-print hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Anggota aktif"
-          value={totals.active}
-          suffix={`/ ${totals.total}`}
-          icon={UsersRound}
-          helper={`${activeDivisions.length} divisi aktif`}
-          tone="primary"
-        />
-        <StatCard
-          label="Durasi periode ini"
-          value={Math.floor(totalMinutes / 60)}
-          suffix="jam"
-          icon={Clock3}
-          helper={`${totalMinutes % 60} menit · ${totals.periodLabel}`}
-          tone="info"
-        />
-        <StatCard
-          label="Sesi absensi"
-          value={totalSessions}
-          suffix="sesi"
-          icon={BadgeCheck}
-          helper="Absensi masuk periode ini"
-        />
-        <StatCard
-          label="Dokumentasi"
-          value={totalDocuments}
-          suffix="foto"
-          icon={Camera}
-          helper="Bukti kerja yang diunggah"
-        />
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <Tabs
-          value={tab}
-          onValueChange={(value) => setTab(value as TeamTab)}
-          className="min-w-0 w-full"
-        >
-          <Frame spacing="default" className="min-w-0 w-full self-start">
-            <FrameHeader className="gap-3 print:hidden">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <FrameTitle className="max-md:sr-only">
-                  {tab === "pekerja" ? "Pekerja" : "Divisi"}
-                </FrameTitle>
-                <FrameDescription className="text-xs">
-                  {tab === "pekerja"
-                    ? `${total} pekerja ditampilkan`
-                    : `${filteredDivisions.length} divisi ditampilkan`}
-                </FrameDescription>
-              </div>
-              <TabsList className="w-full sm:w-max">
-                <TabsTrigger value="pekerja">
-                  <UsersRound aria-hidden="true" />
-                  Pekerja
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
-                    {totals.total}
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger value="divisi">
-                  <Building2 aria-hidden="true" />
-                  Divisi
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground">
-                    {divisions.length}
-                  </span>
-                </TabsTrigger>
-              </TabsList>
-            </div>
-          </FrameHeader>
-
-          <FramePanel className="p-0">
-            <TabsContent value="pekerja" className="flex flex-col" aria-busy={filterPending}>
-              <div className="flex flex-col gap-3 border-b border-border p-4 print:hidden lg:flex-row lg:items-center lg:justify-between">
-                <InputGroup className="w-full lg:max-w-xs">
-                  <InputGroupAddon>
-                    <Search aria-hidden="true" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    value={workerSearch}
-                    onChange={(event) => setWorkerSearch(event.target.value)}
-                    placeholder="Cari nama, NIK, HP…"
-                    aria-label="Cari pekerja"
-                  />
-                  {workerSearch && (
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupButton
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => setWorkerSearch("")}
-                        aria-label="Hapus pencarian pekerja"
-                      >
-                        <X />
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  )}
-                </InputGroup>
-
-                <div className="flex min-w-0 items-center gap-2 overflow-x-auto lg:justify-end">
-                  <Select
-                    items={workerDivisionItems}
-                    value={workerDivisionFilter}
-                    onValueChange={(value) => {
-                      if (value !== null) setWorkerDivisionFilter(value);
-                    }}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="min-w-0 flex-1 sm:w-44 sm:flex-none"
-                      aria-label="Filter divisi"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="semua">Semua divisi</SelectItem>
-                      {hasUnassigned && (
-                        <SelectItem value="tanpa">Tanpa divisi</SelectItem>
-                      )}
-                      {divisions.map((division) => (
-                        <SelectItem key={division.id} value={division.id}>
-                          {division.name}
-                          {division.active ? "" : " (nonaktif)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    items={STATUS_FILTER_ITEMS}
-                    value={workerStatusFilter}
-                    onValueChange={(value) => {
-                      if (value !== null) {
-                        setWorkerStatusFilter(value as StatusFilter);
-                      }
-                    }}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="min-w-0 flex-1 sm:w-36 sm:flex-none"
-                      aria-label="Filter status pekerja"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(STATUS_FILTER_ITEMS) as StatusFilter[]).map(
-                        (value) => (
-                          <SelectItem key={value} value={value}>
-                            {STATUS_FILTER_ITEMS[value]}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-
-                  {workerFiltersActive && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearWorkerFilters}
-                      aria-label="Hapus filter pekerja"
-                    >
-                      <X aria-hidden="true" />
-                      <span className="hidden sm:inline">Hapus filter</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {divisions.length === 0 ? (
+    <>
+      {tab === "pekerja" ? (
+        <div className="flex flex-col">
+              {total === 0 && !workerFiltersActive && divisions?.length === 0 ? (
                 <div className="p-4">
                   <EmptyState
                     icon={Building2}
@@ -801,7 +595,9 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                         : "Buat divisi pertama sebelum menempatkan pekerja dan menyusun SPKL."
                     }
                     action={
-                      readOnly ? undefined : (
+                      readOnly ? (
+                        <Button type="button" size="sm" variant="outline" onClick={() => router.refresh()}><RefreshCw aria-hidden="true" />Muat ulang</Button>
+                      ) : (
                         <div className="max-md:hidden">
                           <Button
                             type="button"
@@ -817,7 +613,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                     }
                   />
                 </div>
-              ) : totals.total === 0 && activeDivisions.length === 0 ? (
+              ) : divisions && activeDivisions.length === 0 && total === 0 && !workerFiltersActive ? (
                 <div className="p-4">
                   <EmptyState
                     icon={Building2}
@@ -828,7 +624,9 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                         : "Aktifkan divisi yang sudah ada atau buat divisi baru sebelum menambah pekerja."
                     }
                     action={
-                      readOnly ? undefined : (
+                      readOnly ? (
+                        <Button type="button" size="sm" variant="outline" onClick={() => router.refresh()}><RefreshCw aria-hidden="true" />Muat ulang</Button>
+                      ) : (
                         <div className="max-md:hidden">
                           <Button
                             type="button"
@@ -844,7 +642,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                     }
                   />
                 </div>
-              ) : totals.total === 0 ? (
+              ) : total === 0 && !workerFiltersActive ? (
                 <div className="p-4">
                   <EmptyState
                     icon={UsersRound}
@@ -855,12 +653,13 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                         : "Tambahkan pekerja pertama ke salah satu divisi agar mereka dapat menerima SPKL dan melakukan absensi."
                     }
                     action={
-                      readOnly ? undefined : (
+                      readOnly ? (
+                        <Button type="button" size="sm" variant="outline" onClick={() => router.refresh()}><RefreshCw aria-hidden="true" />Muat ulang</Button>
+                      ) : (
                         <div className="max-md:hidden">
                           <Button
                             type="button"
                             size="sm"
-                            onClick={() => openAdd()}
                             data-dialog-intent="worker-new"
                           >
                             <UserPlus />
@@ -895,189 +694,52 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                   total={total}
                   pagination={pagination}
                   printRows={printRows}
-                  divisionById={divisionById}
+                  divisionOptions={divisionOptions}
                   busyId={busyId}
                   readOnly={readOnly}
-                  onEdit={openEdit}
+                  onEdit={requestEdit}
                   onToggle={requestToggleActive}
                 />
               )}
-            </TabsContent>
-
-            <TabsContent value="divisi" className="flex flex-col">
-              <div className="flex flex-col gap-3 border-b border-border p-4 print:hidden lg:flex-row lg:items-center lg:justify-between">
-                <InputGroup className="w-full lg:max-w-xs">
-                  <InputGroupAddon>
-                    <Search aria-hidden="true" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    value={divisionSearch}
-                    onChange={(event) => setDivisionSearch(event.target.value)}
-                    placeholder="Cari nama atau deskripsi…"
-                    aria-label="Cari divisi"
-                  />
-                  {divisionSearch && (
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupButton
-                        type="button"
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={() => setDivisionSearch("")}
-                        aria-label="Hapus pencarian divisi"
-                      >
-                        <X />
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  )}
-                </InputGroup>
-
-                <div className="flex min-w-0 items-center gap-2 overflow-x-auto lg:justify-end">
-                  <Select
-                    items={STATUS_FILTER_ITEMS}
-                    value={divisionStatusFilter}
-                    onValueChange={(value) => {
-                      if (value !== null) {
-                        setDivisionStatusFilter(value as StatusFilter);
-                      }
-                    }}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="min-w-0 flex-1 sm:w-36 sm:flex-none"
-                      aria-label="Filter status divisi"
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {(Object.keys(STATUS_FILTER_ITEMS) as StatusFilter[]).map(
-                        (value) => (
-                          <SelectItem key={value} value={value}>
-                            {STATUS_FILTER_ITEMS[value]}
-                          </SelectItem>
-                        ),
-                      )}
-                    </SelectContent>
-                  </Select>
-
-                  {divisionFiltersActive && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearDivisionFilters}
-                      aria-label="Hapus filter divisi"
-                    >
-                      <X aria-hidden="true" />
-                      <span className="hidden sm:inline">Hapus filter</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {divisions.length === 0 ? (
-                <div className="p-4">
-                  <EmptyState
-                    icon={Building2}
-                    title="Belum ada divisi"
-                    description={
-                      readOnly
-                        ? "Belum ada divisi di tim ini."
-                        : "Buat divisi pertama untuk mengelompokkan pekerja dan menyusun SPKL."
-                    }
-                    action={
-                      readOnly ? undefined : (
-                        <div className="max-md:hidden">
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={openCreateDivision}
-                            data-dialog-intent="division-new"
-                          >
-                            <FolderPlus />
-                            Buat divisi
-                          </Button>
-                        </div>
-                      )
-                    }
-                  />
-                </div>
-              ) : divisionRows.length === 0 ? (
-                <div className="p-4">
-                  <EmptyState
-                    icon={Search}
-                    title="Tidak ada divisi yang cocok"
-                    description="Ubah kata kunci atau filter status divisi."
-                    action={
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={clearDivisionFilters}
-                      >
-                        Hapus filter
-                      </Button>
-                    }
-                  />
-                </div>
-              ) : (
-                <TeamDivisionsGrid
-                  rows={divisionRows}
-                  activeDivisionTotal={activeDivisions.length}
-                  busyId={divisionBusyId}
-                  readOnly={readOnly}
-                  onAdd={(division) => openAdd(division.id)}
-                  onEdit={openEditDivision}
-                  onToggle={(division) => {
-                    if (division.active) {
-                      setDeactivateDivisionTarget(division);
-                    } else {
-                      void setDivisionActive(division, true);
-                    }
-                  }}
-                />
-              )}
-            </TabsContent>
-          </FramePanel>
-
-          <FrameFooter className="hidden flex-row items-start gap-2 print:hidden md:flex">
-            <LockKeyhole
-              className="size-3.5 shrink-0"
-              aria-hidden="true"
-            />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              Riwayat pekerja nonaktif tetap tersimpan. Divisi harus kosong untuk
-              dinonaktifkan; minimal satu divisi tetap aktif.
-            </p>
-          </FrameFooter>
-          </Frame>
-        </Tabs>
-      </div>
-
-      {!readOnly && (
-        <MobileFab
-          onClick={
-            divisions.length === 0 ||
-            tab === "divisi" ||
-            activeDivisions.length === 0
-              ? openCreateDivision
-              : openAddFromHeader
-          }
-        >
-          {divisions.length === 0 ||
-          tab === "divisi" ||
-          activeDivisions.length === 0 ? (
-            <>
-              <FolderPlus aria-hidden="true" />
-              {divisions.length === 0 ? "Buat divisi" : "Tambah divisi"}
-            </>
-          ) : (
-            <>
-              <UserPlus aria-hidden="true" />
-              Tambah pekerja
-            </>
-          )}
-        </MobileFab>
+        </div>
+      ) : (
+        <Suspense fallback={<TeamListSkeleton kind="divisi" />}>
+          <DivisionTabContent
+            divisionOptions={divisionOptions}
+            divisionCounts={divisionCounts}
+            busyId={divisionBusyId}
+            readOnly={readOnly}
+            onCreateDivision={openCreateDivision}
+            onAdd={(division) => {
+              if (readOnly) return;
+              if (divisions) openAdd(division.id);
+              else setPendingEmployeeAction({ mode: "create", divisionId: division.id });
+            }}
+            onEdit={openEditDivision}
+            onToggle={(division) => {
+              if (division.active) {
+                setDeactivateDivisionTarget(division);
+              } else {
+                void setDivisionActive(division, true);
+              }
+            }}
+          />
+        </Suspense>
       )}
+
+      <Modal
+        open={pendingEmployeeAction !== null}
+        onClose={() => setPendingEmployeeAction(null)}
+        title={pendingEmployeeAction?.mode === "edit" ? "Ubah data pekerja" : "Tambah pekerja"}
+        description="Pilihan divisi diperlukan sebelum formulir pekerja dibuka."
+        size="md"
+      >
+        {optionsReady && !divisions ? (
+          <DataLoadError message="Pilihan divisi belum dapat dimuat. Coba lagi untuk melanjutkan." />
+        ) : (
+          <div className="flex flex-col gap-2" role="status" aria-label="Memuat pilihan divisi"><p className="text-sm text-muted-foreground">Memuat pilihan divisi…</p><Skeleton className="h-8 w-full" /></div>
+        )}
+      </Modal>
 
       <Modal
         open={addOpen || Boolean(editing)}
@@ -1192,7 +854,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
                 <SelectValue placeholder="Pilih divisi" />
               </SelectTrigger>
               <SelectContent>
-                {divisions
+                {(divisions ?? [])
                   .filter(
                     (division) =>
                       division.active || division.id === form.divisionId,
@@ -1440,7 +1102,7 @@ export function TeamView({ team, total, pagination, totals, filters, printRows, 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 }
 

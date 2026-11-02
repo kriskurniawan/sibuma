@@ -15,9 +15,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_SIZES = [10, 25, 50, 100];
+
+/** Reserves the real footer layout while the page count is still unknown. */
+export function ListPaginationSkeleton() {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="order-2 flex flex-wrap items-center gap-x-2.5 gap-y-2 sm:order-1">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-7 w-16 rounded-md" />
+      </div>
+      <div className="order-1 flex flex-col items-center gap-2 sm:order-2 sm:flex-row sm:gap-3">
+        <Skeleton className="h-4 w-36" />
+        <div className="flex items-center gap-1">
+          <Skeleton className="size-7 rounded-md" />
+          <Skeleton className="size-7 rounded-md" />
+          <Skeleton className="size-7 rounded-md" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function getPageItems(page: number, pageCount: number) {
   if (pageCount <= 7) {

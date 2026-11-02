@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BellOff, Hammer, RefreshCw, StickyNote } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { IconTile } from "@/components/reui/icon-tile";
 import {
@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui";
 import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   NOTIFICATION_CHANGED_EVENT,
   type AppNotificationItem,
@@ -161,30 +162,15 @@ export function NotificationInbox({
   }
 
   return (
-    <Frame spacing="sm">
-      <FrameHeader className="gap-3">
-        <div className="flex flex-col gap-1">
-          <FrameTitle>Kotak masuk</FrameTitle>
-          <FrameDescription className="text-xs">
-            {unreadCount > 0
-              ? `${unreadCount} pemberitahuan belum dibaca`
-              : "Semua pemberitahuan sudah dibaca"}
-          </FrameDescription>
-        </div>
-        {unreadCount > 0 && (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={markingAll}
-            onClick={markAllRead}
-          >
-            {markingAll ? <Spinner /> : null}
-            Tandai semua dibaca
-          </Button>
-        )}
-      </FrameHeader>
-
+    <NotificationInboxFrame
+      description={unreadCount > 0 ? `${unreadCount} pemberitahuan belum dibaca` : "Semua pemberitahuan sudah dibaca"}
+      action={unreadCount > 0 ? (
+        <Button type="button" size="sm" variant="outline" disabled={markingAll} onClick={markAllRead}>
+          {markingAll ? <Spinner /> : null}
+          Tandai semua dibaca
+        </Button>
+      ) : undefined}
+    >
       {items.length === 0 ? (
         <FramePanel>
           <EmptyState
@@ -217,7 +203,7 @@ export function NotificationInbox({
                       className={
                         item.kind === "pekerjaan_baru"
                           ? "text-primary"
-                          : "text-warning-foreground"
+                          : "text-muted-foreground"
                       }
                       aria-hidden="true"
                     >
@@ -292,6 +278,43 @@ export function NotificationInbox({
           )}
         </FramePanel>
       )}
+    </NotificationInboxFrame>
+  );
+}
+
+export function NotificationInboxFrame({ description, action, children }: { description?: ReactNode; action?: ReactNode; children: ReactNode }) {
+  return (
+    <Frame spacing="sm">
+      <FrameHeader className="gap-3">
+        <div className="flex flex-col gap-1">
+          <FrameTitle>Kotak masuk</FrameTitle>
+          <FrameDescription className="text-xs">{description ?? <Skeleton className="h-3 w-48" />}</FrameDescription>
+        </div>
+        {action}
+      </FrameHeader>
+      {children}
     </Frame>
+  );
+}
+
+export function NotificationInboxSkeleton() {
+  return (
+    <NotificationInboxFrame action={<Button type="button" size="sm" variant="outline" disabled title="Menunggu jumlah notifikasi belum dibaca">Tandai semua dibaca</Button>}>
+      <FramePanel aria-busy="true" aria-live="polite">
+        <span className="sr-only">Memuat notifikasi…</span>
+        <div className="flex flex-col gap-1">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="flex items-start gap-3 p-2">
+              <Skeleton className="size-8 shrink-0" />
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </FramePanel>
+    </NotificationInboxFrame>
   );
 }

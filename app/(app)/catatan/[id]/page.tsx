@@ -1,4 +1,8 @@
+import { Suspense } from "react";
 import { notFound, redirect } from "next/navigation";
+import { DataLoadError } from "@/components/data-load-error";
+import { NoteDetailShell } from "@/components/catatan/note-detail-shell";
+import { NoteDetailSkeleton } from "@/components/catatan/note-detail-skeleton";
 import { CalendarPlus, History } from "lucide-react";
 import { NoteDelete } from "@/components/catatan/note-delete";
 import { NoteEdit } from "@/components/catatan/note-edit";
@@ -11,7 +15,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { BackLink, PageHeader } from "@/components/ui";
+import { PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { noteAudienceLabel, noteRecipientText } from "@/lib/note-display";
 import { getNote } from "@/lib/note-queries";
@@ -23,16 +27,29 @@ function sizeLabel(bytes: number) {
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-export default async function CatatanDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+type PageProps = { params: Promise<{ id: string }> };
+
+export default function CatatanDetailPage({ params }: PageProps) {
+  return (
+    <NoteDetailShell>
+      <Suspense fallback={<NoteDetailSkeleton />}>
+        <NoteDetailData params={params} />
+      </Suspense>
+    </NoteDetailShell>
+  );
+}
+
+async function NoteDetailData({ params }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
   const { id } = await params;
-  const note = await getNote(user, id);
+  let note;
+  try {
+    note = await getNote(user, id);
+  } catch {
+    return <DataLoadError message="Catatan gagal dimuat. Coba lagi." />;
+  }
   if (!note) notFound();
 
   const totalBytes = note.attachments.reduce(
@@ -41,9 +58,7 @@ export default async function CatatanDetailPage({
   );
 
   return (
-    <div className="flex flex-col gap-5 pb-8">
-      <BackLink href="/catatan">Kembali ke Catatan</BackLink>
-
+    <div className="flex flex-col gap-5">
       <PageHeader
         eyebrow="Catatan"
         title={<span className="break-words">{note.title}</span>}
