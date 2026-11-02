@@ -36,8 +36,8 @@ export function ChecklistSummary({ totals, failed = false }: { totals?: Checklis
         { label: "Tindak lanjut", value: value("openFollowUps"), icon: ListChecks, tone: totals && totals.openFollowUps > 0 ? "warning" : "neutral", href: "/checklist/tindak-lanjut", ariaLabel: "Buka tindak lanjut" },
       ]} />
       <div className="hidden grid-cols-2 gap-4 md:grid xl:grid-cols-4">
-        <StatCard label="Perlu dikerjakan" value={value("todo")} suffix="checklist" icon={ClipboardList} tone="primary" helper="Belum diisi atau sedang berlangsung" />
-        <StatCard label="Terlambat" value={value("overdue")} suffix="checklist" icon={Clock3} tone={totals && totals.overdue > 0 ? "destructive" : "neutral"} helper="Melewati deadline, tetap dijadwal yang sama" />
+        <StatCard label="Perlu dikerjakan" value={value("todo")} suffix="checklist" icon={ClipboardList} tone="primary" helper="Belum diisi atau berlangsung, belum terlambat" />
+        <StatCard label="Terlambat" value={value("overdue")} suffix="checklist" icon={Clock3} tone={totals && totals.overdue > 0 ? "destructive" : "neutral"} helper="Lewat tanggal jadwal, masih bisa diisi sampai deadline" />
         <StatCard label="Selesai bulan ini" value={value("completedThisMonth")} suffix="checklist" icon={CheckCircle2} tone="success" helper="Dihitung dari waktu penyelesaian" />
         <StatCard label="Tindak lanjut terbuka" value={value("openFollowUps")} suffix="temuan" icon={ListChecks} tone={totals && totals.openFollowUps > 0 ? "warning" : "neutral"} helper="Terbuka, diproses, atau tertunda" />
       </div>
@@ -111,7 +111,7 @@ export function ChecklistListSkeleton() {
           <div key={index} className="flex min-w-0 flex-col gap-2 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1"><Skeleton className="h-4 w-48 max-w-full" /><Skeleton className="h-3 w-36 max-w-full" /></div>
-              <Skeleton className="h-5 w-20 shrink-0" />
+              <div className="flex shrink-0 items-center gap-1"><Skeleton className="h-5 w-20" /><Skeleton className="h-5 w-16" /></div>
             </div>
             <div className="flex flex-wrap items-center gap-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-3 w-16" /></div>
             <div className="flex min-w-0 items-center gap-3"><Skeleton className="h-3 w-8 shrink-0" /><Skeleton className="h-1.5 min-w-0 flex-1" /><Skeleton className="size-6 shrink-0 rounded-full" /><Skeleton className="h-3 w-12 shrink-0" /><Skeleton className="size-4 shrink-0" /></div>

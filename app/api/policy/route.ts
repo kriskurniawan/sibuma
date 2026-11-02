@@ -2,6 +2,7 @@ import { can } from "@/lib/access";
 import { setActiveOvertimePeriodStartDay } from "@/lib/active-overtime-period";
 import { setActiveTimeZone } from "@/lib/active-time-zone";
 import { getCurrentUser } from "@/lib/auth";
+import { reconcileAllChecklistSchedules } from "@/lib/checklist-schedule-reconcile";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { mutateDb, pushAudit } from "@/lib/store";
@@ -27,29 +28,44 @@ export async function PATCH(request: Request) {
   const parsed = policySchema.safeParse(raw);
   if (!parsed.success) return apiError(validationMessage(parsed.error));
 
-  const policy = await mutateDb({ kind: "policy" }, (db) => {
-    const before = { ...db.policy };
-    Object.assign(db.policy, parsed.data, {
-      updatedAt: new Date().toISOString(),
-      updatedBy: user.id,
-    });
-    pushAudit(db, {
-      actorId: user.id,
-      actorName: user.name,
-      action: "kebijakan_diubah",
-      objectType: "kebijakan",
-      objectId: "policy",
-      summary: "Kebijakan absensi dan lembur diperbarui.",
-      before,
-      after: { ...db.policy },
-    });
-    return db.policy;
-  });
-  setActiveTimeZone(policy.timezone);
-  setActiveOvertimePeriodStartDay(policy.overtimePeriodStartDay);
+  const result = await mutateDb(
+    { kind: "policy" },
+    (db) => {
+      const previousTimeZone = db.policy.timezone;
+      const before = { ...db.policy };
+      Object.assign(db.policy, parsed.data, {
+        updatedAt: new Date().toISOString(),
+        updatedBy: user.id,
+      });
+      pushAudit(db, {
+        actorId: user.id,
+        actorName: user.name,
+        action: "kebijakan_diubah",
+        objectType: "kebijakan",
+        objectId: "policy",
+        summary: "Kebijakan absensi dan lembur diperbarui.",
+        before,
+        after: { ...db.policy },
+      });
+      return {
+        policy: db.policy,
+        timeZoneChanged: previousTimeZone !== db.policy.timezone,
+      };
+    },
+    {
+      // Snapshot deadline checklist memakai zona lama. Hitung ulang occurrence
+      // yang belum disentuh agar tanggal lokalnya tetap sesuai zona baru.
+      afterPersist: async (connection, saved) => {
+        if (!saved.timeZoneChanged) return;
+        await reconcileAllChecklistSchedules(connection, parsed.data.timezone);
+      },
+    },
+  );
+  setActiveTimeZone(result.policy.timezone);
+  setActiveOvertimePeriodStartDay(result.policy.overtimePeriodStartDay);
 
   return apiOk({
-    policy,
+    policy: result.policy,
     message: "Kebijakan berhasil disimpan.",
   });
 }

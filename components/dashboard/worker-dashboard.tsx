@@ -224,7 +224,7 @@ function WorkerSummaryItems({ totals, followUpTotal, unavailable = false }: {
 
 function WorkerStats({ data: { totals } }: { data: DashboardChecklists }) {
   return <>
-    <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai deadline</Badge>} />
+    <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai jadwal</Badge>} />
     <StatCard label="Terlambat" value={totals.overdue} suffix="checklist" icon={CalendarClock} tone={totals.overdue > 0 ? "destructive" : "neutral"} helper={totals.overdue > 0 ? "Selesaikan secepatnya" : "Tidak ada keterlambatan"} />
     <StatCard label="Selesai bulan ini" value={totals.completedThisMonth} suffix="checklist" icon={CheckCircle2} tone="success" helper="Sejak awal bulan" />
   </>;

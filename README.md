@@ -688,6 +688,7 @@ Hasil berikut berasal dari fase lokal/JSON sebelumnya, bukan bukti regresi runti
 - Query halaman publik hanya memilih field yang aman (nama area, deskripsi publik, prompt/kondisi item publik, waktu, status). Jangan menambahkan catatan, foto, nama petugas, atau deskripsi internal ke query tersebut.
 - Gambar QR dibuat server-side dengan paket `qrcode` (PNG 1024px); origin diambil dari header request sehingga QR mengikuti domain saat diakses.
 - Laporan checklist memakai `occurrence_date` sebagai periode dan menghitung inspection yang belum selesai. Saat menambah filter baru, pastikan klausa `WHERE` tetap ada di kedua builder (`checklistWhere` dan filter tindak lanjut).
+- Daftar pekerjaan harian diurutkan `start_date DESC, created_at DESC, id DESC`. Di layar kecil, status/divisi/pekerja dipindahkan ke Sheet lewat tombol **Filter** di samping pencarian; toolbar desktop tetap menampilkan kontrol yang sama secara inline.
 - File dokumentasi terproteksi disajikan lewat helper `documentSrc(storageKey)`.
 - Komponen `LocationPicker` memakai OpenStreetMap Nominatim; patuhi kebijakan penggunaan dan tambahkan cache/proxy untuk produksi.
 - Dev server Next.js menampilkan indikator kecil di kiri bawah; indikator ini tidak muncul pada build produksi.

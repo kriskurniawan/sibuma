@@ -1,5 +1,6 @@
 import { addDays, addMonths, addWeeks, differenceInCalendarDays, format, getISODay, parseISO } from "date-fns";
-import { formatDateHuman, formatDateTime, zonedToIso } from "./time";
+import { formatDateHuman, formatDateTime, localDate, zonedToIso } from "./time";
+import type { AppTimeZone } from "./time-zone";
 import {
   CHECKLIST_WEEKDAYS,
   CHECKLIST_WEEKDAY_LABEL,
@@ -108,10 +109,15 @@ export function scheduleDayFor(
   );
 }
 
-export function checklistOpensAt(occurrenceDate: string, startTime = "00:00") {
+export function checklistOpensAt(
+  occurrenceDate: string,
+  startTime = "00:00",
+  timeZone?: AppTimeZone,
+) {
   return zonedToIso(
     occurrenceDate.slice(0, 10),
     normalizeScheduleTime(startTime),
+    timeZone,
   );
 }
 
@@ -119,9 +125,10 @@ export function checklistDueAt(
   occurrenceDate: string,
   dueDays: number,
   endTime = "23:59",
+  timeZone?: AppTimeZone,
 ) {
   const dueDate = shiftDate(occurrenceDate, Math.max(0, Math.trunc(dueDays)));
-  return zonedToIso(dueDate, normalizeScheduleTime(endTime));
+  return zonedToIso(dueDate, normalizeScheduleTime(endTime), timeZone);
 }
 
 /**
@@ -133,6 +140,7 @@ export function checklistDueFor(
   occurrenceDate: string,
   dueDays: number,
   days: ChecklistScheduleDay[] | null | undefined,
+  timeZone?: AppTimeZone,
 ) {
   const resolved = resolvedScheduleDays(days);
   let dueDate = shiftDate(occurrenceDate, Math.max(0, Math.trunc(dueDays)));
@@ -146,7 +154,7 @@ export function checklistDueFor(
     }
     dueDate = shiftDate(dueDate, 1);
   }
-  return { dueDate, endTime, dueAt: checklistDueAt(dueDate, 0, endTime) };
+  return { dueDate, endTime, dueAt: checklistDueAt(dueDate, 0, endTime, timeZone) };
 }
 
 /**
@@ -268,16 +276,32 @@ export function checklistScheduleDaysSummary(
   return parts.join(" · ");
 }
 
-export function isChecklistOverdue(
-  input: Pick<ChecklistSchedule, "active"> & {
-    status: string;
-    dueAt: string;
-  },
+/**
+ * Keterlambatan isian: tanggal jadwal sudah lewat, atau deadline sudah lewat.
+ * Checklist tetap dapat diisi selama statusnya belum selesai/dilewati.
+ */
+export function isChecklistLate(
+  input: { status: string; occurrenceDate: string; dueAt: string },
   now = new Date(),
 ) {
+  if (input.status === "selesai" || input.status === "dilewati") return false;
   return (
-    input.status !== "selesai" &&
-    input.status !== "dilewati" &&
+    input.occurrenceDate.slice(0, 10) < localDate(now) ||
     new Date(input.dueAt).getTime() < now.getTime()
+  );
+}
+
+/** Penyelesaian dianggap terlambat bila melewati tanggal jadwal atau deadline. */
+export function isChecklistCompletedLate(input: {
+  status: string;
+  occurrenceDate: string;
+  dueAt: string;
+  completedAt: string | null;
+}) {
+  if (input.status !== "selesai" || !input.completedAt) return false;
+  const completedAt = new Date(input.completedAt);
+  return (
+    localDate(completedAt) > input.occurrenceDate.slice(0, 10) ||
+    completedAt.getTime() > new Date(input.dueAt).getTime()
   );
 }

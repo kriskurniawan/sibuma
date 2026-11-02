@@ -1,8 +1,14 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { DataLoadError } from "@/components/data-load-error";
 import { FilterPending } from "@/components/filters/filter-pending";
 import {
@@ -18,6 +24,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -27,6 +34,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { readOwnerId } from "@/lib/access";
 import type {
   ManualWorkFilterDivision,
@@ -34,7 +49,6 @@ import type {
   ManualWorkFilterWorker,
 } from "@/lib/manual-work-types";
 import type { SessionUser } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = [
   { value: "semua", label: "Semua" },
@@ -54,6 +68,10 @@ const WorkFilterNavigationContext = createContext<{
   navigate: ReturnType<typeof useFilterNavigation>["navigate"];
 } | null>(null);
 
+/** Dynamic options render inline on desktop and inside the filter sheet on
+ * smaller screens, so their labels and widths follow their placement. */
+const WorkFilterPlacementContext = createContext<"inline" | "sheet">("inline");
+
 function useWorkFilters(): Required<WorkFilters> {
   const params = useSearchParams();
   const status = params.get("status") ?? "semua";
@@ -70,77 +88,163 @@ export function ManualWorkFilters({ dynamicOptions }: { dynamicOptions: ReactNod
   const filters = useWorkFilters();
   const { isPending, navigate } = useFilterNavigation({ status: "semua" });
   const [currentStatus, setCurrentStatus] = useOptimisticFilterValue(filters.status, isPending);
+  const [open, setOpen] = useState(false);
   const searchState = useDebouncedFilterValue(filters.search, (next) => navigate({ search: next }));
   const filtered = currentStatus !== "semua" || searchState.text.length > 0 ||
     Boolean(filters.divisionId) || Boolean(filters.employeeId);
+  const advancedCount =
+    (currentStatus !== "semua" ? 1 : 0) +
+    (filters.divisionId ? 1 : 0) +
+    (filters.employeeId ? 1 : 0);
+
+  function resetFilters() {
+    searchState.cancelPending();
+    searchState.reset();
+    setCurrentStatus("semua");
+    navigate({ status: null, search: null, divisionId: null, employeeId: null });
+  }
+
+  function statusSelect(fullWidth = false) {
+    return (
+      <Select
+        value={currentStatus}
+        onValueChange={(value) => {
+          if (value === null) return;
+          setCurrentStatus(String(value));
+          navigate({ status: String(value) });
+        }}
+        items={STATUS_OPTIONS}
+      >
+        <SelectTrigger
+          className={fullWidth ? "w-full" : "w-full xl:w-36"}
+          aria-label="Filter status"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+  }
 
   return (
     <WorkFilterNavigationContext.Provider value={{ isPending, navigate }}>
       <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-      <div className="min-w-0 xl:flex-1">
-        <InputGroup>
-          <InputGroupAddon><Search aria-hidden="true" /></InputGroupAddon>
-          <InputGroupInput
-            type="search"
-            inputMode="search"
-            enterKeyHint="search"
-            value={searchState.text}
-            onChange={(event) => searchState.change(event.target.value)}
-            onFocus={searchState.onFocus}
-            onBlur={searchState.onBlur}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                searchState.commitNow(event.currentTarget.value);
-              }
-            }}
-            placeholder="Cari nama pekerjaan atau lokasi…"
-            aria-label="Cari pekerjaan harian"
-          />
-          {searchState.text && (
-            <InputGroupAddon align="inline-end">
-              <InputGroupButton type="button" size="icon-xs" aria-label="Hapus pencarian" onClick={() => searchState.commitNow("")}>
-                <X aria-hidden="true" />
-              </InputGroupButton>
-            </InputGroupAddon>
-          )}
-        </InputGroup>
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-        <Select
-          value={currentStatus}
-          onValueChange={(value) => {
-            if (value === null) return;
-            setCurrentStatus(String(value));
-            navigate({ status: String(value) });
-          }}
-          items={STATUS_OPTIONS}
-        >
-          <SelectTrigger className="w-full sm:w-36" aria-label="Filter status"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {STATUS_OPTIONS.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        {dynamicOptions}
-        {filtered && (
+        <div className="flex min-w-0 items-center gap-2 xl:flex-1">
+          <InputGroup className="min-w-0 flex-1">
+            <InputGroupAddon><Search aria-hidden="true" /></InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              value={searchState.text}
+              onChange={(event) => searchState.change(event.target.value)}
+              onFocus={searchState.onFocus}
+              onBlur={searchState.onBlur}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  searchState.commitNow(event.currentTarget.value);
+                }
+              }}
+              placeholder="Cari nama pekerjaan atau lokasi…"
+              aria-label="Cari pekerjaan harian"
+            />
+            {searchState.text && (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton type="button" size="icon-xs" aria-label="Hapus pencarian" onClick={() => searchState.commitNow("")}>
+                  <X aria-hidden="true" />
+                </InputGroupButton>
+              </InputGroupAddon>
+            )}
+          </InputGroup>
           <Button
             type="button"
-            size="sm"
-            variant="ghost"
-            className="col-span-2 shrink-0 sm:col-span-1"
-            onClick={() => {
-              searchState.cancelPending();
-              searchState.reset();
-              setCurrentStatus("semua");
-              navigate({ status: null, search: null, divisionId: null, employeeId: null });
-            }}
+            variant="outline"
+            className="shrink-0 xl:hidden"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={advancedCount > 0
+              ? `Buka filter pekerjaan, ${advancedCount} filter aktif`
+              : "Buka filter pekerjaan"}
+            onClick={() => setOpen(true)}
           >
-            <X aria-hidden="true" />Reset
+            <SlidersHorizontal aria-hidden="true" />
+            Filter
+            {advancedCount > 0 && (
+              <span className="rounded-full bg-primary px-1.5 text-xs font-medium tabular-nums text-primary-foreground">
+                {advancedCount}
+              </span>
+            )}
           </Button>
-        )}
-        <FilterPending pending={isPending} className="col-span-2 sm:col-span-1" />
+        </div>
+
+        <div className="hidden flex-wrap items-center gap-2 xl:flex">
+          {statusSelect()}
+          <WorkFilterPlacementContext.Provider value="inline">
+            {dynamicOptions}
+          </WorkFilterPlacementContext.Provider>
+          {filtered && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={resetFilters}
+            >
+              <X aria-hidden="true" />Reset
+            </Button>
+          )}
+          <FilterPending pending={isPending} />
+        </div>
+
+        <div className="xl:hidden">
+          <FilterPending pending={isPending} />
+        </div>
       </div>
-      </div>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="bottom" className="max-h-[85dvh] gap-0">
+          <SheetHeader className="border-b border-border/70">
+            <SheetTitle>Filter pekerjaan</SheetTitle>
+            <SheetDescription>
+              Pilih status, divisi, dan pekerja. Perubahan langsung diterapkan.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+            <div className="flex flex-col gap-2">
+              <Label>Status</Label>
+              {statusSelect(true)}
+            </div>
+            <WorkFilterPlacementContext.Provider value="sheet">
+              {dynamicOptions}
+            </WorkFilterPlacementContext.Provider>
+          </div>
+
+          <SheetFooter className="flex-row gap-2 border-t border-border/70 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={resetFilters}
+            >
+              Reset
+            </Button>
+            <Button
+              type="button"
+              className="flex-1"
+              onClick={() => setOpen(false)}
+            >
+              Selesai
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </WorkFilterNavigationContext.Provider>
   );
 }
@@ -162,6 +266,8 @@ export function ManualWorkDynamicFilters({
   const sessionUser = useSessionUser();
   const user = snapshot ?? sessionUser;
   const filters = useWorkFilters();
+  const placement = useContext(WorkFilterPlacementContext);
+  const sheet = placement === "sheet";
   const fallbackNavigation = useFilterNavigation();
   const { isPending, navigate } = useContext(WorkFilterNavigationContext) ?? fallbackNavigation;
   const [divisionId, setDivision] = useOptimisticFilterValue(filters.divisionId, isPending);
@@ -192,54 +298,63 @@ export function ManualWorkDynamicFilters({
   return (
     <>
       {showDivision && (
+        <div className={sheet ? "flex flex-col gap-2" : "contents"}>
+          {sheet && <Label>Divisi</Label>}
+          <Select
+            value={divisionId || "semua"}
+            disabled={loading || error}
+            items={divisionItems}
+            onValueChange={(value) => {
+              if (value === null) return;
+              setDivision(String(value));
+              setEmployee("");
+              navigate({ divisionId: value === "semua" ? null : String(value), employeeId: null });
+            }}
+          >
+            <SelectTrigger
+              className={sheet ? "w-full" : "w-full xl:w-44"}
+              aria-label="Filter divisi pekerja"
+              aria-busy={loading}
+            ><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(divisionItems).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      <div className={sheet ? "flex flex-col gap-2" : "contents"}>
+        {sheet && <Label>Siapa yang bekerja</Label>}
         <Select
-          value={divisionId || "semua"}
+          value={employeeId || "semua"}
           disabled={loading || error}
-          items={divisionItems}
+          items={workerItems}
           onValueChange={(value) => {
             if (value === null) return;
-            setDivision(String(value));
-            setEmployee("");
-            navigate({ divisionId: value === "semua" ? null : String(value), employeeId: null });
+            setEmployee(String(value));
+            navigate({ employeeId: value === "semua" ? null : String(value) });
           }}
         >
-          <SelectTrigger className="w-full sm:w-44" aria-label="Filter divisi pekerja" aria-busy={loading}><SelectValue /></SelectTrigger>
+          <SelectTrigger
+            className={sheet ? "w-full" : "w-full xl:w-52"}
+            aria-label="Siapa yang bekerja"
+            aria-busy={loading}
+          ><SelectValue /></SelectTrigger>
           <SelectContent>
-            {Object.entries(divisionItems).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+            <SelectItem value="semua">Semua pekerja</SelectItem>
+            {employeeId && !visibleWorkers.some((worker) => worker.id === employeeId) && (
+              <SelectItem value={employeeId}>Pekerja dipilih</SelectItem>
+            )}
+            {workerGroups.map(([id, group]) => (
+              <SelectGroup key={id}>
+                <SelectLabel>{group.name}</SelectLabel>
+                {group.workers.map((worker) => <SelectItem key={worker.id} value={worker.id}>{worker.name}</SelectItem>)}
+              </SelectGroup>
+            ))}
           </SelectContent>
         </Select>
-      )}
-      <Select
-        value={employeeId || "semua"}
-        disabled={loading || error}
-        items={workerItems}
-        onValueChange={(value) => {
-          if (value === null) return;
-          setEmployee(String(value));
-          navigate({ employeeId: value === "semua" ? null : String(value) });
-        }}
-      >
-        <SelectTrigger
-          className={cn("w-full sm:w-52", showDivision ? "col-span-2 sm:col-span-1" : "col-span-1")}
-          aria-label="Siapa yang bekerja"
-          aria-busy={loading}
-        ><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="semua">Semua pekerja</SelectItem>
-          {employeeId && !visibleWorkers.some((worker) => worker.id === employeeId) && (
-            <SelectItem value={employeeId}>Pekerja dipilih</SelectItem>
-          )}
-          {workerGroups.map(([id, group]) => (
-            <SelectGroup key={id}>
-              <SelectLabel>{group.name}</SelectLabel>
-              {group.workers.map((worker) => <SelectItem key={worker.id} value={worker.id}>{worker.name}</SelectItem>)}
-            </SelectGroup>
-          ))}
-        </SelectContent>
-      </Select>
-      <FilterPending pending={isPending} className="col-span-2 sm:col-span-1" />
+      </div>
       {loading && <span className="sr-only" role="status">Memuat pilihan filter…</span>}
-      {error && <div className="col-span-2 sm:col-span-1"><DataLoadError message="Pilihan filter gagal dimuat." /></div>}
+      {error && <div className="w-full"><DataLoadError message="Pilihan filter gagal dimuat." /></div>}
     </>
   );
 }

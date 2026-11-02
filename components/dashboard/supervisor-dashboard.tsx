@@ -121,7 +121,7 @@ function SupervisorSummary({ data: { totals } }: { data: DashboardChecklists }) 
 function SupervisorStats({ data: { totals }, overview }: { data: DashboardChecklists; overview: DashboardRequest<SupervisorOverview> }) {
   return (
     <>
-      <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai deadline</Badge>} />
+      <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai jadwal</Badge>} />
       <StatCard label="Terlambat" value={totals.overdue} suffix="checklist" icon={AlertTriangle} tone={totals.overdue > 0 ? "destructive" : "neutral"} helper={totals.overdue > 0 ? "Perlu diselesaikan segera" : "Tidak ada keterlambatan"} />
       <StatCard label="Tindak lanjut" value={totals.openFollowUps} suffix="temuan" icon={Wrench} tone={totals.openFollowUps > 0 ? "warning" : "neutral"} helper={totals.openFollowUps > 0 ? "Temuan dari checklist tim" : "Tidak ada temuan terbuka"} />
       <StatCard label="Selesai bulan ini" value={totals.completedThisMonth} suffix="checklist" icon={CheckCircle2} tone="success" helper={

@@ -7,7 +7,8 @@ import {
   resolvedScheduleDays,
   scheduleDayFor,
 } from "./checklist-schedule";
-import { todayLocal } from "./time";
+import { getActiveTimeZone, todayLocal } from "./time";
+import type { AppTimeZone } from "./time-zone";
 import type { ChecklistScheduleDay } from "./checklist-types";
 
 interface DayRow {
@@ -35,11 +36,16 @@ function chunked<T>(items: T[], size = CHUNK) {
  * Deadline juga dihitung ulang untuk occurrence lama yang masih `belum_dimulai`
  * tanpa `started_at`, karena aturan "hari libur dilewati" perlu berlaku pada
  * checklist yang belum sempat dikerjakan.
+ *
+ * `timeZone` eksplisit dipakai saat zona kebijakan baru disimpan: transaksi
+ * policy masih memuat zona lama, sehingga perhitungan tidak boleh bergantung
+ * pada zona aktif modul.
  */
 export async function reconcileChecklistSchedule(
   connection: Connection,
   scheduleId: string,
   ownerId: string,
+  timeZone: AppTimeZone = getActiveTimeZone(),
 ) {
   const [schedule] = await query(
     `SELECT due_days FROM checklist_schedules WHERE id=$1 AND owner_id=$2`,
@@ -62,7 +68,7 @@ export async function reconcileChecklistSchedule(
     endTime: row.end_time.slice(0, 5),
   }));
   const resolved = resolvedScheduleDays(days);
-  const today = todayLocal();
+  const today = todayLocal(timeZone);
   const disabled = resolved
     .filter((day) => !day.enabled)
     .map((day) => day.weekday);
@@ -112,8 +118,8 @@ export async function reconcileChecklistSchedule(
     return [
       {
         id: row.id,
-        opensAt: checklistOpensAt(date, day.startTime),
-        dueAt: checklistDueFor(date, dueDays, resolved).dueAt,
+        opensAt: checklistOpensAt(date, day.startTime, timeZone),
+        dueAt: checklistDueFor(date, dueDays, resolved, timeZone).dueAt,
       },
     ];
   });
@@ -152,7 +158,7 @@ export async function reconcileChecklistSchedule(
     const date = row.occurrence_date.slice(0, 10);
     const day = scheduleDayFor(resolved, date);
     if (!day?.enabled) return [];
-    return [{ id: row.id, dueAt: checklistDueFor(date, dueDays, resolved).dueAt }];
+    return [{ id: row.id, dueAt: checklistDueFor(date, dueDays, resolved, timeZone).dueAt }];
   });
 
   for (const chunk of chunked(packages)) {
@@ -171,4 +177,35 @@ export async function reconcileChecklistSchedule(
     rescheduled: inspections.length,
     packages: packages.length,
   };
+}
+
+/**
+ * Menyesuaikan seluruh jadwal setelah zona waktu kebijakan berubah. Snapshot
+ * `opens_at`/`due_at` lama dihitung dengan zona sebelumnya, sehingga tanggal
+ * kalender lokalnya bisa bergeser satu hari bila tidak dihitung ulang.
+ */
+export async function reconcileAllChecklistSchedules(
+  connection: Connection,
+  timeZone: AppTimeZone,
+) {
+  const schedules = await query<{ id: string; owner_id: string }>(
+    `SELECT id,owner_id FROM checklist_schedules ORDER BY owner_id,id`,
+    [],
+    connection,
+  );
+
+  const totals = { schedules: 0, removed: 0, rescheduled: 0, packages: 0 };
+  for (const schedule of schedules) {
+    const result = await reconcileChecklistSchedule(
+      connection,
+      schedule.id,
+      schedule.owner_id,
+      timeZone,
+    );
+    totals.schedules += 1;
+    totals.removed += result.removed;
+    totals.rescheduled += result.rescheduled;
+    totals.packages += result.packages;
+  }
+  return totals;
 }

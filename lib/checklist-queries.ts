@@ -17,6 +17,7 @@ import {
 } from "./checklist-location-scope";
 import {
   checklistHasOpened,
+  isChecklistLate,
   scheduleOccurrences,
   shiftDate,
 } from "./checklist-schedule";
@@ -132,12 +133,19 @@ export interface ChecklistFilters {
   locationId?: string;
   /** Default true: area yang dipilih mencakup seluruh sub-lokasinya. */
   includeSubLocations?: boolean;
+  /** Status aktif biasanya mengecualikan yang terlambat; dashboard perlu keduanya. */
+  includeLate?: boolean;
   search?: string;
   from?: string;
   to?: string;
 }
 
 const INSPECTION_STATUSES = ["belum_dimulai", "berlangsung", "selesai", "dilewati"];
+
+/** Terlambat isian: tanggal jadwal atau deadline sudah lewat. */
+function lateInspectionSql(alias = "i") {
+  return `(${alias}.occurrence_date<(now() AT TIME ZONE ${sqlTimeZone()})::date OR ${alias}.due_at<now())`;
+}
 
 export async function getChecklistDashboard(
   user: SessionUser,
@@ -154,8 +162,9 @@ export async function getChecklistDashboard(
   const status = filters.status ?? "aktif";
   if (status === "aktif") {
     where += ` AND i.status IN ('belum_dimulai','berlangsung')`;
+    if (!filters.includeLate) where += ` AND NOT ${lateInspectionSql()}`;
   } else if (status === "terlambat") {
-    where += ` AND i.status IN ('belum_dimulai','berlangsung') AND i.due_at<now()`;
+    where += ` AND i.status IN ('belum_dimulai','berlangsung') AND ${lateInspectionSql()}`;
   } else if (INSPECTION_STATUSES.includes(status)) {
     values.push(status);
     where += ` AND i.status=$${values.length}`;
@@ -220,7 +229,7 @@ export async function getChecklistDashboard(
       : values,
   );
 
-  const now = Date.now();
+  const now = new Date();
   const items: ChecklistInspectionRow[] = rows.map((row) => {
     const inspection = mapRow<ChecklistInspection>(row);
     return {
@@ -229,9 +238,7 @@ export async function getChecklistDashboard(
       answeredCount: Number(row.answered_count),
       totalItems: Number(row.total_items),
       openFollowUps: Number(row.open_follow_ups),
-      overdue:
-        !["selesai", "dilewati"].includes(inspection.status) &&
-        new Date(inspection.dueAt).getTime() < now,
+      overdue: isChecklistLate(inspection, now),
       locationPath: locationPaths.get(inspection.locationId),
     };
   });
@@ -244,8 +251,8 @@ export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTo
   const [userId, manager, all] = roleParams(user);
   const [row] = await query(
     `SELECT
-       count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung'))::integer todo,
-       count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND i.due_at<now())::integer overdue,
+       count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND NOT ${lateInspectionSql()})::integer todo,
+       count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND ${lateInspectionSql()})::integer overdue,
        count(*) FILTER (WHERE i.status='selesai' AND i.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer completed_this_month,
        (SELECT count(*)::integer FROM checklist_follow_ups f JOIN checklist_inspections i2 ON i2.id=f.inspection_id
         WHERE f.status NOT IN ('selesai','dibatalkan') AND ${inspectionAccess("i2")}) open_follow_ups
@@ -445,7 +452,7 @@ export async function getChecklistInspectionDetail(
     package: packageInfo,
     overdue:
       open &&
-      new Date(inspection.dueAt).getTime() < Date.now(),
+      isChecklistLate(inspection),
     assignees: assignees as ChecklistPerson[],
     answers: mappedAnswers.map((answer) => ({
       answer,

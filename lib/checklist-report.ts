@@ -2,6 +2,10 @@ import "server-only";
 
 import { query } from "./db";
 import { rowToCamel } from "./db-model";
+import {
+  isChecklistCompletedLate,
+  isChecklistLate,
+} from "./checklist-schedule";
 import { getChecklistLocationPathMap, getChecklistLocationScopeIds, listChecklistLocationOptions } from "./checklist-location-scope";
 import { clampPage, type PageRequest } from "./pagination";
 import { sqlTimeZone } from "./sql-time-zone";
@@ -59,7 +63,7 @@ async function checklistWhere(userId: string | null, filters: ChecklistReportFil
   if (filters.status === "aktif") {
     where += ` AND i.status IN ${OPEN_STATUSES}`;
   } else if (filters.status === "terlambat") {
-    where += ` AND i.status IN ${OPEN_STATUSES} AND i.due_at<now()`;
+    where += ` AND i.status IN ${OPEN_STATUSES} AND (i.occurrence_date<(now() AT TIME ZONE ${sqlTimeZone()})::date OR i.due_at<now())`;
   } else if (
     filters.status &&
     ["belum_dimulai", "berlangsung", "selesai", "dilewati"].includes(
@@ -179,10 +183,13 @@ export async function getChecklistReportData(
     }>(
       `SELECT count(*)::integer total,
          count(*) FILTER (WHERE i.status='selesai')::integer completed,
-         count(*) FILTER (WHERE i.status='selesai' AND i.completed_at<=i.due_at)::integer on_time,
-         count(*) FILTER (WHERE i.status='selesai' AND i.completed_at>i.due_at)::integer late,
+         count(*) FILTER (WHERE i.status='selesai'
+           AND i.completed_at<=i.due_at
+           AND (i.completed_at AT TIME ZONE ${sqlTimeZone()})::date<=i.occurrence_date)::integer on_time,
+         count(*) FILTER (WHERE i.status='selesai'
+           AND (i.completed_at>i.due_at OR (i.completed_at AT TIME ZONE ${sqlTimeZone()})::date>i.occurrence_date))::integer late,
          count(*) FILTER (WHERE i.status IN ${OPEN_STATUSES})::integer pending,
-         count(*) FILTER (WHERE i.status IN ${OPEN_STATUSES} AND i.due_at<now())::integer overdue
+         count(*) FILTER (WHERE i.status IN ${OPEN_STATUSES} AND (i.occurrence_date<(now() AT TIME ZONE ${sqlTimeZone()})::date OR i.due_at<now()))::integer overdue
        FROM checklist_inspections i ${where}`,
       values,
     ),
@@ -200,14 +207,11 @@ export async function getChecklistReportData(
     ),
   ]);
 
-  const now = Date.now();
+  const now = new Date();
   const rows: ChecklistReportRow[] = (
     await rowsPromise
   ).map((row) => {
     const inspection = mapRow<ChecklistInspection>(row);
-    const completedAt = inspection.completedAt
-      ? new Date(inspection.completedAt).getTime()
-      : null;
     return {
       inspection,
       assignees: (row.assignees as ChecklistPerson[]) ?? [],
@@ -215,12 +219,8 @@ export async function getChecklistReportData(
       totalItems: Number(row.total_items),
       issueCount: Number(row.issue_count),
       openFollowUps: Number(row.open_follow_ups),
-      late: Boolean(
-        completedAt && completedAt > new Date(inspection.dueAt).getTime(),
-      ),
-      overdue:
-        !["selesai", "dilewati"].includes(inspection.status) &&
-        new Date(inspection.dueAt).getTime() < now,
+      late: isChecklistCompletedLate(inspection),
+      overdue: isChecklistLate(inspection, now),
       locationPath: locationPaths.get(inspection.locationId),
     };
   });

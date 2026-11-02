@@ -34,7 +34,7 @@ export default async function HomePage() {
 
   // One request per query: regions reuse these promises, including queries that
   // generate scheduled checklists or finalize overtime while reading.
-  const checklists = dashboardQuery(() => getChecklistDashboard(user, { status: "aktif" }, CHECKLIST_PREVIEW));
+  const checklists = dashboardQuery(() => getChecklistDashboard(user, { status: "aktif", includeLate: true }, CHECKLIST_PREVIEW));
   const followUps = dashboardQuery(() => getChecklistFollowUps(
     user,
     user.role === "atasan" ? { status: "aktif" } : { status: "aktif", mine: true },

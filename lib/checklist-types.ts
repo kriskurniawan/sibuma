@@ -347,6 +347,7 @@ export interface ChecklistInspectionRow {
   answeredCount: number;
   totalItems: number;
   openFollowUps: number;
+  /** Tanggal jadwal atau deadline sudah lewat; checklist masih dapat diisi. */
   overdue: boolean;
   /** Label hierarki lokasi saat ini; fallback ke snapshot locationName. */
   locationPath?: string;
@@ -378,6 +379,7 @@ export interface ChecklistInspectionPackage {
 export interface ChecklistInspectionDetail {
   inspection: ChecklistInspection;
   package: ChecklistInspectionPackage | null;
+  /** Tanggal jadwal atau deadline sudah lewat; checklist masih dapat diisi. */
   overdue: boolean;
   assignees: ChecklistPerson[];
   answers: Array<{ answer: ChecklistAnswer; photos: ChecklistPhoto[] }>;
@@ -601,7 +603,9 @@ export interface ChecklistReportRow {
   totalItems: number;
   issueCount: number;
   openFollowUps: number;
+  /** Selesai setelah tanggal jadwal atau deadline. */
   late: boolean;
+  /** Tanggal jadwal atau deadline sudah lewat dan belum selesai. */
   overdue: boolean;
   locationPath?: string;
 }

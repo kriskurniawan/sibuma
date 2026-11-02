@@ -148,12 +148,9 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
     header: "Deadline",
     meta: { headerClassName: "whitespace-nowrap" },
     cell: ({ row }) => (
-      <div className="flex flex-col gap-1">
-        <span className="whitespace-nowrap text-xs font-medium text-muted-foreground tabular-nums">
-          {formatDateTime(row.original.inspection.dueAt, "d MMM, HH:mm")}
-        </span>
-        {row.original.overdue && <ChecklistOverdueBadge />}
-      </div>
+      <span className="whitespace-nowrap text-xs font-medium text-muted-foreground tabular-nums">
+        {formatDateTime(row.original.inspection.dueAt, "d MMM, HH:mm")}
+      </span>
     ),
   },
   {
@@ -191,7 +188,12 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
     accessorFn: (row) => row.inspection.status,
     header: "Status",
     meta: { headerClassName: "whitespace-nowrap" },
-    cell: ({ row }) => <ChecklistStatusBadge status={row.original.inspection.status} />,
+    cell: ({ row }) => (
+      <div className="flex flex-wrap items-center gap-1">
+        <ChecklistStatusBadge status={row.original.inspection.status} />
+        {row.original.overdue && <ChecklistOverdueBadge />}
+      </div>
+    ),
   },
   {
     id: "findings",
@@ -275,7 +277,10 @@ export function ChecklistGrid({
             >
               <div className="flex items-center justify-between gap-3">
                 <Skeleton className="h-4 w-40" />
-                <Skeleton className="h-5 w-20" />
+                <div className="flex shrink-0 items-center gap-1">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
               </div>
               <Skeleton className="h-3 w-52" />
               <Skeleton className="h-1.5 w-full" />
@@ -312,7 +317,10 @@ export function ChecklistGrid({
                       </span>
                     </span>
                   </div>
-                  <ChecklistStatusBadge status={row.inspection.status} />
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                    <ChecklistStatusBadge status={row.inspection.status} />
+                    {row.overdue && <ChecklistOverdueBadge />}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -321,7 +329,6 @@ export function ChecklistGrid({
                     <span className="sr-only">Deadline </span>
                     {formatDateTime(row.inspection.dueAt, "d MMM, HH:mm")}
                   </span>
-                  {row.overdue && <ChecklistOverdueBadge />}
                   {row.openFollowUps > 0 && (
                     <span className="font-medium text-foreground tabular-nums">
                       {row.openFollowUps} temuan

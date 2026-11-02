@@ -309,7 +309,7 @@ export function ManualWorkListDescription({
 }) {
   return filters.status === "semua"
     ? totals.active > 0
-      ? `${total} pekerjaan, ${totals.active} aktif di atas.`
+      ? `${total} pekerjaan, ${totals.active} aktif.`
       : `${total} pekerjaan.`
     : `${total} pekerjaan sesuai filter.`;
 }
