@@ -12,6 +12,7 @@ import {
 import {
   ArrowLeft,
   BarChart3,
+  Bell,
   CalendarClock,
   CalendarDays,
   ChevronsUpDown,
@@ -41,6 +42,7 @@ import { toast } from "sonner";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { EmailChangeNotice } from "@/components/email-change-notice";
 import { LogoMark } from "@/components/logo";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import { Avatar, Badge } from "@/components/ui";
 import { Button } from "@/components/ui/button";
@@ -76,6 +78,10 @@ import { avatarUrl } from "@/lib/avatar-url";
 import { ROLE_LABEL } from "@/lib/constants";
 import { isReadOnly } from "@/lib/access";
 import { isCompanyEmail } from "@/lib/email";
+import {
+  detachPushSubscription,
+  syncPushSubscription,
+} from "@/lib/push-client";
 import { currentTimeZoneLabel, formatDateHuman } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -130,7 +136,7 @@ function navigationFor(
           href: "/menu",
           label: "Menu",
           icon: LayoutGrid,
-          match: ["/pengaturan", "/catatan"],
+          match: ["/pengaturan", "/catatan", "/notifikasi"],
         },
       ],
     };
@@ -174,7 +180,7 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan", "/catatan"]
+            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan", "/catatan", "/notifikasi"]
             : [
                 "/tim",
                 "/checklist/template",
@@ -184,6 +190,7 @@ function navigationFor(
                 "/audit",
                 "/laporan",
                 "/catatan",
+                "/notifikasi",
               ],
         },
       ],
@@ -294,6 +301,7 @@ function currentSectionLabel(
   nav: ReturnType<typeof navigationFor>,
 ) {
   if (pathname === "/menu") return "Menu";
+  if (pathname === "/notifikasi") return "Notifikasi";
   if (pathname === "/profil") return "Profil saya";
   if (pathname === "/pekerjaan/baru") return "Pekerjaan baru";
   if (/^\/pekerjaan\/[^/]+\/ubah$/.test(pathname)) return "Ubah pekerjaan";
@@ -444,10 +452,12 @@ function NavRows({
 export function AppShell({
   user,
   workActiveCount,
+  notificationUnreadCount,
   children,
 }: {
   user: SessionUser;
   workActiveCount: number;
+  notificationUnreadCount: number;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -471,6 +481,12 @@ export function AppShell({
   useEffect(() => {
     setWorkCount(workActiveCount);
   }, [workActiveCount]);
+
+  // Jika akun berganti tanpa logout, langganan perangkat yang sama harus
+  // mengikuti akun aktif agar push akun lama tidak masuk ke perangkat ini.
+  useEffect(() => {
+    void syncPushSubscription();
+  }, [user.id]);
 
   useEffect(() => {
     if (readOnly || user.role === "super_admin") return;
@@ -506,6 +522,7 @@ export function AppShell({
   async function logout() {
     setLoggingOut(true);
     try {
+      await detachPushSubscription();
       await fetch("/api/auth/logout", { method: "POST" });
       toast.success("Sampai jumpa!");
       router.push("/login");
@@ -633,6 +650,10 @@ export function AppShell({
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
+                    <DropdownMenuItem render={<Link href="/notifikasi" />}>
+                      <Bell aria-hidden="true" />
+                      Notifikasi
+                    </DropdownMenuItem>
                     <DropdownMenuItem render={<Link href="/profil" />}>
                       <UserRound aria-hidden="true" />
                       Profil saya
@@ -730,6 +751,7 @@ export function AppShell({
           </div>
 
           <div className="ml-auto flex items-center gap-1">
+            <NotificationBell initialUnreadCount={notificationUnreadCount} />
             <PwaInstallButton />
             <Button
               variant="ghost"

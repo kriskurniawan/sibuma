@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { insertAudit } from "@/lib/audit";
@@ -15,6 +16,8 @@ import {
 } from "@/lib/manual-work-validation";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
+import { insertWorkCreatedNotifications } from "@/lib/notification-store";
+import { dispatchPushDeliveries } from "@/lib/push-delivery";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -173,8 +176,20 @@ export async function POST(request: Request) {
           selfReported: isWorker,
         },
       });
+      await insertWorkCreatedNotifications(connection, {
+        id: workId,
+        title: input.title,
+        locationName: location.name,
+        actorId: user.id,
+        actorName: user.name,
+      });
       return workId;
     });
+    after(() =>
+      dispatchPushDeliveries().catch((error) => {
+        console.error("Gagal mengirim push notifikasi pekerjaan:", error);
+      }),
+    );
     return apiOk(
       {
         id,

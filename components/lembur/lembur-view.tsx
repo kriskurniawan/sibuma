@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { MobileFab } from "@/components/mobile-fab";
-import { SpklCard } from "@/components/spkl/spkl-card";
+import { SpklListRow } from "@/components/spkl/spkl-card";
 import {
   Frame,
   FrameDescription,
@@ -166,9 +166,13 @@ export function LemburView({
         </FrameHeader>
 
         {filtered.length > 0 ? (
-          <FramePanel className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <FramePanel className="divide-y divide-border/70 p-0">
             {filtered.map((item) => (
-              <SpklCard key={item.spkl.id} item={item} context="supervisor" />
+              <SpklListRow
+                key={item.spkl.id}
+                item={item}
+                context="supervisor"
+              />
             ))}
           </FramePanel>
         ) : (

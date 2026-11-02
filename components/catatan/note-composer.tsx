@@ -354,7 +354,7 @@ export function NoteComposer({
         open={open}
         onClose={close}
         title="Tulis catatan"
-        description="Catatan singkat untuk satu atau beberapa divisi, atau rekan kerja tertentu. Penerima dapat membacanya di halaman Catatan; tidak ada balasan atau notifikasi."
+        description="Catatan singkat untuk satu atau beberapa divisi, atau rekan kerja tertentu. Penerima mendapat pemberitahuan di aplikasi; isi catatan tidak ditampilkan di layar kunci."
         size="lg"
         dismissible={!submitting}
         mobileSheet

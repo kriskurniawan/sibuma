@@ -18,6 +18,7 @@ import {
   prepareNotePhotos,
   safeNoteFileName,
 } from "@/lib/note-upload";
+import { dispatchPushDeliveries } from "@/lib/push-delivery";
 import { putObject } from "@/lib/storage";
 import { cleanupObjects } from "@/lib/storage-cleanup";
 
@@ -252,5 +253,10 @@ export async function POST(request: Request) {
     return apiError("Catatan gagal disimpan. Coba lagi.", 500);
   }
 
+  after(() =>
+    dispatchPushDeliveries().catch((error) => {
+      console.error("Gagal mengirim push notifikasi catatan:", error);
+    }),
+  );
   return apiOk({ id: noteId }, 201);
 }

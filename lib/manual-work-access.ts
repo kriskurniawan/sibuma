@@ -46,8 +46,9 @@ export async function canAccessManualWork(
 }
 
 /**
- * Pratinjau pekerjaan tim untuk rekan satu atasan. Hak baca ini tidak memberi
- * izin mulai, selesai, atau mengunggah bukti sampai pekerja bergabung.
+ * Hak baca detail dan dokumentasi pekerjaan. Seluruh pekerja aktif boleh
+ * membaca lintas divisi, tetapi hak ini tidak memberi izin mulai, selesai,
+ * mengubah, atau mengunggah bukti sampai pekerja bergabung.
  */
 export async function canViewManualWork(
   connection: Connection,
@@ -55,12 +56,11 @@ export async function canViewManualWork(
   work: Pick<ManualWork, "id" | "ownerId" | "createdBy">,
 ) {
   if (await canAccessManualWork(connection, user, work)) return true;
-  if (user.role !== "pekerja" || user.accessMode !== "full") return false;
+  if (user.role !== "pekerja") return false;
   const [row] = await query(
     `SELECT 1 FROM employees
-     WHERE id=$1 AND role='pekerja' AND active AND access_mode='full'
-       AND supervisor_id=$2`,
-    [user.id, work.ownerId],
+     WHERE id=$1 AND role='pekerja' AND active`,
+    [user.id],
     connection,
   );
   return Boolean(row);

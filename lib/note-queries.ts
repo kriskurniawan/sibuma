@@ -5,6 +5,7 @@ import { isReadOnly } from "./access";
 import { insertAudit } from "./audit";
 import { NOTE_MAX_PHOTOS, NOTE_MAX_TOTAL_BYTES } from "./constants";
 import { query, transaction } from "./db";
+import { insertNoteCreatedNotifications } from "./notification-store";
 import type {
   Note,
   NoteAttachment,
@@ -383,6 +384,25 @@ export async function insertNote(input: NewNoteRecord) {
         recipientCount: input.recipientIds.length,
         photoCount: input.attachments.length,
       },
+    });
+
+    const divisionIds =
+      input.audienceType === "employees"
+        ? []
+        : input.divisions.length > 0
+          ? input.divisions.map((division) => division.id)
+          : input.divisionId
+            ? [input.divisionId]
+            : [];
+    await insertNoteCreatedNotifications(connection, {
+      id: input.id,
+      title: input.title,
+      authorId: input.authorId,
+      authorName: input.authorName,
+      audienceType: input.audienceType,
+      recipientIds: input.recipientIds,
+      divisionIds,
+      divisionName: input.divisionName,
     });
   });
 }

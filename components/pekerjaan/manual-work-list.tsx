@@ -19,7 +19,6 @@ import {
   ManualWorkSelfReportedBadge,
   ManualWorkStatusBadge,
 } from "@/components/pekerjaan/manual-work-badges";
-import { MobileFab } from "@/components/mobile-fab";
 import { MobileSummary } from "@/components/mobile-summary";
 import {
   Frame,
@@ -29,7 +28,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { Avatar, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { Avatar, EmptyState, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import type {
   ManualWorkFilterOptions,
@@ -131,73 +130,9 @@ export function ManualWorkListRow({
   );
 }
 
-export function ManualWorkListView({
-  items,
-  total,
-  totals,
-  pagination,
-  filters,
-  filterOptions,
-  canManage,
-  canAssign,
-  readOnly,
-  photoLimit,
-}: {
-  items: ManualWorkRow[];
-  total: number;
-  totals: ManualWorkTotals;
-  pagination?: PageRequest;
-  filters: {
-    status: string;
-    search: string;
-    divisionId: string;
-    employeeId: string;
-  };
-  filterOptions: ManualWorkFilterOptions;
-  canManage: boolean;
-  canAssign: boolean;
-  readOnly: boolean;
-  photoLimit: number;
-}) {
-  const filtered =
-    filters.status !== "semua" ||
-    filters.search.length > 0 ||
-    Boolean(filters.divisionId) ||
-    Boolean(filters.employeeId);
-  const listDescription =
-    filters.status === "semua"
-      ? totals.active > 0
-        ? `${total} pekerjaan, ${totals.active} aktif di atas.`
-        : `${total} pekerjaan.`
-      : `${total} pekerjaan sesuai filter.`;
-
+export function ManualWorkSummary({ totals }: { totals: ManualWorkTotals }) {
   return (
-    <div className="flex flex-col gap-5 pb-8">
-      <PageHeader
-        mobileCompact
-        eyebrow="Pekerjaan harian"
-        title="Pekerjaan Harian"
-        description={
-          canAssign
-            ? "Pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
-            : "Pekerjaan yang kamu dan tim kerjakan. Catatan langsung aktif."
-        }
-        action={
-          canManage ? (
-            <div className="hidden md:block">
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={<Link href="/pekerjaan/baru" />}
-              >
-                <Plus aria-hidden="true" />
-                {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-              </Button>
-            </div>
-          ) : undefined
-        }
-      />
-
+    <>
       <MobileSummary
         className="md:hidden"
         items={[
@@ -267,114 +202,150 @@ export function ManualWorkListView({
           helper="Dihitung dari waktu penyelesaian"
         />
       </div>
+    </>
+  );
+}
 
-      <Frame>
-        <FrameHeader className="flex flex-row flex-wrap items-end justify-between gap-2">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <FrameTitle className="max-md:sr-only">Daftar pekerjaan</FrameTitle>
-            <FrameDescription className="hidden text-xs md:block">
-              {listDescription}
-            </FrameDescription>
-          </div>
-          <span className="text-xs text-muted-foreground tabular-nums md:hidden">
-            {total} hasil
-          </span>
-        </FrameHeader>
+export function ManualWorkListFrame({
+  items,
+  total,
+  totals,
+  pagination,
+  filters,
+  filterOptions,
+  canManage,
+  canAssign,
+  readOnly,
+  photoLimit,
+}: {
+  items: ManualWorkRow[];
+  total: number;
+  totals: ManualWorkTotals;
+  pagination?: PageRequest;
+  filters: {
+    status: string;
+    search: string;
+    divisionId: string;
+    employeeId: string;
+  };
+  filterOptions: ManualWorkFilterOptions;
+  canManage: boolean;
+  canAssign: boolean;
+  readOnly: boolean;
+  photoLimit: number;
+}) {
+  const filtered =
+    filters.status !== "semua" ||
+    filters.search.length > 0 ||
+    Boolean(filters.divisionId) ||
+    Boolean(filters.employeeId);
+  const listDescription =
+    filters.status === "semua"
+      ? totals.active > 0
+        ? `${total} pekerjaan, ${totals.active} aktif di atas.`
+        : `${total} pekerjaan.`
+      : `${total} pekerjaan sesuai filter.`;
 
-        <FramePanel>
-          <ManualWorkFilters
-            status={filters.status}
-            search={filters.search}
-            divisionId={filters.divisionId}
-            employeeId={filters.employeeId}
-            divisions={filterOptions.divisions}
-            workers={filterOptions.workers}
+  return (
+    <Frame>
+      <FrameHeader className="flex flex-row flex-wrap items-end justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <FrameTitle className="max-md:sr-only">Daftar pekerjaan</FrameTitle>
+          <FrameDescription className="hidden text-xs md:block">
+            {listDescription}
+          </FrameDescription>
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums md:hidden">
+          {total} hasil
+        </span>
+      </FrameHeader>
+
+      <FramePanel>
+        <ManualWorkFilters
+          status={filters.status}
+          search={filters.search}
+          divisionId={filters.divisionId}
+          employeeId={filters.employeeId}
+          divisions={filterOptions.divisions}
+          workers={filterOptions.workers}
+        />
+      </FramePanel>
+
+      <FramePanel className="p-0">
+        {items.length === 0 ? (
+          <EmptyState
+            icon={filtered ? Hammer : ListChecks}
+            title={
+              filtered ? "Tidak ada pekerjaan yang cocok" : "Belum ada pekerjaan"
+            }
+            description={
+              filtered
+                ? "Ubah kata kunci atau filter status, divisi, dan pekerja untuk melihat pekerjaan lain."
+                : canManage
+                  ? canAssign
+                    ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
+                    : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
+                  : readOnly
+                    ? "Belum ada pekerjaan harian."
+                    : "Pekerjaan baru akan muncul di sini."
+            }
+            action={
+              filtered ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href="/pekerjaan" />}
+                >
+                  <RefreshCw aria-hidden="true" />
+                  Reset filter
+                </Button>
+              ) : canManage ? (
+                <div className="max-md:hidden">
+                  <Button
+                    size="sm"
+                    nativeButton={false}
+                    render={<Link href="/pekerjaan/baru" />}
+                  >
+                    <Plus aria-hidden="true" />
+                    {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href="/pekerjaan" />}
+                >
+                  <RefreshCw aria-hidden="true" />
+                  Muat ulang
+                </Button>
+              )
+            }
           />
-        </FramePanel>
-
-        <FramePanel className="p-0">
-          {items.length === 0 ? (
-            <EmptyState
-              icon={filtered ? Hammer : ListChecks}
-              title={
-                filtered ? "Tidak ada pekerjaan yang cocok" : "Belum ada pekerjaan"
-              }
-              description={
-                filtered
-                  ? "Ubah kata kunci atau filter status, divisi, dan pekerja untuk melihat pekerjaan lain."
-                  : canManage
-                    ? canAssign
-                      ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
-                      : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
-                    : readOnly
-                      ? "Belum ada pekerjaan harian untuk tim ini."
-                      : "Pekerjaan dari atasanmu akan muncul di sini."
-              }
-              action={
-                filtered ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    nativeButton={false}
-                    render={<Link href="/pekerjaan" />}
-                  >
-                    <RefreshCw aria-hidden="true" />
-                    Reset filter
-                  </Button>
-                ) : canManage ? (
-                  <div className="max-md:hidden">
-                    <Button
-                      size="sm"
-                      nativeButton={false}
-                      render={<Link href="/pekerjaan/baru" />}
-                    >
-                      <Plus aria-hidden="true" />
-                      {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    nativeButton={false}
-                    render={<Link href="/pekerjaan" />}
-                  >
-                    <RefreshCw aria-hidden="true" />
-                    Muat ulang
-                  </Button>
-                )
-              }
-            />
-          ) : (
-            <div className="divide-y divide-border/70">
-              {items.map((row) => (
-                <ManualWorkListRow
-                  key={row.work.id}
-                  row={row}
-                  photoLimit={photoLimit}
-                />
-              ))}
-            </div>
-          )}
-        </FramePanel>
-
-        {pagination && total > pagination.pageSize && (
-          <FrameFooter>
-            <ManualWorkPagination
-              page={pagination.pageIndex}
-              pageSize={pagination.pageSize}
-              total={total}
-            />
-          </FrameFooter>
+        ) : (
+          <div className="divide-y divide-border/70">
+            {items.map((row) => (
+              <ManualWorkListRow
+                key={row.work.id}
+                row={row}
+                photoLimit={photoLimit}
+              />
+            ))}
+          </div>
         )}
-      </Frame>
+      </FramePanel>
 
-      {canManage && (
-        <MobileFab href="/pekerjaan/baru">
-          <Plus aria-hidden="true" />
-          {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
-        </MobileFab>
+      {pagination && total > pagination.pageSize && (
+        <FrameFooter>
+          <ManualWorkPagination
+            page={pagination.pageIndex}
+            pageSize={pagination.pageSize}
+            total={total}
+          />
+        </FrameFooter>
       )}
-    </div>
+    </Frame>
   );
 }

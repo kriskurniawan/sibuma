@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { clearPrivateBrowserCache } from "@/components/pwa-register";
+import { detachPushSubscription } from "@/lib/push-client";
 
 export function ProfileActions() {
   const router = useRouter();
@@ -15,6 +16,9 @@ export function ProfileActions() {
   async function logout() {
     setLoggingOut(true);
     try {
+      // Lepas perangkat ini dari akun sebelum sesi berakhir, supaya pengguna
+      // berikutnya di HP yang sama tidak menerima notifikasi akun lama.
+      await detachPushSubscription();
       const response = await fetch("/api/auth/logout", { method: "POST" });
       if (!response.ok) {
         setLoggingOut(false);

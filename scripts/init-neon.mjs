@@ -106,6 +106,7 @@ try {
     "031_note_divisions.sql",
     "032_note_photos.sql",
     "033_note_idempotency_cleanup.sql",
+    "034_notifications.sql",
   ]) {
     await connection.query(await readFile(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
   }

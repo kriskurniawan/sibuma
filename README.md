@@ -20,6 +20,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, 
 - Mengisi **checklist operasional** yang ditugaskan: kondisi per item (baik / perlu perhatian / tidak baik / tidak berlaku), catatan wajib saat bermasalah, alasan saat tidak berlaku, dan foto sesuai kebijakan item. Item dapat dikelompokkan di bawah heading grup (mis. **Pemeriksaan Pompa → Periksa gear**); grup hanya judul dan tidak ikut dijawab atau dihitung progres. Semua anggota penugasan boleh mengisi dan menyelesaikan checklist; setiap item disimpan dengan pemeriksaan versi agar tidak saling menimpa.
 - Membuat dan memperbarui **tindak lanjut** dari item bermasalah, termasuk menutupnya tanpa persetujuan atasan.
 - Melihat catatan koreksi dan alasan yang diberikan atasan.
+- Menerima **pemberitahuan pekerjaan baru lintas divisi** dan **catatan** yang ditujukan kepadanya. Notifikasi tersimpan di halaman **Notifikasi**; bila diaktifkan, Web Push juga mengirimkannya ke layar kunci perangkat dengan tautan langsung ke detail. Pekerja dari divisi lain dapat membaca detail dan dokumentasi pekerjaan, tetapi tidak otomatis mendapat hak mulai, selesai, ubah, atau unggah bukti.
 
 ### Dokumen kerja
 
@@ -59,6 +60,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, 
 - Validasi peran di setiap API dan halaman.
 - Audit untuk login OTP, SPKL, absensi, dokumentasi, koreksi, kebijakan, perubahan tim, checklist, dan tindak lanjut.
 - PWA **online-first**: manifest, ikon, dan service worker yang hanya menyimpan aset statis publik. Halaman berisi data akun dan respons API tidak pernah masuk Cache API; saat offline aplikasi menampilkan halaman netral tanpa data. Pembaruan versi ditawarkan lewat notifikasi dan baru aktif setelah pengguna memilih **Muat ulang**.
+- Kotak notifikasi di dalam aplikasi selalu tersedia meskipun izin perangkat ditolak. Web Push opsional menampilkan pemberitahuan di layar kunci, membuka detail saat diketuk, dan melepas langganan perangkat saat logout atau akun berganti.
 
 ---
 
@@ -71,7 +73,7 @@ Antarmuka berbahasa Indonesia, memakai zona waktu Indonesia (**WIB**, **WITA**, 
 | Peta | Leaflet + OpenStreetMap |
 | Tanggal/waktu | ReUI TimePicker + Calendar dalam Popover, date-fns + date-fns-tz (`Asia/Jakarta`) |
 | Validasi | Zod 4 |
-| Ikon & notifikasi | Lucide React, Sonner |
+| Ikon & notifikasi | Lucide React, Sonner, Web Push (`web-push`, VAPID) |
 | Penyimpanan produksi | Neon Postgres (relasional melalui `pg`) + object storage S3-compatible |
 | Pengembangan & produksi | Wajib database dan object storage; tidak ada fallback filesystem |
 
@@ -141,6 +143,8 @@ Periode akumulasi lembur diatur lewat `npm run db:migrate:overtime-period` (DDL 
 
 Hari aktif dan jam per hari pada jadwal checklist memakai `npm run db:migrate:checklist-windows` (DDL `db/migrations/028_checklist_schedule_windows.sql`). Migrasi menambah tabel `checklist_schedule_days` (tujuh baris per jadwal, `weekday` ISO 1–7, `enabled`, `start_time`, `end_time`) dan kolom `checklist_inspections.opens_at`. Jadwal lama otomatis mendapat semua hari aktif `00:00–23:59` sehingga perilakunya tidak berubah; admin dapat menonaktifkan hari libur (mis. Minggu) dan memberi jam khusus (mis. Sabtu `09:00–12:00`). Hari nonaktif tidak membuat occurrence baru, occurrence mendatang yang belum disentuh dihapus/dijadwalkan ulang saat jam diubah, dan deadline menghitung `+N hari` lalu melewati hari nonaktif. Saat jadwal disimpan, occurrence berstatus `belum_dimulai` tanpa `started_at`—termasuk tanggal lampau—dihitung ulang `opens_at`/`due_at`-nya tanpa menyentuh riwayat yang sudah dikerjakan.
 
+Notifikasi aplikasi dan Web Push memakai `npm run db:migrate:notifications` (DDL `db/migrations/034_notifications.sql`). Migrasi menambah `app_notifications` (kotak masuk per penerima), `push_subscriptions` (satu baris per perangkat), dan `push_deliveries` (antrean kirim dengan percobaan ulang serta deduplikasi), lalu menjadwalkan pekerjaan otomasi `push_deliveries`. Jalankan `npm run db:migrate:automation` lebih dulu pada instalasi lama karena migrasi ini menulis ke `automation_jobs`. Database baru lewat `db:init` sudah memuat skema ini. Setelah migrasi, buat kunci VAPID dengan `npm run push:keys` lalu isi `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, dan `VAPID_SUBJECT`. Tanpa kunci tersebut, kotak notifikasi dalam aplikasi tetap berjalan; hanya push perangkat yang nonaktif.
+
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
 ### Migrasi lokal yang sudah dilakukan
@@ -150,9 +154,9 @@ Data lokal lama dipulihkan ke Neon lalu dinormalisasi, termasuk akun/divisi/SPKL
 ### Deploy ke Vercel
 
 1. Hubungkan repositori ke Vercel dengan framework preset **Next.js**.
-2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `CRON_SECRET`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada. Zona waktu diatur dari **Pengaturan → Kebijakan**, bukan environment.
+2. Tambahkan environment variables produksi: `DATABASE_URL`, `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `NEON_STORAGE_BUCKET=<nama-bucket>`, `DOCUMENTS_S3_BUCKET=<bucket-dokumen-terpisah>`, `DOCUMENTS_S3_ENDPOINT_URL`, `DOCUMENTS_S3_REGION`, `DOCUMENTS_S3_ACCESS_KEY_ID`, `DOCUMENTS_S3_SECRET_ACCESS_KEY`, `DOCUMENTS_S3_CORS_ORIGINS=https://<domain>`, `SESSION_SECRET`, `CRON_SECRET`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_NIK`, `BOOTSTRAP_ADMIN_PHONE`, `NEXT_PUBLIC_APP_URL=https://<domain>`, dan variabel `CHATERY_*` bila sudah ada. Zona waktu diatur dari **Pengaturan → Kebijakan**, bukan environment.
 3. `vercel.json` menetapkan **Function Region Singapore (`sin1`)** agar fungsi Vercel dekat dengan Neon. Berkas itu juga memasang cron harian `0 17 * * *` sebagai jaring pengaman; pemicu per menit berasal dari scheduler eksternal (lihat [Otomasi terjadwal](#otomasi-terjadwal-cron)).
-4. Jalankan `npm run storage:init`, `npm run storage:init:documents`, dan `npm run db:migrate:automation` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
+4. Jalankan `npm run storage:init`, `npm run storage:init:documents`, `npm run db:migrate:automation`, dan `npm run db:migrate:notifications` dengan environment produksi, lalu deploy. Jika memakai Neon yang sudah terisi, jangan jalankan `db:init` lagi; hanya database baru yang memerlukan bootstrap super admin.
 5. Buka `https://<domain>/api/health`; `database` harus `neon-postgres`, `schema` harus `relational-v1`, dan `storage` harus `neon-object-storage`.
 6. Pastikan bucket `NEON_STORAGE_BUCKET` dan `DOCUMENTS_S3_BUCKET` privat dan berbeda. URL unggah dokumen ditandatangani sementara dan hanya untuk `PUT`; pratinjau/unduhan tetap melalui route aplikasi. Jangan menambahkan URL publik, presigned URL unduhan, atau kredensial storage ke klien.
 7. Unggahan dokumen dan video dikirim langsung dari browser ke bucket, sehingga tidak terkena batas body 4.5 MB Vercel Functions. Bucket dokumen wajib mengizinkan `PUT` dari origin aplikasi dengan header `content-type` (dipasang oleh `npm run storage:init:documents` bila didukung). Bucket utama juga harus mengizinkan `PUT` dari origin aplikasi untuk video bukti pekerjaan; atur CORS lewat konsol penyedia bila belum ada. Pemutaran video memakai redirect ke URL baca bertanda tangan, jadi `Range`/`206` ditangani storage, bukan fungsi Vercel.
@@ -238,6 +242,9 @@ Salin `.env.example` menjadi `.env.local`.
 | `DOCUMENTS_S3_FORCE_PATH_STYLE` | Tidak | Default `true`; isi `false` hanya untuk penyedia virtual-hosted. |
 | `DOCUMENTS_S3_CORS_ORIGINS` | Tidak | Origin yang diizinkan mengunggah langsung ke bucket, dipisah koma (mis. `https://app.example.com,http://localhost:3000`). Fallback ke `NEXT_PUBLIC_APP_URL`. |
 | `CRON_SECRET` | Otomasi | Rahasia Bearer untuk `/api/cron/automation`. Vercel Cron mengirimkannya otomatis; scheduler eksternal harus menambahkan header `Authorization: Bearer <nilai>`. Tanpa nilai ini endpoint menolak berjalan (HTTP 500). |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Push perangkat | Kunci publik VAPID dari `npm run push:keys`. Aman dikirim ke browser; dipakai saat mengaktifkan langganan push. |
+| `VAPID_PRIVATE_KEY` | Push perangkat | Kunci privat VAPID. Rahasia server, tanpa prefix `NEXT_PUBLIC_`; jangan dibagikan atau dimasukkan ke source. |
+| `VAPID_SUBJECT` | Push perangkat | Kontak pengelola push, default `mailto:admin@bmbi.my.id`. Harus berupa `mailto:` atau URL `https:`. |
 
 Untuk notifikasi SPKL, pesan selalu ditulis lebih dulu ke `notification_outbox` di transaksi yang sama dengan perubahan SPKL. Pekerjaan `notification_outbox` mengirim pesan yang jatuh tempo setiap menit dan mengulang kegagalan sementara dengan jeda bertahap (maksimum 5 percobaan). Jika tiga variabel `CHATERY_*` kosong, pesan langsung ditandai `gagal` dengan alasan konfigurasi. Jika diisi, aplikasi memanggil `POST {CHATERY_API_URL}/chats/send-text` dengan body `sessionId`, `chatId`, `message`, dan `typingTime`. Khusus OTP, WA tidak tersedia/gagal otomatis mencoba email Resend; jika dua kanal gagal maka permintaan ditolak.
 
@@ -318,6 +325,7 @@ app/
     tim/                   Pekerja & divisi
     pengaturan/            Kebijakan lembur
     audit/                 Log audit & outbox
+    notifikasi/            Kotak masuk & aktivasi Web Push
     profil/                Profil & akun
   p/[token]/               Halaman publik QR (tanpa shell, noindex)
   api/                     Route handler (auth, SPKL, absensi, checklist, dll.)
@@ -325,8 +333,12 @@ components/                UI per domain
   date-picker.tsx          Pemilih tanggal (Calendar + Popover)
   time-field.tsx           Pemilih jam (TimePicker ReUI)
   checklist/               Grid, detail, item + foto, tindak lanjut, template, jadwal, QR, halaman publik
+  notifications/           Lonceng, kotak masuk, dan pengaturan push perangkat
   reports/                 Filter dan grid laporan (lembur, checklist, tindak lanjut)
 lib/
+  notification-store.ts    Kotak masuk, penerima, langganan push
+  push-delivery.ts         Antrean & pengiriman Web Push (VAPID, retry)
+  push-client.ts           Izin, langganan, dan sinkronisasi perangkat di browser
   checklist-schedule.ts    Jadwal ber-anchor, hari & jam, label interval, clamping bulan
   checklist-schedule-reconcile.ts  Rekonsiliasi occurrence setelah hari/jam diubah
   checklist-generate.ts    Generator occurrence idempoten
@@ -357,6 +369,8 @@ scripts/
   migrate-policy-timezone.mjs  Terapkan migrasi 026 (Allowlist zona waktu kebijakan)
   migrate-overtime-period.mjs  Terapkan migrasi 027 (Tanggal mulai periode lembur)
   migrate-checklist-schedule-windows.mjs  Terapkan migrasi 028 (Hari dan jam jadwal checklist)
+  migrate-notifications.mjs  Terapkan migrasi 034 (notifikasi aplikasi dan Web Push)
+  generate-vapid-keys.mjs     Buat pasangan kunci VAPID untuk Web Push
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only
   verify-relational.mjs    Uji API/S3 dengan fixture terisolasi
   test-relational.mjs      Constraint, rollback, concurrency, pagination, WIB
@@ -373,6 +387,9 @@ Ringkasan API utama:
 | `POST /api/auth/otp/verify` | `{ identifier, challengeId, code }`: verifikasi OTP & buat sesi |
 | `POST /api/auth/logout` | Hapus sesi |
 | `PATCH /api/profile` | Ubah nama/email sendiri; nomor WhatsApp hanya super admin. Email `@bmbi.my.id` ditolak dan email harus unik |
+| `GET /api/notifikasi` | Kotak masuk 50 item per halaman (`cursor`, `limit`); `?count=1` hanya menghitung yang belum dibaca |
+| `POST /api/notifikasi/read` | Tandai satu/beberapa `ids` atau semua (`{ all: true }`) sebagai sudah dibaca |
+| `GET/POST/DELETE /api/notifikasi/push` | Baca konfigurasi VAPID dan jumlah langganan, daftarkan perangkat, atau lepas endpoint perangkat |
 | `GET/POST /api/spkl` | Daftar / buat SPKL |
 | `PATCH /api/spkl/:id` | Ubah SPKL |
 | `POST /api/spkl/:id/cancel` | Batalkan SPKL |
@@ -424,6 +441,7 @@ Ringkasan API utama:
 ### Produksi — Neon
 
 - **Tabel aktif:** `employees`, `divisions`, `spkls`, `spkl_workers`, `attendances`, `documentations`, `policies`, `otp_records`, `notification_logs`, `audit_logs`, `manual_works`, `manual_work_assignees`, `manual_work_photos`, `manual_work_events`, `work_locations`.
+- **Notifikasi:** `app_notifications`, `push_subscriptions`, dan `push_deliveries`. `app_notifications` menyimpan kotak masuk per penerima dengan `dedupe_key` unik; `push_subscriptions` menyimpan satu endpoint per perangkat dan dipindahkan ke akun aktif saat berganti akun; `push_deliveries` menyimpan status, jumlah percobaan, jadwal coba ulang, dan kunci pengiriman. Baris langganan dan pengiriman ikut terhapus lewat cascade bila akun atau notifikasi dihapus.
 - **Dokumen kerja:** `work_documents`, `work_document_folders`, `work_document_shares`, `work_document_folder_shares`, `work_document_share_targets`, `work_document_folder_share_targets`, dan `work_document_settings`. Metadata, pemilik, folder, status sampah, dan penerima berbagi disimpan eksplisit; objek disimpan di bucket dokumen terpisah dan kunci objek tidak memakai nama asli berkas. Folder hanya satu tingkat per pemilik; menghapus folder tidak menghapus berkas (`folder_id` menjadi `NULL`). Penerima disimpan sebagai `(scope, audience, target_id)` tanpa foreign key karena `target_id` polimorfik (divisi atau karyawan); API memvalidasi ID aktif saat disimpan dan query akses hanya menyertakan divisi/atasan yang masih aktif.
 - **Checklist:** `checklist_locations`, `checklist_templates`, `checklist_template_versions`, `checklist_template_items`, `checklist_schedules`, `checklist_schedule_assignees`, `checklist_inspections`, `checklist_inspection_assignees`, `checklist_answers`, `checklist_photos`, `checklist_follow_ups`, `checklist_follow_up_events`, `checklist_qr_codes`. Inspection menyimpan snapshot versi, prompt, nama grup (`group_path`), nama template, lokasi, label periode, dan visibilitas publik item sehingga perubahan template tidak mengubah hasil lama. Grup hanya heading (`item_type='grup'`); answer, progres, dan laporan hanya memakai item daun. QR menyimpan token acak permanen yang dapat dinonaktifkan; token bukan izin akses tulis.
 - Kolom eksplisit, foreign key, unique/check constraints, indeks, dan sequence nomor SPKL. JSONB hanya untuk payload audit dan metadata migrasi; tidak ada whole-state runtime.
@@ -504,15 +522,27 @@ Google Sheets/Drive tidak dipakai. Jika suatu saat diperlukan arsip tambahan, sa
 
 Alur pengiriman ada di `lib/notifications.ts` dan `lib/notification-outbox.ts`, dipakai untuk OTP serta notifikasi SPKL. Notifikasi SPKL masuk ke `notification_outbox` (`pending`, `processing`, `sent`, `failed`) dan dikirim oleh cron dengan percobaan ulang bertahap; hasil akhirnya terlihat di halaman audit (`terkirim`/`gagal`). Bila `CHATERY_*` belum diisi, pesan langsung ditandai `gagal` beserta alasannya tanpa diulang. Pengiriman nyata **belum diverifikasi** karena kredensial tidak tersedia. Format API mengikuti endpoint `POST /chats/send-text`; sesuaikan jika kontrak Chatery berbeda.
 
+### Notifikasi aplikasi dan Web Push
+
+**Sudah diimplementasikan, pengujian perangkat nyata belum dilakukan.**
+
+- Setiap pekerjaan baru membuat satu baris `app_notifications` untuk seluruh pekerja aktif lintas divisi, kecuali pembuat pekerjaan. Catatan membuat baris untuk karyawan yang dipilih, atau seluruh pekerja aktif di divisi tujuan. Baris ditulis dalam transaksi yang sama dengan data sumber, dan `dedupe_key` unik mencegah notifikasi ganda saat permintaan diulang.
+- Halaman **Notifikasi** menampilkan kotak masuk, jumlah belum dibaca, penanda dibaca, dan muat bertahap. Lonceng di header dan menu akun menuju halaman yang sama. Bila perangkat belum aktif, halaman ini hanya menampilkan tombol **Aktifkan notifikasi**; tombol tersebut hilang setelah push aktif. Kotak masuk tetap bekerja tanpa izin push, sehingga penolakan izin tidak menghilangkan pemberitahuan.
+- Push perangkat bersifat opsional. Aktivasi dilakukan lewat tombol di halaman **Notifikasi**, sedangkan sakelar on/off perangkat ada di **Profil → Notifikasi**. Service worker menampilkan notifikasi, membuka tautan detail saat diketuk, dan menyegarkan lencana/kotak masuk yang sedang terbuka. Untuk catatan, isi di layar kunci sengaja dibuat umum agar informasi sensitif tidak terbaca sebelum perangkat dibuka. Saat perangkat sudah aktif, tombol aktivasi di halaman Notifikasi hilang dan sakelar di Profil berada pada posisi aktif.
+- Antrean `push_deliveries` mencoba ulang kegagalan sementara maksimum 5 kali dengan jeda 1, 5, 15, lalu 60 menit. Langganan yang mengembalikan `404`/`410` dihapus. Pengiriman dilewati bila notifikasi sudah dibaca lebih dulu.
+- Logout melepas langganan perangkat dari akun dan menghapus baris server. Jika akun berganti tanpa logout, endpoint perangkat yang sama dipindahkan ke akun aktif dan antrean milik akun lama dihapus agar push tidak bocor ke pengguna berikutnya.
+- Push memerlukan HTTPS (kecuali localhost), izin pengguna, dan kunci VAPID. Di iPhone/iPad, notifikasi hanya tersedia setelah SIBUMA ditambahkan ke **Layar Utama** dan dibuka dari ikon tersebut. Pengiriman nyata ke layar kunci, deep link, retry, dan pergantian akun masih menunggu pengujian pada perangkat dan environment produksi.
+
 ### Otomasi terjadwal (cron)
 
 **Sudah diimplementasikan.**
 
 - Migrasi: `npm run db:migrate:automation` (DDL `db/migrations/029_automation.sql`). Gunakan `--dry-run` untuk menguji DDL lalu rollback. Database kosong yang dibuat dengan `npm run db:init` sudah memuat skema ini.
 - Endpoint `GET /api/cron/automation` diamankan dengan `Authorization: Bearer <CRON_SECRET>` dan perbandingan timing-safe. Tanpa secret yang benar endpoint membalas `401`; bila `CRON_SECRET` kosong membalas `500`. `?dryRun=1` hanya membaca status pekerjaan, tanpa menjalankan atau mengubah data. Bila salah satu pekerjaan gagal, endpoint membalas `500` beserta ringkasan agar scheduler dapat mengirim notifikasi.
-- Pekerjaan dan irama: `attendance_finalization` dan `notification_outbox` setiap 60 detik, `checklist_generation` setiap jam, `document_purge` setiap hari. Status, `next_run_at`, kunci, hasil terakhir, dan galat tersimpan di `automation_jobs`.
+- Pekerjaan dan irama: `attendance_finalization`, `notification_outbox`, dan `push_deliveries` setiap 60 detik, `checklist_generation` setiap jam, `document_purge` setiap hari. Status, `next_run_at`, kunci, hasil terakhir, dan galat tersimpan di `automation_jobs`.
 - Klaim memakai satu `UPDATE` atomik dengan syarat jatuh tempo dan kunci, sehingga pemanggilan ganda tidak menjalankan pekerjaan yang sama. Pekerjaan berjalan paralel dengan batas internal ~22 detik agar tetap di bawah timeout 30 detik cron-job.org. Pekerjaan yang terlewat dijalankan saat pemanggilan berikutnya; batch dibatasi dan setiap operasi idempoten.
 - Notifikasi SPKL tidak lagi fire-and-forget. Baris `notification_outbox` ditulis dalam transaksi yang sama dengan create/edit/cancel SPKL. Pengiriman maksimum 5 percobaan dengan jeda 1, 5, 15, lalu 60 menit; baris `processing` yang tertinggal dipulihkan setelah 3 menit. Hasil akhir dicatat di `notification_logs` untuk halaman audit.
+- `push_deliveries` memakai pola klaim yang sama untuk Web Push. Setiap notifikasi baru membuat antrean per perangkat terdaftar, lalu segera dikirim setelah respons (best-effort) dan diulang oleh scheduler bila gagal sementara. Langganan kedaluwarsa dihapus saat push service membalas `404`/`410`.
 - Finalisasi absensi dan generator checklist yang dipicu pembacaan halaman tetap ada sebagai jaring pengaman. Cron memastikan pekerjaan tetap berjalan saat tidak ada pengguna yang membuka aplikasi.
 
 **Vercel Hobby.** `vercel.json` hanya memasang satu cron harian `0 17 * * *` (00:00 WIB) sebagai jaring pengaman; paket Hobby tidak mengizinkan cron per menit dan deployment akan gagal bila ditambahkan. Pemicu utama per menit berasal dari scheduler eksternal gratis seperti cron-job.org:
@@ -522,12 +552,14 @@ Alur pengiriman ada di `lib/notifications.ts` dan `lib/notification-outbox.ts`, 
 3. Atur timeout permintaan 30 detik; endpoint menyelesaikan pekerjaan dalam ~22 detik.
 4. Aktifkan notifikasi kegagalan agar `401`, `500`, atau timeout terlihat. Setelah mengganti `CRON_SECRET`, perbarui header di scheduler dan redeploy.
 
-Scheduler eksternal bersifat upaya terbaik: latensi normal 1–2 menit, bukan jaminan SLA. Bila scheduler berhenti, cron harian Vercel tetap menjalankan pekerjaan yang tertinggal, dan fallback lazy saat halaman dibuka menutup absensi/checklist yang lewat tenggat.
+Scheduler eksternal bersifat upaya terbaik: latensi normal 1–2 menit, bukan jaminan SLA. Bila scheduler berhenti, cron harian Vercel tetap menjalankan pekerjaan yang tertinggal, dan fallback lazy saat halaman dibuka menutup absensi/checklist yang lewat tenggat. Pengiriman push pertama tetap dicoba segera setelah kejadian; retry-nya bergantung pada scheduler yang sama.
 
 ### PWA, cache, dan privasi perangkat
 
 - Aplikasi bersifat **online-first**. Tidak ada antrean unggah/isi checklist di latar belakang; perubahan yang belum tersimpan tidak dikirim otomatis saat koneksi kembali. Halaman offline hanya menjelaskan kondisi tanpa memuat data akun atau pekerjaan.
-- Service worker `public/sw.js` memakai cache statis `sibuma-static-v2` untuk halaman offline, manifest, dan ikon. Navigasi, HTML terautentikasi, respons `/api/*`, dan chunk `/_next/*` tidak di-cache. Cache lama `lembur-shell-*` dan `sibuma-static-v1` dihapus saat aktivasi.
+- Service worker `public/sw.js` memakai cache statis `sibuma-static-v3` untuk halaman offline, manifest, dan ikon. Navigasi, HTML terautentikasi, respons `/api/*`, dan chunk `/_next/*` tidak di-cache. Cache lama `lembur-shell-*` dan `sibuma-static-v1`/`v2` dihapus saat aktivasi.
+- Service worker juga menangani `push`, `notificationclick`, dan `pushsubscriptionchange`: notifikasi perangkat tampil dengan ikon SIBUMA, ketukan membuka detail terkait, dan langganan yang berubah diperbarui. Halaman yang terbuka menerima pesan untuk menyegarkan lencana dan kotak masuk.
+- Kotak notifikasi aplikasi adalah jalur utama; Web Push hanya pelengkap. Jika izin ditolak, browser tidak mendukung, atau kunci VAPID belum diatur, pemberitahuan tetap dapat dibaca di `/notifikasi`.
 - Versi baru tidak mengambil alih tab yang sedang terbuka. Pengguna menerima notifikasi **Versi baru SIBUMA tersedia** dan memilih **Muat ulang**; pekerjaan yang belum disimpan tetap berada di draf tab.
 - Draf jawaban checklist disimpan di `sessionStorage` per tab, bukan penyimpanan permanen. Draf ditampilkan sebagai **Belum disimpan** dan dibersihkan saat item disimpan, saat pengguna menekan **Batalkan draf**, serta saat logout.
 - Logout memverifikasi respons server, menghapus cache lama dan draf tab. Bila server gagal mengakhiri sesi, pengguna diberi tahu dan tidak diarahkan keluar secara palsu.
@@ -537,9 +569,10 @@ Scheduler eksternal bersifat upaya terbaik: latensi normal 1–2 menit, bukan ja
 
 
 
-- Penutupan otomatis tetap berjalan *lazy* saat ada akses sebagai jaring pengaman. Cron `/api/cron/automation` menjalankan finalisasi, generator checklist, purge dokumen, dan pengiriman outbox tanpa menunggu traffic pengguna; lihat [Otomasi terjadwal](#otomasi-terjadwal-cron).
+- Penutupan otomatis tetap berjalan *lazy* saat ada akses sebagai jaring pengaman. Cron `/api/cron/automation` menjalankan finalisasi, generator checklist, purge dokumen, pengiriman outbox, dan retry Web Push tanpa menunggu traffic pengguna; lihat [Otomasi terjadwal](#otomasi-terjadwal-cron).
 - Seluruh lingkungan memakai Neon dengan transaksi relasional lintas instance Vercel; tidak ada fallback JSON.
-- Retensi audit/OTP/notifikasi belum otomatis. Form pilihan pekerja/opsi laporan masih perlu remote search untuk tim sangat besar.
+- Retensi audit/OTP/notifikasi belum otomatis. Kotak masuk dan antrean push juga belum memiliki kebijakan hapus otomatis; tambahkan retensi sebelum volume besar. Form pilihan pekerja/opsi laporan masih perlu remote search untuk tim sangat besar.
+- Web Push bergantung pada izin pengguna, HTTPS, dan kunci VAPID. iOS hanya mendukung setelah PWA dipasang ke Layar Utama; browser lama atau mode privat dapat menolak langganan. Kotak notifikasi aplikasi tetap menjadi jalur utama.
 - Dokumentasi disajikan lewat proxy fungsi Vercel, belum lewat CDN atau presigned URL. Untuk file 1,5 MB ini masih wajar.
 - Pembatasan OTP per akun lintas email/WhatsApp; belum ada rate limit per IP, CAPTCHA, atau deteksi abuse. Tambahkan proteksi edge sebelum produksi publik.
 - Tim/laporan sudah server-paginated. Audit (dibatasi per tim atasan) dan outbox (maksimal 100 pesan) masih dipaginasi di klien. Ekspor/cetak besar perlu streaming atau job terpisah.
@@ -600,12 +633,19 @@ Scheduler eksternal bersifat upaya terbaik: latensi normal 1–2 menit, bukan ja
 
 ### Otomasi terjadwal (1 Nov 2026)
 
-- Migrasi `029_automation` diterapkan pada database aktif setelah `--dry-run` lulus: tabel `automation_jobs` (4 pekerjaan) dan `notification_outbox`. Migrasi idempoten; pemeriksaan status/constraint/index lulus.
+- Migrasi `029_automation` diterapkan pada database aktif setelah `--dry-run` lulus: tabel `automation_jobs` (4 pekerjaan saat itu) dan `notification_outbox`. Migrasi idempoten; pemeriksaan status/constraint/index lulus.
 - `npx tsc --noEmit` lulus setelah perubahan cron, outbox, dan perbandingan tanggal tindak lanjut.
-- Endpoint `/api/cron/automation`: tanpa `CRON_SECRET` membalas `500`, secret salah `401`, dan `?dryRun=1` dengan secret benar membalas `200` beserta status keempat pekerjaan.
+- Endpoint `/api/cron/automation`: tanpa `CRON_SECRET` membalas `500`, secret salah `401`, dan `?dryRun=1` dengan secret benar membalas `200` beserta status keempat pekerjaan saat itu.
 - Pemanggilan nyata pertama menjalankan `notification_outbox`, `attendance_finalization`, `checklist_generation`, dan `document_purge` dengan status `success`. Pemanggilan kedua secara langsung menghasilkan `executed=0` dan `due=false`, sehingga klaim atomik mencegah pekerjaan ganda.
 - INSERT `notification_outbox` diuji pada transaksi yang di-rollback: status awal `pending`, `attempts=0`, dan tidak ada baris uji yang tertinggal.
 - Pengiriman WhatsApp nyata, scheduler cron-job.org, dan cron harian Vercel belum diuji karena memerlukan kredensial/keputusan deploy pemilik.
+
+### Notifikasi dan Web Push (2 Nov 2026)
+
+- Implementasi mencakup kotak masuk `/notifikasi`, lonceng header, API baca/tandai, pendaftaran perangkat, dan handler push di service worker. `npm run typecheck` lulus.
+- Migrasi `034_notifications` dan konfigurasi VAPID **belum diterapkan** ke database/environment aktif. Halaman terproteksi memerlukan tabel `app_notifications`, jadi jalankan migrasi sebelum men-deploy kode ini.
+- Pengujian perangkat nyata (izin, layar kunci, deep link, retry, deduplikasi, logout, dan pergantian akun) belum dilakukan; hasilnya akan dicatat setelah environment dan perangkat tersedia.
+- Akses baca pekerjaan lintas divisi diperluas untuk detail dan foto/video dokumentasi. Pemeriksaan tulis (mulai, selesai, ubah, unggah, hapus) tetap memakai predikat ketat dan belum diuji ulang secara runtime.
 
 ### Catatan historis sebelum normalisasi
 

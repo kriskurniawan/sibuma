@@ -18,6 +18,7 @@ import {
   Smartphone,
   UsersRound,
 } from "lucide-react";
+import { PushSettings } from "@/components/notifications/push-settings";
 import { ProfileActions } from "@/components/profile/profile-actions";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { ProfileSection } from "@/components/profile/profile-section";
@@ -220,6 +221,8 @@ export default async function ProfilePage() {
           <ThemeToggle />
         </FramePanel>
       </Frame>
+
+      <PushSettings />
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="flex min-w-0 flex-col gap-6">

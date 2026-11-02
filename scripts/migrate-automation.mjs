@@ -49,11 +49,13 @@ try {
     const { rows: jobs } = await connection.query(
       "SELECT id FROM automation_jobs ORDER BY id",
     );
-    assert.deepEqual(
-      jobs.map((row) => row.id),
-      expectedJobs,
-      "Pekerjaan otomasi tidak lengkap.",
-    );
+    // Migrasi 029 hanya membuat empat pekerjaan awal. Pekerjaan baru dari
+    // migrasi berikutnya (mis. push_deliveries) tidak boleh membuat migrasi
+    // lama gagal saat dijalankan ulang pada database yang sudah diperbarui.
+    const jobIds = new Set(jobs.map((row) => row.id));
+    for (const id of expectedJobs) {
+      assert(jobIds.has(id), `Pekerjaan otomasi ${id} tidak ada.`);
+    }
 
     const { rows: outboxColumns } = await connection.query(
       `SELECT column_name FROM information_schema.columns

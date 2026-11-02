@@ -4,6 +4,7 @@ import type { QueryResultRow } from "pg";
 import { generateChecklistInspections } from "./checklist-generate";
 import { getPolicyRow, query } from "./db";
 import { dispatchNotificationOutbox } from "./notification-outbox";
+import { dispatchPushDeliveries } from "./push-delivery";
 import { finalizeScope } from "./relational-reads";
 import { purgeExpiredWorkDocuments } from "./work-document-purge";
 
@@ -113,6 +114,13 @@ const JOBS: AutomationJobDefinition[] = [
     retrySeconds: 60,
     budgetMs: 14_000,
     run: (deadlineAt) => dispatchNotificationOutbox(deadlineAt),
+  },
+  {
+    id: "push_deliveries",
+    intervalSeconds: 60,
+    retrySeconds: 60,
+    budgetMs: 14_000,
+    run: (deadlineAt) => dispatchPushDeliveries(deadlineAt),
   },
   {
     id: "attendance_finalization",

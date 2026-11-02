@@ -52,7 +52,7 @@ export function ManualWorkSummary({
           <FrameDescription>
             {totals.active > 0
               ? `${totals.active} aktif${totals.overdue > 0 ? ` · ${totals.overdue} terlambat` : ""}`
-              : "Pekerjaan harian tim"}
+              : "Pekerjaan harian"}
           </FrameDescription>
         </div>
         <Link
@@ -140,8 +140,8 @@ export function ManualWorkSummary({
                   ? "Buat pekerjaan harian dengan dokumentasi foto dan video."
                   : "Catat pekerjaan yang kamu dan tim kerjakan; catatan langsung aktif."
                 : readOnly
-                  ? "Belum ada pekerjaan aktif untuk tim ini."
-                  : "Penugasan baru akan muncul di sini."
+                  ? "Belum ada pekerjaan aktif."
+                  : "Pekerjaan baru akan muncul di sini."
             }
             action={
               canManage ? (

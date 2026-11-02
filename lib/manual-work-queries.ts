@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import type { QueryResultRow } from "pg";
 import { isObserver, isReadOnly, readOwnerId } from "./access";
 import { query } from "./db";
@@ -87,8 +88,10 @@ function roleParams(user: SessionUser) {
 }
 
 /**
- * Atasan melihat pekerjaan miliknya; pekerja melihat seluruh pekerjaan atasannya,
- * ditambah laporan yang ia buat sendiri dan pekerjaan tempat ia ditugaskan.
+ * Atasan melihat pekerjaan miliknya; pekerja aktif melihat seluruh pekerjaan
+ * lintas divisi agar notifikasi pekerjaan baru selalu dapat dibuka. Hak baca
+ * tidak memberi izin mulai, selesai, mengubah, atau mengunggah bukti; izin tulis
+ * tetap diperiksa terpisah oleh `canAccessManualWork` dan teman-temannya.
  * Pengamat hanya-lihat melihat seluruh pekerjaan perusahaan. Super admin tidak
  * memakai modul operasional ini.
  */
@@ -107,9 +110,7 @@ function workAccess(
     OR EXISTS(
       SELECT 1 FROM employees viewer
       WHERE viewer.id=${employeeParam}
-        AND viewer.role='pekerja' AND viewer.active
-        AND viewer.access_mode='full'
-        AND viewer.supervisor_id=${alias}.owner_id))`;
+        AND viewer.role='pekerja' AND viewer.active))`;
 }
 
 export const MANUAL_WORK_ROW_SELECT = `w.*,o.name owner_name,cr.name created_by_name,
@@ -156,7 +157,7 @@ export function mapManualWorkRow(row: Record<string, unknown>): ManualWorkRow {
   };
 }
 
-export async function getManualWorkTotals(
+async function loadManualWorkTotals(
   user: SessionUser,
 ): Promise<ManualWorkTotals> {
   const [userId, manager, all] = roleParams(user);
@@ -178,9 +179,13 @@ export async function getManualWorkTotals(
   };
 }
 
+/** Ringkasan dipakai beberapa section dalam satu request; cache mencegah query ganda. */
+export const getManualWorkTotals = cache(loadManualWorkTotals);
+
 /**
  * Badge navigasi: pekerjaan aktif yang relevan untuk pengguna. Pekerja melihat
- * pekerjaan aktif divisinya, atasan melihat pekerjaan miliknya sendiri.
+ * seluruh pekerjaan aktif lintas divisi (selaras dengan akses baca detail),
+ * atasan melihat pekerjaan miliknya sendiri.
  */
 export async function getManualWorkActiveCount(user: SessionUser) {
   if (user.role === "super_admin" || isObserver(user) || isReadOnly(user)) {

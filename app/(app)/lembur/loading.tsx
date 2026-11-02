@@ -6,37 +6,35 @@ import {
 import { MobileFabSkeleton } from "@/components/mobile-fab";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function SpklCardSkeleton() {
+function SpklRowSkeleton() {
   return (
-    <Frame spacing="default">
-      <FramePanel className="flex min-w-0 flex-col gap-2">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-col gap-1">
-            <Skeleton className="h-4 w-40 max-w-full" />
-            <Skeleton className="h-3 w-32 max-w-full" />
-          </div>
-          <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Skeleton className="h-3 w-24 max-w-full" />
+    <div className="flex min-w-0 flex-col gap-2 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <Skeleton className="h-4 w-40 max-w-full" />
           <Skeleton className="h-3 w-32 max-w-full" />
-          <Skeleton className="h-3 w-16" />
         </div>
+        <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+      </div>
 
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Skeleton className="size-6 shrink-0 rounded-full" />
-            <Skeleton className="h-3 w-24 max-w-full" />
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Skeleton className="h-3 w-8" />
-            <Skeleton className="h-3 w-8" />
-            <Skeleton className="size-4" />
-          </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <Skeleton className="h-3 w-24 max-w-full" />
+        <Skeleton className="h-3 w-32 max-w-full" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Skeleton className="size-6 shrink-0 rounded-full" />
+          <Skeleton className="h-3 w-24 max-w-full" />
         </div>
-      </FramePanel>
-    </Frame>
+        <div className="flex shrink-0 items-center gap-2">
+          <Skeleton className="h-3 w-8" />
+          <Skeleton className="h-3 w-8" />
+          <Skeleton className="size-4" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -82,9 +80,9 @@ export default function LemburLoading() {
           </div>
         </FrameHeader>
 
-        <FramePanel className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <FramePanel className="divide-y divide-border/70 p-0">
           {Array.from({ length: 6 }, (_, index) => (
-            <SpklCardSkeleton key={index} />
+            <SpklRowSkeleton key={index} />
           ))}
         </FramePanel>
       </Frame>

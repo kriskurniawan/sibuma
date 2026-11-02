@@ -1,13 +1,21 @@
+import { Suspense } from "react";
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ManualWorkListView } from "@/components/pekerjaan/manual-work-list";
+import { Plus } from "lucide-react";
+import { MobileFab } from "@/components/mobile-fab";
+import {
+  ManualWorkListData,
+  ManualWorkSummaryData,
+} from "@/components/pekerjaan/manual-work-data";
+import {
+  ManualWorkListSkeleton,
+  ManualWorkSummarySkeleton,
+} from "@/components/pekerjaan/manual-work-skeletons";
+import { PageHeader } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
-import {
-  getManualWorkFilterOptions,
-  getManualWorks,
-} from "@/lib/manual-work-queries";
 import { pageRequest } from "@/lib/pagination";
-import { getPhotoLimits } from "@/lib/photo-limits";
 
 export const metadata = { title: "Pekerjaan Harian" };
 
@@ -53,24 +61,58 @@ export default async function ManualWorkPage({
         : "",
   };
   const request = pageRequest(first(params.page), first(params.size));
-  const [data, filterOptions, photoLimits] = await Promise.all([
-    getManualWorks(user, filters, request),
-    getManualWorkFilterOptions(user),
-    getPhotoLimits(),
-  ]);
+  const readOnly = isReadOnly(user);
+  const canManage = !readOnly;
+  const canAssign = user.role === "atasan";
 
   return (
-    <ManualWorkListView
-      items={data.items}
-      total={data.total}
-      totals={data.totals}
-      pagination={data.pagination}
-      filters={filters}
-      filterOptions={filterOptions}
-      canManage={!isReadOnly(user)}
-      canAssign={user.role === "atasan"}
-      readOnly={isReadOnly(user)}
-      photoLimit={photoLimits.workPhotos}
-    />
+    <div className="flex flex-col gap-5 pb-8">
+      <PageHeader
+        mobileCompact
+        eyebrow="Pekerjaan harian"
+        title="Pekerjaan Harian"
+        description={
+          canAssign
+            ? "Pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
+            : "Pekerjaan lintas divisi dengan dokumentasi foto dan video. Pekerjaan yang kamu catat langsung aktif."
+        }
+        action={
+          canManage ? (
+            <div className="hidden md:block">
+              <Button
+                size="sm"
+                nativeButton={false}
+                render={<Link href="/pekerjaan/baru" />}
+              >
+                <Plus aria-hidden="true" />
+                {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+              </Button>
+            </div>
+          ) : undefined
+        }
+      />
+
+      <Suspense fallback={<ManualWorkSummarySkeleton />}>
+        <ManualWorkSummaryData user={user} />
+      </Suspense>
+
+      <Suspense fallback={<ManualWorkListSkeleton />}>
+        <ManualWorkListData
+          user={user}
+          filters={filters}
+          request={request}
+          canManage={canManage}
+          canAssign={canAssign}
+          readOnly={readOnly}
+        />
+      </Suspense>
+
+      {canManage && (
+        <MobileFab href="/pekerjaan/baru">
+          <Plus aria-hidden="true" />
+          {canAssign ? "Buat pekerjaan" : "Catat pekerjaan"}
+        </MobileFab>
+      )}
+    </div>
   );
 }
