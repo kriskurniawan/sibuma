@@ -132,15 +132,48 @@ function visibilityValues(user: SessionUser) {
   return [user.role === "super_admin", user.id] as const;
 }
 
-/** Feed terbaru dengan pagination; total dipakai untuk kontrol halaman. */
+export interface NoteFilters {
+  search?: string;
+  onlyMine?: boolean;
+  audience?: "semua" | "divisi" | "karyawan";
+}
+
+/**
+ * Feed terbaru dengan pagination; total dipakai untuk kontrol halaman.
+ * Pencarian dan filter diterapkan di database agar hanya satu halaman yang
+ * diambil, bukan seluruh catatan.
+ */
 export async function getNotesPage(
   user: SessionUser,
   request: PageRequest,
+  filters: NoteFilters = {},
 ): Promise<{ notes: Note[]; total: number; page: PageRequest }> {
   const [isSuper, employeeId] = visibilityValues(user);
+  const values: unknown[] = [isSuper, employeeId];
+  let where = VISIBILITY;
+
+  const search = filters.search?.trim();
+  if (search) {
+    values.push(search);
+    where += ` AND position(lower($${values.length}) in lower(
+      n.title || ' ' || n.body || ' ' || n.author_name || ' ' || n.division_name
+    ))>0`;
+  }
+
+  if (filters.onlyMine) {
+    // $2 adalah id karyawan yang sedang login.
+    where += ` AND n.author_id=$2`;
+  }
+
+  if (filters.audience === "divisi") {
+    where += ` AND n.audience_type IN ('division','divisions')`;
+  } else if (filters.audience === "karyawan") {
+    where += ` AND n.audience_type='employees'`;
+  }
+
   const [countRow] = await query<{ total: number | string }>(
-    `SELECT count(*)::integer total FROM notes n WHERE ${VISIBILITY}`,
-    [isSuper, employeeId],
+    `SELECT count(*)::integer total FROM notes n WHERE ${where}`,
+    values,
   );
   const total = Number(countRow?.total ?? 0);
   const page = clampPage(request, total);
@@ -148,10 +181,10 @@ export async function getNotesPage(
     `SELECT ${NOTE_SELECT}
      FROM notes n
      LEFT JOIN employees author ON author.id=n.author_id
-     WHERE ${VISIBILITY}
+     WHERE ${where}
      ORDER BY n.created_at DESC,n.id DESC
-     LIMIT $3 OFFSET $4`,
-    [isSuper, employeeId, page.pageSize, page.pageIndex * page.pageSize],
+     LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+    [...values, page.pageSize, page.pageIndex * page.pageSize],
   );
   return { notes: rows.map((row) => toNote(row, user)), total, page };
 }

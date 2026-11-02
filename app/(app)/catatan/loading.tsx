@@ -53,6 +53,15 @@ export default function CatatanLoading() {
             <Skeleton className="h-4 w-44 max-w-full" />
           </div>
         </FrameHeader>
+        <FramePanel>
+          <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+            <Skeleton className="h-8 w-full rounded-lg xl:flex-1" />
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Skeleton className="h-8 w-full rounded-lg sm:w-40" />
+              <Skeleton className="h-8 w-full rounded-lg sm:w-40" />
+            </div>
+          </div>
+        </FramePanel>
         <FramePanel className="divide-y divide-border p-0">
           {Array.from({ length: 5 }, (_, index) => (
             <NoteRowSkeleton key={index} />

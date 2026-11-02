@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowLeft,
-  Camera,
   CheckCircle2,
   ListChecks,
   MapPin,
@@ -1079,19 +1078,6 @@ export function ManualWorkForm({
               </FramePanel>
             </Frame>
           )}
-
-          <Frame spacing="sm">
-            <FramePanel className="flex flex-col gap-1.5">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                <Camera className="size-3.5 text-primary" aria-hidden="true" />
-                Dokumentasi privat
-              </p>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Foto disimpan privat dan hanya dapat diakses pemilik pekerjaan,
-                pelapor, serta pekerja yang ditugaskan.
-              </p>
-            </FramePanel>
-          </Frame>
         </aside>
       </div>
 

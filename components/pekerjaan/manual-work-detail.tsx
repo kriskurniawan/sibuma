@@ -434,10 +434,6 @@ export function ManualWorkDetailView({
               <FrameHeader className="flex-row items-start justify-between gap-3">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <FrameTitle>Dokumentasi</FrameTitle>
-                  <FrameDescription>
-                    Bukti foto dan video privat. Hanya atasan pemilik, pelapor,
-                    dan pekerja di tim yang sama dapat mengakses.
-                  </FrameDescription>
                 </div>
                 <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground tabular-nums">
                   <Camera className="size-3.5" aria-hidden="true" />
