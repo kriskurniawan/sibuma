@@ -31,7 +31,7 @@ export default function ChecklistTemplateLoading() {
     >
       <span className="sr-only">Memuat template checklist…</span>
 
-      <Skeleton className="hidden h-8 w-24 rounded-md md:block" />
+      <Skeleton className="hidden h-4 w-32 md:block" />
 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">

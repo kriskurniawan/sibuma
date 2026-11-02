@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import {
   AlertCircle,
-  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Camera,
@@ -35,6 +33,7 @@ import {
 import {
   AttendanceBadge,
   AvatarStack,
+  BackLink,
   Badge,
   DataRow,
   ProgressBar,
@@ -302,13 +301,7 @@ export function SpklDetailView({
   return (
     <div className="flex flex-col gap-5">
       <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
-        <Link
-          href={backTarget.href}
-          className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
-        >
-          <ArrowLeft className="size-3.5" />
-          {backTarget.label}
-        </Link>
+        <BackLink href={backTarget.href}>{backTarget.label}</BackLink>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <SpklStatusBadge status={status} />
           {running && (

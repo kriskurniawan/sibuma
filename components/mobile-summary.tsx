@@ -26,7 +26,7 @@ export function MobileSummary({
   className?: string;
 }) {
   return (
-    <Frame spacing="sm" className={cn("min-w-0", className)}>
+    <Frame spacing="xs" className={cn("min-w-0", className)}>
       <div
         className={cn(
           "grid gap-1",
@@ -41,7 +41,7 @@ export function MobileSummary({
             <FramePanel
               key={index}
               className={cn(
-                "flex min-w-0 flex-col gap-2",
+                "flex min-w-0 flex-col gap-1",
                 tone.surface,
                 item.href && cn("transition-colors", tone.hover),
               )}
@@ -52,7 +52,7 @@ export function MobileSummary({
                 </span>
                 {Icon && (
                   <IconTile
-                    size="sm"
+                    size="xs"
                     variant="soft"
                     className={tone.icon}
                     aria-hidden="true"
@@ -62,7 +62,7 @@ export function MobileSummary({
                 )}
               </div>
               <div className="flex min-w-0 items-end justify-between gap-1">
-                <span className="flex min-w-0 flex-wrap items-baseline gap-1 text-2xl font-semibold tracking-tight text-foreground tabular-nums">
+                <span className="flex min-w-0 flex-wrap items-baseline gap-1 text-xl font-semibold tracking-tight text-foreground tabular-nums">
                   {item.value}
                 </span>
                 {item.href && (

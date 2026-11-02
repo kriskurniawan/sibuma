@@ -12,7 +12,7 @@ export function MobileSummarySkeleton({
   columns?: 2 | 3;
 }) {
   return (
-    <Frame spacing="sm" className={cn("min-w-0", className)}>
+    <Frame spacing="xs" className={cn("min-w-0", className)}>
       <div
         className={cn(
           "grid gap-1",
@@ -20,10 +20,10 @@ export function MobileSummarySkeleton({
         )}
       >
         {Array.from({ length: items }, (_, index) => (
-          <FramePanel key={index} className="flex min-w-0 flex-col gap-2">
+          <FramePanel key={index} className="flex min-w-0 flex-col gap-1">
             <div className="flex items-start justify-between gap-2">
               <Skeleton className="h-3 w-16 max-w-full" />
-              <Skeleton className="size-8 shrink-0" />
+              <Skeleton className="size-6 shrink-0" />
             </div>
             <Skeleton className="h-7 w-12" />
           </FramePanel>

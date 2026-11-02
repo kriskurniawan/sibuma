@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
@@ -39,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   Avatar,
+  BackLink,
   Badge,
   EmptyState,
   InfoBanner,
@@ -411,17 +411,7 @@ export function ChecklistDetail({
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <div className="hidden md:block">
-        <Button
-          size="sm"
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href="/checklist" />}
-        >
-          <ArrowLeft aria-hidden="true" />
-          Checklist
-        </Button>
-      </div>
+      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
 
       <div className="hidden md:block">
         <PageHeader

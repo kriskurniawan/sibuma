@@ -36,6 +36,7 @@ import {
 } from "@/components/reui/frame";
 import {
   Avatar,
+  BackLink,
   Badge,
   DataRow,
   InfoBanner,
@@ -262,6 +263,8 @@ export function ManualWorkDetailView({
 
   return (
     <div className="flex flex-col gap-5 pb-8">
+      <BackLink href="/pekerjaan">Kembali ke Pekerjaan harian</BackLink>
+
       <div className="hidden md:block">
         <PageHeader
           eyebrow="Pekerjaan harian"

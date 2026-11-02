@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowLeft,
   CheckCircle2,
   Clock3,
   ListChecks,
@@ -15,7 +14,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { EmptyState, PageHeader, StatCard } from "@/components/ui";
+import { BackLink, EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { ChecklistFollowUpFilters } from "@/components/checklist/follow-up-filters";
 import { ChecklistFollowUpGrid } from "@/components/checklist/follow-up-grid";
@@ -45,17 +44,7 @@ export function ChecklistFollowUpView({
 
   return (
     <div className="flex flex-col gap-6 lg:gap-8">
-      <div className="hidden items-center justify-between gap-2 md:flex">
-        <Button
-          size="sm"
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href="/checklist" />}
-        >
-          <ArrowLeft aria-hidden="true" />
-          Checklist
-        </Button>
-      </div>
+      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
 
       <div className="hidden md:block">
         <PageHeader

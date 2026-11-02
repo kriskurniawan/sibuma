@@ -19,6 +19,8 @@ export default function DokumenDetailLoading() {
     >
       <span className="sr-only">Memuat detail dokumen kerja…</span>
 
+      <Skeleton className="hidden h-4 w-36 md:block" />
+
       <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Skeleton className="h-3 w-28" />

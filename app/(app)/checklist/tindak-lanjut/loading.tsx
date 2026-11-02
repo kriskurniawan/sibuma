@@ -76,7 +76,7 @@ export default function ChecklistFollowUpLoading() {
       <span className="sr-only">Memuat tindak lanjut…</span>
 
       <div className="hidden items-center justify-between gap-2 md:flex">
-        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-4 w-32" />
       </div>
 
       <div className="hidden flex-col gap-2 md:flex">

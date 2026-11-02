@@ -297,7 +297,11 @@ export async function getManualWorks(
      ${MANUAL_WORK_ROW_JOINS}
      ${where}
      ORDER BY
-       CASE WHEN w.status IN ('terbuka','dikerjakan') THEN 0 ELSE 1 END,
+       CASE w.status
+         WHEN 'terbuka' THEN 0
+         WHEN 'dikerjakan' THEN 1
+         ELSE 2
+       END,
        CASE WHEN w.status IN ('terbuka','dikerjakan') AND w.target_date < ${TODAY_SQL()} THEN 0 ELSE 1 END,
        w.target_date NULLS LAST,w.updated_at DESC,w.id
      ${pagination ? `LIMIT $${values.length + 1} OFFSET $${values.length + 2}` : ""}`,

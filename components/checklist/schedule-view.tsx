@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarClock,
   CalendarDays,
   Clock3,
@@ -24,7 +23,13 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { MobileFab } from "@/components/mobile-fab";
-import { Avatar, Badge, EmptyState, PageHeader } from "@/components/ui";
+import {
+  Avatar,
+  BackLink,
+  Badge,
+  EmptyState,
+  PageHeader,
+} from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -232,17 +237,7 @@ export function ChecklistScheduleView({ setup }: { setup: ChecklistSetup }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <div className="hidden md:block">
-        <Button
-          size="sm"
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href="/checklist" />}
-        >
-          <ArrowLeft aria-hidden="true" />
-          Checklist
-        </Button>
-      </div>
+      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
 
       <PageHeader
         mobileCompact

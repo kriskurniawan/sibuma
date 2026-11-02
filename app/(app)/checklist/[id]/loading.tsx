@@ -36,7 +36,7 @@ export default function ChecklistDetailLoading() {
     >
       <span className="sr-only">Memuat detail checklist…</span>
 
-      <Skeleton className="hidden h-8 w-24 rounded-md md:block" />
+      <Skeleton className="hidden h-4 w-32 md:block" />
 
       <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-2">

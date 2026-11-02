@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Building2,
   ChevronRight,
   ClipboardList,
@@ -22,7 +21,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { Badge, EmptyState, PageHeader } from "@/components/ui";
+import { BackLink, Badge, EmptyState, PageHeader } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -144,17 +143,7 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <div className="hidden md:block">
-        <Button
-          size="sm"
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href="/checklist" />}
-        >
-          <ArrowLeft aria-hidden="true" />
-          Checklist
-        </Button>
-      </div>
+      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
 
       <PageHeader
         mobileCompact

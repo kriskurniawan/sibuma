@@ -37,7 +37,7 @@ export default function CatatanLoading() {
     >
       <span className="sr-only">Memuat catatan…</span>
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-7 w-40" />

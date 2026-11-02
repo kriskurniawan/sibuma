@@ -45,7 +45,7 @@ export default function TimLoading() {
     >
       <span className="sr-only">Memuat data tim…</span>
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="h-7 w-32" />

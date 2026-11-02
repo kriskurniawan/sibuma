@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ClipboardList,
   FolderTree,
   History,
@@ -23,7 +21,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { Badge, PageHeader } from "@/components/ui";
+import { BackLink, Badge, PageHeader } from "@/components/ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -183,17 +181,9 @@ export function ChecklistTemplateDetailView({
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <div className="hidden md:block">
-        <Button
-          size="sm"
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href="/checklist/template" />}
-        >
-          <ArrowLeft aria-hidden="true" />
-          Template & lokasi
-        </Button>
-      </div>
+      <BackLink href="/checklist/template">
+        Kembali ke Template & lokasi
+      </BackLink>
 
       <div className="hidden md:block">
         <PageHeader

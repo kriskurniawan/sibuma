@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge, DataRow, InfoBanner, PageHeader } from "@/components/ui";
+import { BackLink, Badge, DataRow, InfoBanner, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/time";
 import {
   formatDocumentBytes,
@@ -277,6 +277,8 @@ export function DocumentDetailView({
 
   return (
     <div className="flex flex-col gap-5 pb-8">
+      <BackLink href="/dokumen">Kembali ke Dokumen kerja</BackLink>
+
       <div className="hidden md:block">
         <PageHeader
           eyebrow="Dokumen kerja"
@@ -749,15 +751,6 @@ export function DocumentDetailView({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <p className="hidden text-xs text-muted-foreground md:block">
-        <Link
-          href="/dokumen"
-          className="transition-colors hover:text-foreground"
-        >
-          Kembali ke daftar dokumen
-        </Link>
-      </p>
 
       <Dialog open={imageOpen} onOpenChange={setImageOpen}>
         <DialogContent

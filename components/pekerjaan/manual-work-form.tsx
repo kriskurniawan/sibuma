@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowLeft,
   CheckCircle2,
   ListChecks,
   MapPin,
@@ -27,6 +26,7 @@ import {
 } from "@/components/reui/frame";
 import {
   Avatar,
+  BackLink,
   Badge,
   FieldError,
   InfoBanner,
@@ -379,6 +379,10 @@ export function ManualWorkForm({
 
   const backHref =
     mode === "edit" && initial ? `/pekerjaan/${initial.id}` : "/pekerjaan";
+  const backLabel =
+    mode === "edit" && initial
+      ? "Kembali ke detail pekerjaan"
+      : "Kembali ke Pekerjaan harian";
   const followUpItems = [
     { value: "", label: "Tidak ditautkan" },
     ...followUps.map((item) => ({
@@ -393,6 +397,8 @@ export function ManualWorkForm({
       className="flex flex-col gap-5 pb-24 xl:pb-0"
       noValidate
     >
+      <BackLink href={backHref}>{backLabel}</BackLink>
+
       <PageHeader
         mobileCompact
         eyebrow="Pekerjaan harian"
@@ -409,18 +415,6 @@ export function ManualWorkForm({
           canAssign
             ? "Catat pekerjaan harian dengan dokumentasi foto dan video. Satu pekerjaan boleh berlangsung beberapa hari."
             : "Catat pekerjaan yang kamu dan tim kerjakan. Satu pekerjaan boleh berlangsung beberapa hari."
-        }
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            className="hidden md:inline-flex"
-            nativeButton={false}
-            render={<Link href={backHref} />}
-          >
-            <ArrowLeft aria-hidden="true" />
-            Kembali
-          </Button>
         }
       />
 

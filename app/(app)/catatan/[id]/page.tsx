@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, CalendarPlus, History } from "lucide-react";
+import { CalendarPlus, History } from "lucide-react";
 import { NoteDelete } from "@/components/catatan/note-delete";
 import { NoteEdit } from "@/components/catatan/note-edit";
 import { NotePhoto } from "@/components/catatan/note-photo";
@@ -12,7 +11,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@/components/reui/frame";
-import { PageHeader } from "@/components/ui";
+import { BackLink, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/lib/auth";
 import { noteAudienceLabel, noteRecipientText } from "@/lib/note-display";
 import { getNote } from "@/lib/note-queries";
@@ -43,13 +42,7 @@ export default async function CatatanDetailPage({
 
   return (
     <div className="flex flex-col gap-5 pb-8">
-      <Link
-        href="/catatan"
-        className="hidden w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
-      >
-        <ArrowLeft className="size-3.5" aria-hidden="true" />
-        Kembali ke Catatan
-      </Link>
+      <BackLink href="/catatan">Kembali ke Catatan</BackLink>
 
       <PageHeader
         eyebrow="Catatan"

@@ -64,6 +64,7 @@ export default async function SettingsPage() {
           <Button
             size="sm"
             variant="outline"
+            className="max-md:w-fit"
             nativeButton={false}
             render={<Link href="/audit" />}
           >

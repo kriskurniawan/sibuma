@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   Check,
   Copy,
   Download,
@@ -25,7 +23,13 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { Alert, AlertDescription } from "@/components/reui/alert";
-import { Badge, EmptyState, PageHeader, StatCard } from "@/components/ui";
+import {
+  BackLink,
+  Badge,
+  EmptyState,
+  PageHeader,
+  StatCard,
+} from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -97,17 +101,9 @@ export function ChecklistQrView({
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
-      <div className="hidden md:block">
-        <Button
-          size="sm"
-          variant="ghost"
-          nativeButton={false}
-          render={<Link href={readOnly ? "/checklist" : "/checklist/template"} />}
-        >
-          <ArrowLeft aria-hidden="true" />
-          {readOnly ? "Checklist" : "Template & lokasi"}
-        </Button>
-      </div>
+      <BackLink href={readOnly ? "/checklist" : "/checklist/template"}>
+        {readOnly ? "Kembali ke Checklist" : "Kembali ke Template & lokasi"}
+      </BackLink>
 
       <PageHeader
         mobileCompact

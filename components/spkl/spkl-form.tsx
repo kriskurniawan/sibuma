@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  ArrowLeft,
   Building2,
   CalendarDays,
   CheckCircle2,
@@ -40,6 +39,7 @@ import { IconTile } from "@/components/reui/icon-tile";
 import {
   Avatar,
   AvatarStack,
+  BackLink,
   Badge as StateBadge,
   EmptyState,
   FieldError,
@@ -479,13 +479,9 @@ export function SpklForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-5 pb-24 xl:pb-0">
       <div className="hidden flex-wrap items-center justify-between gap-3 md:flex">
-        <Link
-          href={initial ? `/spkl/${initial.id}` : "/lembur"}
-          className="hidden items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"
-        >
-          <ArrowLeft className="size-3.5" />
+        <BackLink href={initial ? `/spkl/${initial.id}` : "/lembur"}>
           {initial ? "Kembali ke detail SPKL" : "Kembali ke lembur"}
-        </Link>
+        </BackLink>
         <StateBadge variant="primary-light" dot className="ml-auto">
           {mode === "create" ? "SPKL baru" : "Ubah SPKL"}
         </StateBadge>

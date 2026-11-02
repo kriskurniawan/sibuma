@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ComponentProps, ComponentType, ReactNode } from "react";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import { Badge as ReuiBadge } from "@/components/reui/badge";
 import { IconTile } from "@/components/reui/icon-tile";
@@ -200,6 +200,34 @@ export function AttendanceBadge({
 
 // ── Layout pieces ───────────────────────────────────────────────────────────
 
+/**
+ * Tautan kembali standar untuk halaman detail dan sub-halaman. Selalu
+ * diletakkan sebagai elemen pertama di atas judul, dan disembunyikan di mobile
+ * karena header aplikasi sudah menyediakan tombol kembali.
+ */
+export function BackLink({
+  href,
+  children,
+  className,
+}: {
+  href: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "hidden w-fit items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex",
+        className,
+      )}
+    >
+      <ArrowLeft className="size-3.5" aria-hidden="true" />
+      {children}
+    </Link>
+  );
+}
+
 export function PageHeader({
   eyebrow,
   title,
@@ -225,10 +253,18 @@ export function PageHeader({
     <div
       className={cn(
         "flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between",
+        // Mobile compact: title/description live only in the app bar. Collapse
+        // the wrappers so they do not reserve an empty gap above the page.
+        mobileCompact && "max-md:contents",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-1",
+          mobileCompact && "max-md:contents",
+        )}
+      >
         {eyebrow && (
           <p
             className={cn(
@@ -259,7 +295,18 @@ export function PageHeader({
           </p>
         )}
       </div>
-      {action && <div className="shrink-0">{action}</div>}
+      {action && (
+        <div
+          className={cn(
+            "shrink-0",
+            // Keep mobile actions in the page flow: visible ones become the
+            // first content row; ones hidden with max-md:hidden disappear.
+            mobileCompact && "max-md:contents",
+          )}
+        >
+          {action}
+        </div>
+      )}
     </div>
   );
 }

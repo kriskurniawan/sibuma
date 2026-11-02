@@ -50,9 +50,9 @@ export default function ChecklistQrLoading() {
     >
       <span className="sr-only">Memuat QR area…</span>
 
-      <Skeleton className="hidden h-8 w-44 rounded-md md:block" />
+      <Skeleton className="hidden h-4 w-40 md:block" />
 
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+      <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
         <div className="hidden min-w-0 flex-1 flex-col gap-2 md:flex">
           <Skeleton className="h-3 w-32" />
           <Skeleton className="h-7 w-40" />
