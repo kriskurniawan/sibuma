@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, ImagePlus, PenLine, X } from "lucide-react";
 import { toast } from "sonner";
 import { Modal } from "@/components/modal";
+import { MobileFab } from "@/components/mobile-fab";
 import { Alert, AlertDescription, AlertTitle } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,9 +38,11 @@ function newRequestId() {
 export function NoteComposer({
   options,
   label = "Tulis catatan",
+  trigger = "default",
 }: {
   options: NoteOptions;
   label?: string;
+  trigger?: "default" | "fab";
 }) {
   const router = useRouter();
   const formId = `note-form-${useId().replaceAll(":", "")}`;
@@ -335,10 +338,17 @@ export function NoteComposer({
 
   return (
     <>
-      <Button type="button" size="sm" onClick={openComposer}>
-        <PenLine />
-        {label}
-      </Button>
+      {trigger === "fab" ? (
+        <MobileFab onClick={openComposer}>
+          <PenLine aria-hidden="true" />
+          {label}
+        </MobileFab>
+      ) : (
+        <Button type="button" size="sm" onClick={openComposer}>
+          <PenLine aria-hidden="true" />
+          {label}
+        </Button>
+      )}
 
       <Modal
         open={open}

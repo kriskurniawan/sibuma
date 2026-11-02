@@ -38,6 +38,7 @@ export default async function CatatanPage({
     readOnly ? Promise.resolve(null) : getNoteOptions(user),
   ]);
   const { notes, total, page } = data;
+  const composerOptions = readOnly ? null : options;
 
   return (
     <div className="flex flex-col gap-5 pb-8">
@@ -47,8 +48,10 @@ export default async function CatatanPage({
         title="Catatan"
         description="Catatan singkat untuk satu atau beberapa divisi, atau rekan kerja tertentu. Tidak ada balasan berantai dan tidak ada notifikasi WhatsApp per catatan."
         action={
-          !readOnly && options ? (
-            <NoteComposer options={options} />
+          composerOptions ? (
+            <div className="max-md:hidden">
+              <NoteComposer options={composerOptions} />
+            </div>
           ) : undefined
         }
       />
@@ -74,11 +77,13 @@ export default async function CatatanPage({
                   : "Tulis catatan pertama untuk satu atau beberapa divisi, atau rekan kerja tertentu."
               }
               action={
-                !readOnly && options ? (
-                  <NoteComposer
-                    options={options}
-                    label="Tulis catatan pertama"
-                  />
+                composerOptions ? (
+                  <div className="max-md:hidden">
+                    <NoteComposer
+                      options={composerOptions}
+                      label="Tulis catatan pertama"
+                    />
+                  </div>
                 ) : undefined
               }
             />
@@ -101,6 +106,10 @@ export default async function CatatanPage({
           </FrameFooter>
         )}
       </Frame>
+
+      {composerOptions && (
+        <NoteComposer options={composerOptions} trigger="fab" />
+      )}
     </div>
   );
 }

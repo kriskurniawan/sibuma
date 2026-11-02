@@ -4,6 +4,7 @@ import {
   FrameHeader,
   FramePanel,
 } from "@/components/reui/frame";
+import { MobileFabSkeleton } from "@/components/mobile-fab";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function NoteRowSkeleton() {
@@ -42,7 +43,7 @@ export default function CatatanLoading() {
           <Skeleton className="h-7 w-40" />
           <Skeleton className="h-5 w-full max-w-xl" />
         </div>
-        <Skeleton className="h-7 w-36 rounded-md" />
+        <Skeleton className="hidden h-7 w-36 rounded-md md:block" />
       </div>
 
       <Frame>
@@ -67,6 +68,8 @@ export default function CatatanLoading() {
           </div>
         </FrameFooter>
       </Frame>
+
+      <MobileFabSkeleton />
     </div>
   );
 }
