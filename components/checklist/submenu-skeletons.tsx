@@ -55,28 +55,31 @@ function SetupListRowSkeleton() {
 
 export function ChecklistTemplateDataSkeleton() {
   return (
-    <div aria-busy="true" role="status" className="contents">
+    <Frame spacing="default" className="min-w-0" aria-busy="true" role="status">
       <span className="sr-only">Memuat template dan lokasi…</span>
-      {[
-        { title: "Lokasi", description: "Lokasi aktif tersedia untuk jadwal baru." },
-        { title: "Template", description: "Item pemeriksaan dan kebijakan pengisian." },
-      ].map((section) => (
-        <Frame key={section.title} spacing="default" className="min-w-0">
-          <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-            <div className="flex flex-col gap-0.5">
-              <FrameTitle>{section.title}</FrameTitle>
-              <FrameDescription className="hidden text-xs md:block">{section.description}</FrameDescription>
-            </div>
-            <Skeleton className="h-5 w-8" />
-          </FrameHeader>
-          <FramePanel className="p-0">
-            <ul className="divide-y divide-border/70" aria-hidden="true">
-              {Array.from({ length: 3 }, (_, index) => <SetupListRowSkeleton key={index} />)}
-            </ul>
-          </FramePanel>
-        </Frame>
-      ))}
-    </div>
+      <FrameHeader className="gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <FrameTitle>Template</FrameTitle>
+            <FrameDescription className="hidden text-xs md:block">
+              Item pemeriksaan dan kebijakan pengisian.
+            </FrameDescription>
+          </div>
+          <div
+            className="flex h-8 w-full items-center gap-1 rounded-lg bg-muted p-[3px] sm:w-48"
+            aria-hidden="true"
+          >
+            <Skeleton className="h-full w-24 rounded-md bg-background" />
+            <Skeleton className="h-full w-20 rounded-md bg-background" />
+          </div>
+        </div>
+      </FrameHeader>
+      <FramePanel className="p-0">
+        <ul className="divide-y divide-border/70" aria-hidden="true">
+          {Array.from({ length: 4 }, (_, index) => <SetupListRowSkeleton key={index} />)}
+        </ul>
+      </FramePanel>
+    </Frame>
   );
 }
 

@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Modal } from "@/components/modal";
 import { useDialogIntent } from "@/hooks/use-dialog-intent";
@@ -51,8 +52,11 @@ const TEMPLATE_NEW_HASH = "#template-baru";
 const LOCATION_NEW_HASH = "#lokasi-baru";
 const LOCATION_EDIT_PREFIX = "#lokasi-ubah-";
 
+type TemplateTab = "template" | "lokasi";
+
 export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   const router = useRouter();
+  const [tab, setTab] = useState<TemplateTab>("template");
   const [locationOpen, setLocationOpen] = useState(false);
   const [editingLocation, setEditingLocation] =
     useState<ChecklistLocation | null>(null);
@@ -119,11 +123,13 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   }
 
   function openTemplate() {
+    setTab("template");
     setLocationOpen(false);
     setTemplateOpen(true);
   }
 
   function openLocation(location: ChecklistLocation | null) {
+    setTab("lokasi");
     setTemplateOpen(false);
     setEditingLocation(location);
     setLocationOpen(true);
@@ -142,20 +148,120 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
   return (
     <>
       <Frame spacing="default" className="min-w-0">
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <FrameTitle>Lokasi</FrameTitle>
-            <FrameDescription className="hidden text-xs md:block">
-              Lokasi aktif tersedia untuk jadwal baru.
-            </FrameDescription>
+        <FrameHeader className="gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <FrameTitle>{tab === "template" ? "Template" : "Lokasi"}</FrameTitle>
+              <FrameDescription className="hidden text-xs md:block">
+                {tab === "template"
+                  ? "Item pemeriksaan dan kebijakan pengisian."
+                  : "Lokasi aktif tersedia untuk jadwal baru."}
+              </FrameDescription>
+            </div>
+            <Tabs
+              value={tab}
+              onValueChange={(next) => {
+                if (next === "template" || next === "lokasi") setTab(next);
+              }}
+            >
+              <TabsList className="w-full sm:w-max">
+                <TabsTrigger value="template">
+                  <ClipboardList aria-hidden="true" />
+                  Template
+                  <span className="text-xs tabular-nums">{setup.templates.length}</span>
+                </TabsTrigger>
+                <TabsTrigger value="lokasi">
+                  <MapPin aria-hidden="true" />
+                  Lokasi
+                  <span className="text-xs tabular-nums">{setup.locations.length}</span>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
-          <Badge variant="outline" className="tabular-nums">
-            {setup.locations.length}
-          </Badge>
         </FrameHeader>
 
         <FramePanel className="p-0">
-          {setup.locations.length === 0 ? (
+          {tab === "template" ? (
+            setup.templates.length === 0 ? (
+              <EmptyState
+                icon={ClipboardList}
+                title="Belum ada template"
+                description="Template menentukan item pemeriksaan. Buat template pertama lalu terbitkan versinya."
+                action={
+                  <div className="max-md:hidden">
+                    <Button
+                      size="sm"
+                      type="button"
+                      aria-haspopup="dialog"
+                      aria-expanded={templateOpen}
+                      data-dialog-intent="template-new"
+                    >
+                      <Plus aria-hidden="true" />
+                      Buat template
+                    </Button>
+                  </div>
+                }
+              />
+            ) : (
+              <ul className="divide-y divide-border/70">
+                {setup.templates.map((template) => {
+                  const latest = template.versions[0];
+                  return (
+                    <li
+                      key={template.id}
+                      className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
+                    >
+                      <div className="flex min-w-0 items-start gap-2.5">
+                        <Settings2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Link
+                              href={`/checklist/template/${template.id}`}
+                              className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
+                            >
+                              {template.name}
+                            </Link>
+                            <Badge variant="outline" className="text-xs">
+                              {template.category}
+                            </Badge>
+                            <Badge variant="info-light" className="text-xs">
+                              Versi {template.currentVersion}
+                            </Badge>
+                            {!template.active && (
+                              <Badge variant="outline" className="text-xs">
+                                Nonaktif
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            {latest?.itemCount ?? 0} item ·{" "}
+                            {template.usedBySchedules} jadwal
+                          </p>
+                          {template.description && (
+                            <p className="hidden text-xs text-muted-foreground md:block">
+                              {template.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0"
+                        nativeButton={false}
+                        render={
+                          <Link href={`/checklist/template/${template.id}`} />
+                        }
+                      >
+                        Kelola
+                        <ChevronRight aria-hidden="true" />
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )
+          ) : setup.locations.length === 0 ? (
             <EmptyState
               icon={MapPin}
               title="Belum ada lokasi"
@@ -232,102 +338,6 @@ export function ChecklistTemplateView({ setup }: { setup: ChecklistSetup }) {
                   </Button>
                 </li>
               ))}
-            </ul>
-          )}
-        </FramePanel>
-      </Frame>
-
-      <Frame spacing="default" className="min-w-0">
-        <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
-          <div className="flex flex-col gap-0.5">
-            <FrameTitle>Template</FrameTitle>
-            <FrameDescription className="hidden text-xs md:block">
-              Item pemeriksaan dan kebijakan pengisian.
-            </FrameDescription>
-          </div>
-          <Badge variant="outline" className="tabular-nums">
-            {setup.templates.length}
-          </Badge>
-        </FrameHeader>
-
-        <FramePanel className="p-0">
-          {setup.templates.length === 0 ? (
-            <EmptyState
-              icon={ClipboardList}
-              title="Belum ada template"
-              description="Template menentukan item pemeriksaan. Buat template pertama lalu terbitkan versinya."
-              action={
-                <div className="max-md:hidden">
-                  <Button
-                    size="sm"
-                    type="button"
-                    aria-haspopup="dialog"
-                    aria-expanded={templateOpen}
-                    data-dialog-intent="template-new"
-                  >
-                    <Plus aria-hidden="true" />
-                    Buat template
-                  </Button>
-                </div>
-              }
-            />
-          ) : (
-            <ul className="divide-y divide-border/70">
-              {setup.templates.map((template) => {
-                const latest = template.versions[0];
-                return (
-                  <li
-                    key={template.id}
-                    className="flex items-start justify-between gap-3 px-4 py-3 sm:px-5"
-                  >
-                    <div className="flex min-w-0 items-start gap-2.5">
-                      <Settings2 className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                      <div className="flex min-w-0 flex-col gap-0.5">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <Link
-                            href={`/checklist/template/${template.id}`}
-                            className="truncate text-sm font-medium text-foreground transition-colors hover:text-primary"
-                          >
-                            {template.name}
-                          </Link>
-                          <Badge variant="outline" className="text-xs">
-                            {template.category}
-                          </Badge>
-                          <Badge variant="info-light" className="text-xs">
-                            Versi {template.currentVersion}
-                          </Badge>
-                          {!template.active && (
-                            <Badge variant="outline" className="text-xs">
-                              Nonaktif
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {latest?.itemCount ?? 0} item ·{" "}
-                          {template.usedBySchedules} jadwal
-                        </p>
-                        {template.description && (
-                          <p className="hidden text-xs text-muted-foreground md:block">
-                            {template.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="shrink-0"
-                      nativeButton={false}
-                      render={
-                        <Link href={`/checklist/template/${template.id}`} />
-                      }
-                    >
-                      Kelola
-                      <ChevronRight aria-hidden="true" />
-                    </Button>
-                  </li>
-                );
-              })}
             </ul>
           )}
         </FramePanel>
