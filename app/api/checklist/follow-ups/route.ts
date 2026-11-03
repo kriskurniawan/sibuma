@@ -8,6 +8,8 @@ import {
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
+  CHECKLIST_DEADLINE_LOCKED_MESSAGE,
+  checklistDeadlineLocked,
   checklistHasOpened,
   checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
@@ -39,6 +41,9 @@ export async function POST(request: Request) {
       if (!allowed) throw new Error("Kamu tidak ditugaskan pada checklist ini.");
       if (!checklistHasOpened(inspection.opensAt)) {
         throw new Error(checklistNotOpenedMessage(inspection.opensAt));
+      }
+      if (checklistDeadlineLocked(inspection)) {
+        throw new Error(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
       }
 
       if (parsed.data.answerId) {

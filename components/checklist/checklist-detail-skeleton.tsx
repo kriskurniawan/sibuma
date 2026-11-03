@@ -1,7 +1,17 @@
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function RecordHeaderSkeleton() {
+function HeaderActionsSkeleton({ withBadge }: { withBadge?: boolean }) {
+  if (!withBadge) return <Skeleton className="h-8 w-28" />;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Skeleton className="h-5 w-20 rounded-full" />
+      <Skeleton className="h-8 w-28" />
+    </div>
+  );
+}
+
+function RecordHeaderSkeleton({ withBadge }: { withBadge?: boolean }) {
   return (
     <>
       <div className="hidden flex-col gap-4 md:flex xl:flex-row xl:items-end xl:justify-between">
@@ -10,11 +20,12 @@ function RecordHeaderSkeleton() {
           <Skeleton className="h-7 w-72 max-w-full" />
           <Skeleton className="h-4 w-64 max-w-full" />
         </div>
-        <Skeleton className="h-8 w-28" />
+        <HeaderActionsSkeleton withBadge={withBadge} />
       </div>
       <Frame className="md:hidden">
         <FramePanel className="flex flex-col gap-3">
-          <Skeleton className="h-3 w-40" /><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-48 max-w-full" /><Skeleton className="h-8 w-28" />
+          <Skeleton className="h-3 w-40" /><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-48 max-w-full" />
+          <HeaderActionsSkeleton withBadge={withBadge} />
         </FramePanel>
       </Frame>
     </>
@@ -37,7 +48,7 @@ export function ChecklistDetailSkeleton() {
   return (
     <div aria-busy="true" aria-live="polite" className="flex flex-col gap-6 lg:gap-8">
       <span className="sr-only">Memuat detail checklist…</span>
-      <RecordHeaderSkeleton />
+      <RecordHeaderSkeleton withBadge />
       <Frame>
         <FrameHeader className="flex flex-row flex-wrap items-start justify-between gap-3">
           <div className="flex flex-col gap-0.5"><FrameTitle className="max-md:sr-only">Ringkasan</FrameTitle><Skeleton className="h-4 w-52 max-w-full" /></div><Skeleton className="h-3 w-8" />

@@ -5,6 +5,8 @@ import {
   loadInspection,
 } from "./checklist-access";
 import {
+  CHECKLIST_DEADLINE_LOCKED_MESSAGE,
+  checklistDeadlineLocked,
   checklistHasOpened,
   checklistNotOpenedMessage,
 } from "./checklist-schedule";
@@ -81,6 +83,9 @@ export async function assertChecklistVideoTarget(
     throw new Error(
       "Checklist sudah selesai. Minta atasan membuka kembali sebelum menambah video.",
     );
+  }
+  if (checklistDeadlineLocked(inspection)) {
+    throw new Error(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
   }
   const [answer] = await query(
     `SELECT id FROM checklist_answers WHERE id=$1 AND inspection_id=$2`,

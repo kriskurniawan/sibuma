@@ -8,6 +8,7 @@ import { getChecklistDashboard, getChecklistFollowUps } from "@/lib/checklist-qu
 import { getManualWorkDashboard } from "@/lib/manual-work-queries";
 import { getAllAuditLogs, getSupervisorOverview, getWorkerOverview } from "@/lib/queries";
 import { getOrganizationOverview, getSupervisors } from "@/lib/supervisor-queries";
+import { todayLocal } from "@/lib/time";
 
 export const metadata = {
   title: "Beranda",
@@ -34,7 +35,18 @@ export default async function HomePage() {
 
   // One request per query: regions reuse these promises, including queries that
   // generate scheduled checklists or finalize overtime while reading.
-  const checklists = dashboardQuery(() => getChecklistDashboard(user, { status: "aktif", includeLate: true }, CHECKLIST_PREVIEW));
+  // Pekerja hanya melihat checklist hari ini; item terlambat/terkunci tetap
+  // dapat ditinjau dari halaman Checklist.
+  const today = todayLocal();
+  const checklists = dashboardQuery(() =>
+    getChecklistDashboard(
+      user,
+      user.role === "atasan"
+        ? { status: "aktif", includeLate: true }
+        : { status: "aktif", from: today, to: today },
+      CHECKLIST_PREVIEW,
+    ),
+  );
   const followUps = dashboardQuery(() => getChecklistFollowUps(
     user,
     user.role === "atasan" ? { status: "aktif" } : { status: "aktif", mine: true },

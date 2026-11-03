@@ -117,3 +117,11 @@ export function ChecklistOverdueBadge({ className }: { className?: string }) {
     </Badge>
   );
 }
+
+export function ChecklistLockedBadge({ className }: { className?: string }) {
+  return (
+    <Badge variant="warning-light" dot className={className}>
+      Terkunci
+    </Badge>
+  );
+}

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CalendarClock, ChevronRight, MapPin } from "lucide-react";
 import {
   ChecklistFollowUpBadge,
+  ChecklistLockedBadge,
   ChecklistOverdueBadge,
   ChecklistStatusBadge,
 } from "@/components/checklist/checklist-badges";
@@ -91,7 +92,11 @@ export function ChecklistSummaryRow({ row }: { row: ChecklistInspectionRow }) {
           <span className="sr-only">Deadline </span>
           {formatDateTime(item.dueAt, "d MMM, HH:mm")}
         </span>
-        {row.overdue && <ChecklistOverdueBadge />}
+        {row.locked ? (
+          <ChecklistLockedBadge />
+        ) : (
+          row.overdue && <ChecklistOverdueBadge />
+        )}
         {row.openFollowUps > 0 && (
           <span className="font-medium text-foreground tabular-nums">
             {row.openFollowUps} temuan

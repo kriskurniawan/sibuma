@@ -30,14 +30,14 @@ export function ChecklistSummary({ totals, failed = false }: { totals?: Checklis
   return (
     <>
       <MobileSummary className="md:hidden" items={[
-        { label: "Perlu dikerjakan", value: value("todo"), icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: "Buka checklist aktif" },
+        { label: "Perlu dikerjakan", value: value("todayTodo"), icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: "Buka checklist aktif hari ini" },
         { label: "Terlambat", value: value("overdue"), icon: Clock3, tone: totals && totals.overdue > 0 ? "destructive" : "neutral", href: "/checklist?status=terlambat", ariaLabel: "Buka checklist terlambat" },
         { label: "Selesai bulan ini", value: value("completedThisMonth"), icon: CheckCircle2, tone: "success" },
         { label: "Tindak lanjut", value: value("openFollowUps"), icon: ListChecks, tone: totals && totals.openFollowUps > 0 ? "warning" : "neutral", href: "/checklist/tindak-lanjut", ariaLabel: "Buka tindak lanjut" },
       ]} />
       <div className="hidden grid-cols-2 gap-4 md:grid xl:grid-cols-4">
-        <StatCard label="Perlu dikerjakan" value={value("todo")} suffix="checklist" icon={ClipboardList} tone="primary" helper="Belum diisi atau berlangsung, belum terlambat" />
-        <StatCard label="Terlambat" value={value("overdue")} suffix="checklist" icon={Clock3} tone={totals && totals.overdue > 0 ? "destructive" : "neutral"} helper="Lewat tanggal jadwal, masih bisa diisi sampai deadline" />
+        <StatCard label="Perlu dikerjakan" value={value("todayTodo")} suffix="checklist" icon={ClipboardList} tone="primary" helper="Hari ini, belum selesai dan belum terlambat" />
+        <StatCard label="Terlambat" value={value("overdue")} suffix="checklist" icon={Clock3} tone={totals && totals.overdue > 0 ? "destructive" : "neutral"} helper="Lewat deadline: terkunci sampai atasan membuka" />
         <StatCard label="Selesai bulan ini" value={value("completedThisMonth")} suffix="checklist" icon={CheckCircle2} tone="success" helper="Dihitung dari waktu penyelesaian" />
         <StatCard label="Tindak lanjut terbuka" value={value("openFollowUps")} suffix="temuan" icon={ListChecks} tone={totals && totals.openFollowUps > 0 ? "warning" : "neutral"} helper="Terbuka, diproses, atau tertunda" />
       </div>
@@ -133,13 +133,34 @@ export function ChecklistRows({ items, total, pagination, filters, canManage, re
   canManage: boolean;
   readOnly: boolean;
 }) {
-  const filtered = filters.status !== "aktif" || Boolean(filters.locationId || filters.search) || !filters.includeSubLocations;
+  const activeToday = filters.status === "aktif";
+  const filtered = !activeToday || Boolean(filters.locationId || filters.search) || !filters.includeSubLocations;
   if (items.length > 0) return <ChecklistGrid items={items} total={total} pagination={pagination} />;
   return <EmptyState icon={ClipboardList}
-    title={filtered ? "Tidak ada checklist sesuai filter" : "Belum ada checklist"}
-    description={filtered ? "Ubah atau reset filter untuk melihat checklist lain." : canManage ? "Atur jadwal untuk mulai pemeriksaan rutin." : readOnly ? "Belum ada pemeriksaan terjadwal untuk tim ini." : "Belum ada penugasan. Hubungi atasan jika diperlukan."}
+    title={
+      filtered
+        ? "Tidak ada checklist sesuai filter"
+        : activeToday
+          ? "Tidak ada checklist untuk hari ini"
+          : "Belum ada checklist"
+    }
+    description={
+      filtered
+        ? "Ubah atau reset filter untuk melihat checklist lain."
+        : activeToday
+          ? canManage
+            ? "Semua checklist hari ini sudah selesai atau belum ada jadwal untuk hari ini."
+            : "Semua checklist hari ini sudah selesai atau belum ada penugasan untuk hari ini."
+          : canManage ? "Atur jadwal untuk mulai pemeriksaan rutin." : readOnly ? "Belum ada pemeriksaan terjadwal untuk tim ini." : "Belum ada penugasan. Hubungi atasan jika diperlukan."
+    }
     action={filtered ? (
       <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist" />}><RefreshCw />Reset filter</Button>
+    ) : activeToday ? (
+      canManage ? (
+        <Button size="sm" nativeButton={false} render={<Link href="/checklist/jadwal" />}><CalendarClock />Atur jadwal checklist</Button>
+      ) : (
+        <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist?status=selesai" />}><CheckCircle2 />Lihat checklist selesai</Button>
+      )
     ) : canManage ? (
       <Button size="sm" nativeButton={false} render={<Link href="/checklist/jadwal" />}><CalendarClock />Atur jadwal checklist</Button>
     ) : (

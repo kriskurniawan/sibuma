@@ -14,7 +14,7 @@ import { DataLoadError } from "@/components/data-load-error";
 import { MobileSummary } from "@/components/mobile-summary";
 import { IconTile } from "@/components/reui/icon-tile";
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame";
-import { ChecklistOverdueBadge, ChecklistStatusBadge } from "@/components/checklist/checklist-badges";
+import { ChecklistStatusBadge } from "@/components/checklist/checklist-badges";
 import { Badge, EmptyState, ProgressBar, SpklStatusBadge, StatCard } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -25,11 +25,14 @@ import type { SessionUser } from "@/lib/types";
 import { checklistHasOpened } from "@/lib/checklist-schedule";
 import { currentTimeZoneLabel, formatDateHuman, formatDateTime, formatTime } from "@/lib/time";
 
+/** Fokus dan antrean hanya memuat checklist hari ini yang belum lewat deadline. */
+function dashboardChecklistRows(data: DashboardChecklists) {
+  return data.items.filter((row) => !row.overdue && !row.locked);
+}
+
 function checklistFocus(data: DashboardChecklists) {
-  return data.items.find((row) => row.overdue)
-    ?? data.items.find((row) => row.inspection.status === "berlangsung")
-    ?? data.items[0]
-    ?? null;
+  const rows = dashboardChecklistRows(data);
+  return rows.find((row) => row.inspection.status === "berlangsung") ?? rows[0] ?? null;
 }
 
 export function WorkerDashboard({
@@ -64,8 +67,8 @@ export function WorkerDashboard({
           <DashboardRegion data={checklists} fallback={<DashboardStatsSkeleton labels={["Checklist aktif", "Terlambat", "Selesai bulan ini"]} />} message="Statistik checklist belum dapat dimuat.">
             {(data) => <WorkerStats data={data} />}
           </DashboardRegion>
-          <DashboardRegion data={followUps} fallback={<DashboardStatsSkeleton labels={["Tindak lanjut saya"]} />} message="Statistik tindak lanjut belum dapat dimuat.">
-            {(data) => <StatCard label="Tindak lanjut saya" value={data.total} suffix="temuan" icon={Wrench} tone={data.total > 0 ? "warning" : "neutral"} helper={data.total > 0 ? "Ditugaskan kepadamu" : "Tidak ada tugas terbuka"} />}
+          <DashboardRegion data={followUps} fallback={<DashboardStatsSkeleton labels={["Tindak lanjut"]} />} message="Statistik tindak lanjut belum dapat dimuat.">
+            {(data) => <StatCard label="Tindak lanjut" value={data.total} suffix="temuan" icon={Wrench} tone={data.total > 0 ? "warning" : "neutral"} />}
           </DashboardRegion>
         </>
       }
@@ -78,11 +81,6 @@ export function WorkerDashboard({
         <Suspense fallback={<DashboardQueueSectionSkeleton />}>
           <WorkerQueueBlock data={checklists} />
         </Suspense>
-      }
-      followUpDescription={
-        <DashboardValue data={followUps} fallback={<Skeleton className="h-3 w-40" />}>
-          {(data) => data.total > 0 ? `${data.total} temuan terbuka` : "Temuan yang ditugaskan kepadamu"}
-        </DashboardValue>
       }
       followUps={
         <DashboardRegion data={followUps} fallback={<DashboardRowsSkeleton kind="follow-up" count={2} />} message="Tindak lanjut belum dapat dimuat.">
@@ -103,7 +101,7 @@ export function WorkerDashboard({
   );
 }
 
-/** The whole focus card is data-gated: workers see nothing when no checklist is active. */
+/** Fokus berikutnya hanya menampilkan checklist hari ini yang masih bisa diisi. */
 async function WorkerFocusBlock({ data }: { data: DashboardRequest<DashboardChecklists> }) {
   const result = await data;
   if (!result.ok) return null;
@@ -115,7 +113,7 @@ async function WorkerFocusBlock({ data }: { data: DashboardRequest<DashboardChec
         <FrameHeader className="gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs font-medium text-muted-foreground">Fokus berikutnya</span>
-            {focus.overdue ? <ChecklistOverdueBadge /> : <ChecklistStatusBadge status={focus.inspection.status} />}
+            <ChecklistStatusBadge status={focus.inspection.status} />
           </div>
           <WorkerFocusHeading data={result.data} />
         </FrameHeader>
@@ -130,10 +128,9 @@ async function WorkerFocusBlock({ data }: { data: DashboardRequest<DashboardChec
 /** Queue visibility depends on settled data: a lone focus hides the empty extra panel on mobile. */
 async function WorkerQueueBlock({ data }: { data: DashboardRequest<DashboardChecklists> }) {
   const result = await data;
+  const rows = result.ok ? dashboardChecklistRows(result.data) : [];
   const focus = result.ok ? checklistFocus(result.data) : null;
-  const queue = result.ok && focus
-    ? result.data.items.filter((row) => row.inspection.id !== focus.inspection.id)
-    : [];
+  const queue = focus ? rows.filter((row) => row.inspection.id !== focus.inspection.id) : [];
   const sectionClass = focus && queue.length === 0 ? "hidden sm:flex" : "flex";
   return (
     <section aria-label="Antrean checklist" className={`${sectionClass} order-2 min-w-0 flex-col gap-3 sm:order-1 xl:row-span-2`}>
@@ -144,7 +141,7 @@ async function WorkerQueueBlock({ data }: { data: DashboardRequest<DashboardChec
               <FrameTitle>Antrean checklist</FrameTitle>
               <FrameDescription className="hidden text-xs sm:block">Pekerjaan aktif lainnya.</FrameDescription>
             </div>
-            {result.ok && result.data.items.length > 1 && (
+            {rows.length > 1 && (
               <Link href="/checklist" className="text-xs font-medium text-primary transition-colors hover:underline">Semua</Link>
             )}
           </FrameHeader>
@@ -174,7 +171,18 @@ function WorkerFocusHeading({ data }: { data: DashboardChecklists }) {
 function WorkerFocus({ data }: { data: DashboardChecklists }) {
   const focus = checklistFocus(data);
   if (!focus) {
-    return <EmptyState icon={ClipboardList} title="Tidak ada checklist aktif" description="Checklist baru muncul otomatis sesuai jadwal area kerjamu." action={<CompletedChecklistsButton />} />;
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title="Tidak ada checklist untuk hari ini"
+        description={
+          data.totals.overdue > 0
+            ? "Checklist yang terlambat atau terkunci tidak ditampilkan di fokus ini."
+            : "Checklist baru muncul otomatis sesuai jadwal area kerjamu."
+        }
+        action={<ChecklistsButton overdue={data.totals.overdue > 0} />}
+      />
+    );
   }
   const progress = focus.totalItems > 0 ? Math.round((focus.answeredCount / focus.totalItems) * 100) : 0;
   return (
@@ -194,7 +202,12 @@ function WorkerFocus({ data }: { data: DashboardChecklists }) {
           </span>
         </div>
         <Button size="lg" className="w-full sm:w-auto" nativeButton={false} render={<Link href={`/checklist/${focus.inspection.id}`} />}>
-          {focus.answeredCount > 0 ? "Lanjutkan checklist" : checklistHasOpened(focus.inspection.opensAt) ? "Mulai checklist" : "Lihat checklist"}<ArrowRight aria-hidden="true" />
+          {focus.answeredCount > 0
+            ? "Lanjutkan checklist"
+            : checklistHasOpened(focus.inspection.opensAt)
+              ? "Mulai checklist"
+              : "Lihat checklist"}
+          <ArrowRight aria-hidden="true" />
         </Button>
       </div>
     </>
@@ -215,17 +228,17 @@ function WorkerSummaryItems({ totals, followUpTotal, unavailable = false }: {
   unavailable?: boolean;
 }) {
   return <MobileSummary items={[
-    { label: "Checklist aktif", value: totals.todo, icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: `Buka ${totals.todo} checklist aktif` },
+    { label: "Checklist aktif", value: totals.todayTodo, icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: `Buka ${totals.todayTodo} checklist aktif hari ini` },
     { label: "Terlambat", value: totals.overdue, icon: AlertTriangle, tone: totals.overdue > 0 ? "destructive" : "neutral", href: "/checklist?status=terlambat", ariaLabel: `Buka ${totals.overdue} checklist terlambat` },
     { label: "Selesai bulan ini", value: totals.completedThisMonth, icon: CheckCircle2, tone: "success" },
-    { label: "Tindak lanjut saya", value: followUpTotal ?? (unavailable ? "—" : <Skeleton className="h-7 w-12" />), icon: Wrench, tone: followUpTotal && followUpTotal > 0 ? "warning" : "neutral", href: "/checklist/tindak-lanjut?mine=1", ariaLabel: followUpTotal === undefined ? "Buka tindak lanjut saya" : `Buka tindak lanjut saya, ${followUpTotal} belum selesai` },
+    { label: "Tindak lanjut", value: followUpTotal ?? (unavailable ? "—" : <Skeleton className="h-7 w-12" />), icon: Wrench, tone: followUpTotal && followUpTotal > 0 ? "warning" : "neutral", href: "/checklist/tindak-lanjut?mine=1", ariaLabel: followUpTotal === undefined ? "Buka tindak lanjut" : `Buka tindak lanjut, ${followUpTotal} belum selesai` },
   ]} />;
 }
 
 function WorkerStats({ data: { totals } }: { data: DashboardChecklists }) {
   return <>
-    <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai jadwal</Badge>} />
-    <StatCard label="Terlambat" value={totals.overdue} suffix="checklist" icon={CalendarClock} tone={totals.overdue > 0 ? "destructive" : "neutral"} helper={totals.overdue > 0 ? "Selesaikan secepatnya" : "Tidak ada keterlambatan"} />
+    <StatCard label="Checklist aktif" value={totals.todayTodo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai jadwal</Badge>} />
+    <StatCard label="Terlambat" value={totals.overdue} suffix="checklist" icon={CalendarClock} tone={totals.overdue > 0 ? "destructive" : "neutral"} helper={totals.overdue > 0 ? "Minta atasan membuka kunci" : "Tidak ada keterlambatan"} />
     <StatCard label="Selesai bulan ini" value={totals.completedThisMonth} suffix="checklist" icon={CheckCircle2} tone="success" helper="Sejak awal bulan" />
   </>;
 }
@@ -249,17 +262,38 @@ function WorkerOvertime({ overview }: { overview: WorkerOverview }) {
   );
 }
 
-function CompletedChecklistsButton() {
-  return <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist?status=selesai" />}>Lihat checklist selesai</Button>;
+function ChecklistsButton({ overdue = false }: { overdue?: boolean }) {
+  return (
+    <Button
+      size="sm"
+      variant="outline"
+      nativeButton={false}
+      render={<Link href={overdue ? "/checklist?status=terlambat" : "/checklist"} />}
+    >
+      {overdue ? "Lihat checklist terlambat" : "Buka semua checklist"}
+    </Button>
+  );
 }
 
 function WorkerChecklists({ data }: { data: DashboardChecklists }) {
+  const rows = dashboardChecklistRows(data);
   const focus = checklistFocus(data);
-  const queue = focus ? data.items.filter((row) => row.inspection.id !== focus.inspection.id) : [];
+  const queue = focus ? rows.filter((row) => row.inspection.id !== focus.inspection.id) : [];
   return queue.length > 0 ? queue.map((row, index) => (
     <div key={row.inspection.id}>{index > 0 && <Separator />}<ChecklistSummaryRow row={row} /></div>
   )) : (
-    <EmptyState icon={focus ? ClipboardCheck : ClipboardList} title={focus ? "Tidak ada checklist lain" : "Tidak ada checklist aktif"} description={focus ? "Semua checklist aktifmu sudah tampil di atas." : "Checklist baru muncul otomatis sesuai jadwal area kerjamu."} action={<CompletedChecklistsButton />} />
+    <EmptyState
+      icon={focus ? ClipboardCheck : ClipboardList}
+      title={focus ? "Tidak ada checklist lain hari ini" : "Tidak ada checklist untuk hari ini"}
+      description={
+        focus
+          ? "Checklist lain yang belum selesai tetap bisa dibuka dari halaman Checklist."
+          : data.totals.overdue > 0
+            ? "Checklist yang terlambat atau terkunci tidak ditampilkan di antrean ini."
+            : "Checklist baru muncul otomatis sesuai jadwal area kerjamu."
+      }
+      action={<ChecklistsButton overdue={!focus && data.totals.overdue > 0} />}
+    />
   );
 }
 
@@ -267,6 +301,11 @@ function WorkerFollowUps({ data }: { data: DashboardFollowUps }) {
   return data.items.length > 0 ? data.items.map((row, index) => (
     <div key={row.followUp.id}>{index > 0 && <Separator />}<FollowUpSummaryRow row={row} /></div>
   )) : (
-    <EmptyState icon={CheckCircle2} title="Tidak ada tindak lanjut" description="Temuan baru yang ditugaskan akan muncul di sini." action={<CompletedChecklistsButton />} />
+    <EmptyState
+      icon={CheckCircle2}
+      title="Tidak ada tindak lanjut"
+      description="Temuan baru yang ditugaskan akan muncul di sini."
+      action={<Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/tindak-lanjut" />}>Buka tindak lanjut</Button>}
+    />
   );
 }

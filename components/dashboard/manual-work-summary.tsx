@@ -25,17 +25,23 @@ function dateIso(value: string) {
 
 export function ManualWorkSummaryShell({
   children,
-  description = "Pekerjaan harian",
+  description,
+  className,
 }: {
   children: ReactNode;
+  /** Hidden when it would only repeat the card title. */
   description?: ReactNode;
+  /** Ordering hooks for dashboard layouts. */
+  className?: string;
 }) {
   return (
-    <Frame spacing="sm">
+    <Frame spacing="sm" className={className}>
       <FrameHeader className="flex-row items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
           <FrameTitle>Pekerjaan harian</FrameTitle>
-          <FrameDescription>{description}</FrameDescription>
+          {description ? (
+            <FrameDescription>{description}</FrameDescription>
+          ) : null}
         </div>
         <Link
           href="/pekerjaan"
@@ -67,10 +73,9 @@ export function ManualWorkSummary({
   );
 }
 
-export function manualWorkDescription(totals: ManualWorkTotals) {
-  return totals.active > 0
-    ? `${totals.active} aktif${totals.overdue > 0 ? ` · ${totals.overdue} terlambat` : ""}`
-    : "Pekerjaan harian";
+export function manualWorkDescription(totals: ManualWorkTotals): string | null {
+  if (totals.active === 0) return null;
+  return `${totals.active} aktif${totals.overdue > 0 ? ` · ${totals.overdue} terlambat` : ""}`;
 }
 
 export function ManualWorkSummaryContent({

@@ -47,7 +47,7 @@ function SummaryIconSkeleton() {
 }
 
 export function DashboardSummarySkeleton({
-  labels = ["Checklist aktif", "Terlambat", "Selesai bulan ini", "Tindak lanjut saya"],
+  labels = ["Checklist aktif", "Terlambat", "Selesai bulan ini", "Tindak lanjut"],
 }: {
   labels?: string[];
 }) {
@@ -63,7 +63,7 @@ export function DashboardSummarySkeleton({
 }
 
 export function DashboardStatsSkeleton({
-  labels = ["Checklist aktif", "Terlambat", "Selesai bulan ini", "Tindak lanjut saya"],
+  labels = ["Checklist aktif", "Terlambat", "Selesai bulan ini", "Tindak lanjut"],
 }: {
   labels?: string[];
 }) {

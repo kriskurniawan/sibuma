@@ -19,6 +19,7 @@ import {
   ClipboardCheck,
   Clock3,
   Eye,
+  FileText,
   FolderLock,
   Hammer,
   Home,
@@ -152,6 +153,7 @@ function navigationFor(
         { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
         { href: "/catatan", label: "Catatan", icon: StickyNote },
         { href: "/lembur", label: "Lembur", icon: Clock3 },
+        { href: "/laporan-harian", label: "Laporan harian", icon: FileText },
         { href: "/laporan", label: "Laporan & rekap", icon: BarChart3 },
       ],
       manage: readOnly
@@ -181,7 +183,7 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan", "/catatan", "/notifikasi"]
+            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan-harian", "/laporan", "/catatan", "/notifikasi"]
             : [
                 "/tim",
                 "/checklist/template",
@@ -189,6 +191,7 @@ function navigationFor(
                 "/checklist/qr",
                 "/checklist/tindak-lanjut",
                 "/audit",
+                "/laporan-harian",
                 "/laporan",
                 "/catatan",
                 "/notifikasi",
@@ -203,6 +206,7 @@ function navigationFor(
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
       { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
+      { href: "/laporan-harian", label: "Laporan harian", icon: FileText },
       { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },
       { href: "/catatan", label: "Catatan", icon: StickyNote },
       { href: "/riwayat", label: "Lembur", icon: Clock3 },

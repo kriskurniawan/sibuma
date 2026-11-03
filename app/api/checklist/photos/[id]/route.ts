@@ -6,6 +6,8 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
+  CHECKLIST_DEADLINE_LOCKED_MESSAGE,
+  checklistDeadlineLocked,
   checklistHasOpened,
   checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
@@ -97,6 +99,7 @@ export async function DELETE(
       const [photo] = await query(
         `SELECT p.*,i.owner_id inspection_owner_id,i.status inspection_status,
                 i.occurrence_date inspection_occurrence_date,i.opens_at inspection_opens_at,
+                i.due_at inspection_due_at,i.reopened_at inspection_reopened_at,
                 f.status follow_up_status,f.pic_id follow_up_pic_id
          FROM checklist_photos p
          JOIN checklist_inspections i ON i.id=p.inspection_id
@@ -120,6 +123,14 @@ export async function DELETE(
         throw new Error(
           "Checklist sudah selesai. Minta atasan membuka kembali sebelum mengubah bukti.",
         );
+      } else if (
+        checklistDeadlineLocked({
+          status: photo.inspection_status as string,
+          dueAt: photo.inspection_due_at as Date,
+          reopenedAt: photo.inspection_reopened_at as Date | null,
+        })
+      ) {
+        throw new Error(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
       } else if (
         !checklistHasOpened(photo.inspection_opens_at as Date)
       ) {

@@ -15,6 +15,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { checklistReadOwner } from "@/lib/checklist-access";
 import { getChecklistDashboard, getChecklistLocations } from "@/lib/checklist-queries";
 import { pageRequest } from "@/lib/pagination";
+import { todayLocal } from "@/lib/time";
 import type { SessionUser } from "@/lib/types";
 
 export const metadata = { title: "Checklist" };
@@ -23,15 +24,23 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 async function dashboardData(user: SessionUser, searchParams: SearchParams) {
   const params = await searchParams;
   const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
+  const status = first(params.status) ?? "aktif";
   const filters: ChecklistFilters = {
-    status: first(params.status) ?? "aktif",
+    status,
     locationId: first(params.locationId) ?? "",
     search: first(params.search) ?? "",
     includeSubLocations: first(params.includeSub) !== "0",
   };
   const request = pageRequest(first(params.page), first(params.size));
+  // "Aktif" adalah daftar kerja hari ini; jadwal hari lain tetap tersedia
+  // lewat filter status lain. Setelah semua selesai, daftar ini kosong.
+  const today = status === "aktif" ? todayLocal() : null;
   try {
-    const data = await getChecklistDashboard(user, filters, request);
+    const data = await getChecklistDashboard(
+      user,
+      today ? { ...filters, from: today, to: today } : filters,
+      request,
+    );
     return { data, filters, request };
   } catch {
     return null;

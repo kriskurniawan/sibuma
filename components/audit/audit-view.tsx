@@ -139,6 +139,7 @@ const ACTION_LABEL: Record<string, string> = {
   checklist_video_dihapus: "Video checklist dihapus",
   checklist_selesai: "Checklist diselesaikan",
   checklist_dibuka_kembali: "Checklist dibuka kembali",
+  checklist_deadline_dibuka: "Kunci deadline dibuka",
   tindak_lanjut_dibuat: "Tindak lanjut dibuat",
   tindak_lanjut_diubah: "Tindak lanjut diperbarui",
   pekerjaan_dibuat: "Pekerjaan harian dibuat",

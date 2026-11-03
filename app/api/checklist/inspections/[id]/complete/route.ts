@@ -5,6 +5,8 @@ import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
+  CHECKLIST_DEADLINE_LOCKED_MESSAGE,
+  checklistDeadlineLocked,
   checklistHasOpened,
   checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
@@ -40,6 +42,15 @@ export async function POST(
       }
       if (current.status === "selesai") throw new Error("Checklist ini sudah selesai.");
       if (current.status === "dilewati") throw new Error("Checklist ini dilewati.");
+      if (
+        checklistDeadlineLocked({
+          status: current.status as string,
+          dueAt: current.due_at as Date,
+          reopenedAt: current.reopened_at as Date | null,
+        })
+      ) {
+        throw new Error(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
+      }
 
       const answers = await query(
         `SELECT a.*,(SELECT count(*)::integer FROM checklist_photos p WHERE p.answer_id=a.id AND p.kind='photo') photo_count

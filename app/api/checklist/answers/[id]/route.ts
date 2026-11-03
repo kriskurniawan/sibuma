@@ -5,6 +5,8 @@ import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { loadChecklistConditionMap } from "@/lib/checklist-conditions";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
+  CHECKLIST_DEADLINE_LOCKED_MESSAGE,
+  checklistDeadlineLocked,
   checklistHasOpened,
   checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
@@ -43,7 +45,8 @@ export async function PATCH(
       );
       if (!reference) throw new Error("Item checklist tidak ditemukan.");
       const [inspection] = await query(
-        `SELECT owner_id,status,occurrence_date,opens_at FROM checklist_inspections WHERE id=$1 FOR UPDATE`,
+        `SELECT owner_id,status,occurrence_date,opens_at,due_at,reopened_at
+         FROM checklist_inspections WHERE id=$1 FOR UPDATE`,
         [reference.inspection_id],
         connection,
       );
@@ -61,6 +64,15 @@ export async function PATCH(
       }
       if (!checklistHasOpened(inspection.opens_at)) {
         throw new Error(checklistNotOpenedMessage(inspection.opens_at));
+      }
+      if (
+        checklistDeadlineLocked({
+          status: inspection.status as string,
+          dueAt: inspection.due_at as Date,
+          reopenedAt: inspection.reopened_at as Date | null,
+        })
+      ) {
+        throw new Error(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
       }
       if (parsed.data.expectedVersion !== current.version) {
         const error = new Error(
@@ -103,11 +115,40 @@ export async function PATCH(
         [id, parsed.data.condition, note, user.id],
         connection,
       );
+      // Status mengikuti isi checklist: item yang dikosongkan kembali ke
+      // "belum_dimulai" selama tidak ada catatan, foto, atau tindak lanjut.
       await query(
-        `UPDATE checklist_inspections
-         SET status=CASE WHEN status='belum_dimulai' THEN 'berlangsung' ELSE status END,
-           started_at=COALESCE(started_at,now()),updated_at=now()
-         WHERE id=$1`,
+        `WITH work AS (
+           SELECT
+             EXISTS (
+               SELECT 1 FROM checklist_answers a
+               WHERE a.inspection_id=$1
+                 AND (a.condition IS NOT NULL OR COALESCE(btrim(a.note),'')<>'')
+             ) AS has_answer,
+             EXISTS (SELECT 1 FROM checklist_photos p WHERE p.inspection_id=$1) AS has_photo,
+             EXISTS (SELECT 1 FROM checklist_follow_ups f WHERE f.inspection_id=$1) AS has_follow_up
+         )
+         UPDATE checklist_inspections i
+         SET status=CASE
+               WHEN i.status='berlangsung'
+                 AND NOT (w.has_answer OR w.has_photo OR w.has_follow_up)
+                 THEN 'belum_dimulai'
+               WHEN i.status='belum_dimulai'
+                 AND (w.has_answer OR w.has_photo OR w.has_follow_up)
+                 THEN 'berlangsung'
+               ELSE i.status
+             END,
+           started_at=CASE
+               WHEN i.status='berlangsung'
+                 AND NOT (w.has_answer OR w.has_photo OR w.has_follow_up)
+                 THEN NULL
+               WHEN w.has_answer OR w.has_photo OR w.has_follow_up
+                 THEN COALESCE(i.started_at,now())
+               ELSE i.started_at
+             END,
+           updated_at=now()
+         FROM work w
+         WHERE i.id=$1`,
         [current.inspectionId],
         connection,
       );

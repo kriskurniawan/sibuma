@@ -16,6 +16,7 @@ import {
   listChecklistLocationOptions,
 } from "./checklist-location-scope";
 import {
+  checklistDeadlineLocked,
   checklistHasOpened,
   isChecklistLate,
   scheduleOccurrences,
@@ -125,7 +126,31 @@ function roleParams(user: SessionUser) {
 
 async function generateForUser(user: SessionUser) {
   const ownerId = user.role === "atasan" ? user.id : user.supervisorId;
-  if (ownerId) await generateChecklistInspections(ownerId);
+  if (ownerId) {
+    await generateChecklistInspections(ownerId);
+    await reconcileChecklistProgress(ownerId);
+  }
+}
+
+/**
+ * Status lama bisa tertinggal di `berlangsung` padahal seluruh item sudah
+ * dikosongkan, karena sebelumnya status hanya bergerak maju. Selaraskan saat
+ * daftar/detail dibuka agar status kembali mencerminkan isi checklist.
+ */
+async function reconcileChecklistProgress(ownerId: string) {
+  await query(
+    `UPDATE checklist_inspections i
+     SET status='belum_dimulai',started_at=NULL,updated_at=now()
+     WHERE i.owner_id=$1 AND i.status='berlangsung'
+       AND NOT EXISTS (
+         SELECT 1 FROM checklist_answers a
+         WHERE a.inspection_id=i.id
+           AND (a.condition IS NOT NULL OR COALESCE(btrim(a.note),'')<>'')
+       )
+       AND NOT EXISTS (SELECT 1 FROM checklist_photos p WHERE p.inspection_id=i.id)
+       AND NOT EXISTS (SELECT 1 FROM checklist_follow_ups f WHERE f.inspection_id=i.id)`,
+    [ownerId],
+  );
 }
 
 export interface ChecklistFilters {
@@ -239,6 +264,7 @@ export async function getChecklistDashboard(
       totalItems: Number(row.total_items),
       openFollowUps: Number(row.open_follow_ups),
       overdue: isChecklistLate(inspection, now),
+      locked: checklistDeadlineLocked(inspection, now),
       locationPath: locationPaths.get(inspection.locationId),
     };
   });
@@ -252,6 +278,8 @@ export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTo
   const [row] = await query(
     `SELECT
        count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND NOT ${lateInspectionSql()})::integer todo,
+       count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND NOT ${lateInspectionSql()}
+         AND i.occurrence_date=(now() AT TIME ZONE ${sqlTimeZone()})::date)::integer today_todo,
        count(*) FILTER (WHERE i.status IN ('belum_dimulai','berlangsung') AND ${lateInspectionSql()})::integer overdue,
        count(*) FILTER (WHERE i.status='selesai' AND i.completed_at>=date_trunc('month',now() AT TIME ZONE ${sqlTimeZone()}) AT TIME ZONE ${sqlTimeZone()})::integer completed_this_month,
        (SELECT count(*)::integer FROM checklist_follow_ups f JOIN checklist_inspections i2 ON i2.id=f.inspection_id
@@ -262,6 +290,7 @@ export async function getChecklistTotals(user: SessionUser): Promise<ChecklistTo
   );
   return {
     todo: Number(row.todo),
+    todayTodo: Number(row.today_todo),
     overdue: Number(row.overdue),
     completedThisMonth: Number(row.completed_this_month),
     openFollowUps: Number(row.open_follow_ups),
@@ -445,7 +474,9 @@ export async function getChecklistInspectionDetail(
   const readOnly = user.accessMode === "read_only";
   const open = !["selesai", "dilewati"].includes(inspection.status);
   const hasStarted = checklistHasOpened(inspection.opensAt);
-  const canFill = !readOnly && open && hasStarted && (owner || assigned);
+  const deadlineLocked = checklistDeadlineLocked(inspection);
+  const canFill =
+    !readOnly && open && hasStarted && !deadlineLocked && (owner || assigned);
 
   return {
     inspection,
@@ -453,6 +484,7 @@ export async function getChecklistInspectionDetail(
     overdue:
       open &&
       isChecklistLate(inspection),
+    deadlineLocked,
     assignees: assignees as ChecklistPerson[],
     answers: mappedAnswers.map((answer) => ({
       answer,
@@ -472,6 +504,7 @@ export async function getChecklistInspectionDetail(
     canFill,
     canComplete: canFill,
     canReopen: !readOnly && owner && inspection.status === "selesai",
+    canUnlock: !readOnly && owner && deadlineLocked,
     completedByName: (row.completed_by_name as string | null) ?? null,
     reopenedByName: (row.reopened_by_name as string | null) ?? null,
   };

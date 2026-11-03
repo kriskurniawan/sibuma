@@ -9,9 +9,9 @@ import { usePushSettings } from "./use-push-settings";
 export function PushActivationButton() {
   const { loading, busy, canActivate, activate } = usePushSettings();
 
-  if (loading) {
-    return <Button type="button" size="sm" disabled title="Memeriksa dukungan dan pengaturan notifikasi perangkat"><BellRing aria-hidden="true" />Aktifkan notifikasi</Button>;
-  }
+  // Status perangkat belum diketahui. Jangan render tombol placeholder atau
+  // skeleton: keduanya terbaca sebagai aksi hantu, terutama saat sudah aktif.
+  if (loading) return null;
 
   if (!canActivate) return null;
 

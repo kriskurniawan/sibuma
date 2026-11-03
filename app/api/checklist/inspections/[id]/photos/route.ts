@@ -9,6 +9,8 @@ import {
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
 import {
+  CHECKLIST_DEADLINE_LOCKED_MESSAGE,
+  checklistDeadlineLocked,
   checklistHasOpened,
   checklistNotOpenedMessage,
 } from "@/lib/checklist-schedule";
@@ -133,6 +135,9 @@ export async function POST(
           "Checklist sudah selesai. Minta atasan membuka kembali sebelum menambah foto.",
         );
       }
+      if (checklistDeadlineLocked(inspection)) {
+        return apiError(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
+      }
     }
 
     const { checklistPhotos: maxPhotos } = await getPhotoLimits();
@@ -189,6 +194,15 @@ export async function POST(
           throw new Error(
             "Checklist sudah selesai. Minta atasan membuka kembali sebelum menambah foto.",
           );
+        }
+        if (
+          checklistDeadlineLocked({
+            status: current.status as string,
+            dueAt: current.due_at as Date,
+            reopenedAt: current.reopened_at as Date | null,
+          })
+        ) {
+          throw new Error(CHECKLIST_DEADLINE_LOCKED_MESSAGE);
         }
         const [answer] = await query(
           `SELECT id FROM checklist_answers WHERE id=$1 AND inspection_id=$2`,

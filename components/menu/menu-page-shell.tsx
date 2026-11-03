@@ -5,6 +5,7 @@ import {
   BarChart3,
   CalendarClock,
   ChevronRight,
+  FileText,
   FolderLock,
   ListChecks,
   QrCode,
@@ -63,6 +64,7 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
       title: "Rekap & pemantauan",
       description: "Lihat hasil kerja dan jejak aktivitas tim.",
       items: [
+        { href: "/laporan-harian", label: "Laporan harian", description: "Teks dan kolase foto siap dibagikan ke WhatsApp.", icon: FileText },
         { href: "/laporan", label: "Laporan & rekap", description: "Checklist, temuan, pekerjaan harian, dan lembur tim.", icon: BarChart3 },
         { href: "/audit", label: "Log audit", description: "Riwayat perubahan dan aktivitas penting.", icon: ScrollText },
       ],

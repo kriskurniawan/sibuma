@@ -152,7 +152,7 @@ export function OperationalDashboardShell({
   const supervisor = user.role === "atasan";
   const labels = supervisor
     ? ["Checklist aktif", "Terlambat", "Tindak lanjut", "Selesai bulan ini"]
-    : ["Checklist aktif", "Terlambat", "Selesai bulan ini", "Tindak lanjut saya"];
+    : ["Checklist aktif", "Terlambat", "Selesai bulan ini", "Tindak lanjut"];
   const focusContent = focus ?? <DashboardFocusSkeleton supervisor={supervisor} />;
   const summaryContent = summary ?? <DashboardSummarySkeleton labels={labels} />;
   const statsContent = stats ?? <DashboardStatsSkeleton labels={labels} />;
@@ -187,7 +187,7 @@ export function OperationalDashboardShell({
       <div className={supervisor
         ? "grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:grid-rows-[auto_1fr]"
         : "grid items-start gap-4 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-rows-[auto_1fr]"}>
-        <Frame spacing="sm" className="order-1 min-w-0 sm:order-3 xl:col-start-2 xl:row-start-2">
+        <Frame spacing="sm" className="order-4 min-w-0 sm:order-3 xl:col-start-2 xl:row-start-2">
           <FrameHeader className="flex-row items-start justify-between gap-3">
             <FrameTitle>Jadwal lembur</FrameTitle>
             <Link
@@ -218,10 +218,12 @@ export function OperationalDashboardShell({
         <Frame spacing="sm" className="order-3 min-w-0 sm:order-2 xl:col-start-2 xl:row-start-1">
           <FrameHeader className="flex-row items-start justify-between gap-3">
             <div className="flex flex-col gap-0.5">
-              <FrameTitle>{supervisor ? "Tindak lanjut" : "Tindak lanjut saya"}</FrameTitle>
-              <FrameDescription className="text-xs">
-                {followUpDescription ?? (supervisor ? "Temuan dari checklist tim" : "Temuan yang ditugaskan kepadamu")}
-              </FrameDescription>
+              <FrameTitle>Tindak lanjut</FrameTitle>
+              {supervisor && (
+                <FrameDescription className="text-xs">
+                  {followUpDescription ?? "Temuan dari checklist tim"}
+                </FrameDescription>
+              )}
             </div>
             <Link
               href={supervisor ? "/checklist/tindak-lanjut" : "/checklist/tindak-lanjut?mine=1"}
@@ -230,8 +232,13 @@ export function OperationalDashboardShell({
           </FrameHeader>
           <FramePanel className="flex flex-col justify-center">{followUps}</FramePanel>
         </Frame>
+        <ManualWorkSummaryShell
+          className="order-1 min-w-0 sm:order-last sm:mt-2 lg:mt-4 xl:col-span-2 xl:row-start-3"
+          description={manualWorkDescription}
+        >
+          {manualWorks}
+        </ManualWorkSummaryShell>
       </div>
-      <ManualWorkSummaryShell description={manualWorkDescription}>{manualWorks}</ManualWorkSummaryShell>
       {!supervisor && (
         <section aria-label="Ringkasan checklist saya" className="hidden grid-cols-2 gap-3 sm:grid xl:grid-cols-4">
           {statsContent}

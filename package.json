@@ -34,6 +34,7 @@
     "db:migrate:note-photos": "node scripts/migrate-note-photos.mjs",
     "db:migrate:note-idempotency": "node scripts/migrate-note-idempotency.mjs",
     "db:migrate:notifications": "node scripts/migrate-notifications.mjs",
+    "db:migrate:daily-report-settings": "node scripts/migrate-daily-report-settings.mjs",
     "push:keys": "node scripts/generate-vapid-keys.mjs",
     "db:promote:super-admin": "tsx scripts/promote-super-admin.mjs",
     "auth:test": "node --conditions=react-server --import tsx scripts/test-email-otp.mjs",

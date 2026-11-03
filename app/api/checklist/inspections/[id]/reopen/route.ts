@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { insertChecklistAudit } from "@/lib/checklist-audit";
 import { checklistErrorMessage } from "@/lib/checklist-errors";
+import { checklistDeadlineLocked } from "@/lib/checklist-schedule";
 import { checklistReopenSchema } from "@/lib/checklist-validation";
 import { query, transaction } from "@/lib/db";
 import { rowToCamel } from "@/lib/db-model";
@@ -37,31 +38,74 @@ export async function POST(
         connection,
       );
       if (!current) throw new Error("Checklist tidak ditemukan.");
-      if (current.status !== "selesai") throw new Error("Hanya checklist selesai yang dapat dibuka kembali.");
+      if (current.status === "dilewati") {
+        throw new Error("Checklist yang dilewati tidak dapat dibuka kembali.");
+      }
+      const deadlineLocked = checklistDeadlineLocked({
+        status: current.status as string,
+        dueAt: current.due_at as Date,
+        reopenedAt: current.reopened_at as Date | null,
+      });
+      if (current.status !== "selesai" && !deadlineLocked) {
+        throw new Error(
+          "Hanya checklist selesai atau yang terkunci karena deadline yang dapat dibuka kembali.",
+        );
+      }
 
+      const reopeningCompleted = current.status === "selesai";
+      const nextStatus = reopeningCompleted ? "berlangsung" : (current.status as string);
       const now = new Date().toISOString();
       await query(
         `UPDATE checklist_inspections
-         SET status='berlangsung',completed_at=NULL,completed_by=NULL,
-           reopened_at=$2,reopened_by=$3,reopen_reason=$4,updated_at=$2
+         SET status=$2,completed_at=$5,completed_by=$6,
+           reopened_at=$3,reopened_by=$4,reopen_reason=$7,updated_at=$3
          WHERE id=$1`,
-        [id, now, user.id, parsed.data.reason],
+        [
+          id,
+          nextStatus,
+          now,
+          user.id,
+          reopeningCompleted ? null : current.completed_at,
+          reopeningCompleted ? null : current.completed_by,
+          parsed.data.reason,
+        ],
         connection,
       );
       const [updated] = await query(`SELECT * FROM checklist_inspections WHERE id=$1`, [id], connection);
       await insertChecklistAudit(connection, {
         actorId: user.id,
         actorName: user.name,
-        action: "checklist_dibuka_kembali",
+        action: reopeningCompleted
+          ? "checklist_dibuka_kembali"
+          : "checklist_deadline_dibuka",
         objectType: "checklist",
         objectId: id,
-        summary: `${user.name} membuka kembali checklist ${current.template_name as string}.`,
-        before: { status: current.status, completedAt: current.completed_at },
-        after: { status: "berlangsung", reason: parsed.data.reason },
+        summary: reopeningCompleted
+          ? `${user.name} membuka kembali checklist ${current.template_name as string}.`
+          : `${user.name} membuka kunci deadline checklist ${current.template_name as string}.`,
+        before: {
+          status: current.status,
+          completedAt: current.completed_at,
+          dueAt: current.due_at,
+          reopenedAt: current.reopened_at,
+        },
+        after: {
+          status: nextStatus,
+          reason: parsed.data.reason,
+          deadlineUnlocked: !reopeningCompleted,
+        },
       });
-      return rowToCamel(updated);
+      return {
+        inspection: rowToCamel(updated),
+        reopenedCompleted: reopeningCompleted,
+      };
     });
-    return apiOk({ inspection, message: "Checklist dibuka kembali." });
+    return apiOk({
+      inspection: inspection.inspection,
+      message: inspection.reopenedCompleted
+        ? "Checklist dibuka kembali."
+        : "Kunci deadline dibuka. Pengisian dapat dilanjutkan.",
+    });
   } catch (error) {
     return apiError(checklistErrorMessage(error));
   }

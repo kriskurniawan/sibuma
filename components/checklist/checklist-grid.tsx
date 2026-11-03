@@ -18,6 +18,7 @@ import { Avatar, Badge, ProgressBar } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ChecklistLockedBadge,
   ChecklistOverdueBadge,
   ChecklistStatusBadge,
 } from "@/components/checklist/checklist-badges";
@@ -191,7 +192,11 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
     cell: ({ row }) => (
       <div className="flex flex-wrap items-center gap-1">
         <ChecklistStatusBadge status={row.original.inspection.status} />
-        {row.original.overdue && <ChecklistOverdueBadge />}
+        {row.original.locked ? (
+          <ChecklistLockedBadge />
+        ) : (
+          row.original.overdue && <ChecklistOverdueBadge />
+        )}
       </div>
     ),
   },
@@ -319,7 +324,11 @@ export function ChecklistGrid({
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                     <ChecklistStatusBadge status={row.inspection.status} />
-                    {row.overdue && <ChecklistOverdueBadge />}
+                    {row.locked ? (
+                      <ChecklistLockedBadge />
+                    ) : (
+                      row.overdue && <ChecklistOverdueBadge />
+                    )}
                   </div>
                 </div>
 

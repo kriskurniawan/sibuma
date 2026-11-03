@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, BarChart3, CalendarClock, ChevronRight, ClipboardList, History, Mail, MessageCircle, ScrollText, ShieldCheck, SlidersHorizontal, UsersRound } from "lucide-react";
+import { ArrowRight, BarChart3, CalendarClock, ChevronRight, ClipboardList, FileText, History, Mail, MessageCircle, ScrollText, ShieldCheck, SlidersHorizontal, UsersRound } from "lucide-react";
 import { PushSettings } from "@/components/notifications/push-settings";
 import { ProfileActions } from "@/components/profile/profile-actions";
 import { ProfileEditor } from "@/components/profile/profile-editor";
@@ -64,11 +64,13 @@ export function ProfilePageShell({ user: snapshot, teamDescription, policy, loca
     { href: "/pengaturan", icon: SlidersHorizontal, title: "Pengaturan", description: "Kebijakan lembur dan checklist" },
   ] : user.role === "atasan" ? [
     { href: "/tim", icon: UsersRound, title: readOnly ? "Lihat tim" : "Tim", description: teamDescription ?? <Skeleton className="h-3 w-20" /> },
+    { href: "/laporan-harian", icon: FileText, title: "Laporan harian", description: "Teks dan kolase foto siap WhatsApp" },
     { href: "/laporan", icon: BarChart3, title: "Laporan & rekap", description: "Kehadiran dan ekspor tim" },
     { href: "/lembur", icon: CalendarClock, title: "Lembur", description: "SPKL dan dokumentasi tim" },
     { href: "/audit", icon: ScrollText, title: "Log audit", description: "Perubahan data tim" },
   ] : [
     { href: "/riwayat", icon: History, title: "Lembur", description: "SPKL dan bukti pekerjaan" },
+    { href: "/laporan-harian", icon: FileText, title: "Laporan harian", description: "Teks dan kolase foto siap WhatsApp" },
     { href: "/", icon: ClipboardList, title: "Beranda", description: "Checklist dan tindak lanjut" },
   ];
 

@@ -278,7 +278,8 @@ export function checklistScheduleDaysSummary(
 
 /**
  * Keterlambatan isian: tanggal jadwal sudah lewat, atau deadline sudah lewat.
- * Checklist tetap dapat diisi selama statusnya belum selesai/dilewati.
+ * Setelah deadline lewat pengisian dikunci (lihat checklistDeadlineLocked);
+ * atasan dapat membukanya kembali tanpa menghapus catatan keterlambatan.
  */
 export function isChecklistLate(
   input: { status: string; occurrenceDate: string; dueAt: string },
@@ -289,6 +290,44 @@ export function isChecklistLate(
     input.occurrenceDate.slice(0, 10) < localDate(now) ||
     new Date(input.dueAt).getTime() < now.getTime()
   );
+}
+
+export const CHECKLIST_DEADLINE_LOCKED_MESSAGE =
+  "Deadline checklist sudah lewat sehingga pengisian dikunci. Minta atasan membuka kunci untuk melanjutkan.";
+
+function timestamp(value: string | Date) {
+  return value instanceof Date ? value.getTime() : new Date(value).getTime();
+}
+
+/**
+ * Membuka kembali setelah deadline adalah izin atasan. Karena `due_at` tidak
+ * diubah, keterlambatan tetap tercatat di laporan dan audit.
+ */
+export function checklistDeadlineUnlocked(input: {
+  dueAt: string | Date;
+  reopenedAt?: string | Date | null;
+}) {
+  return Boolean(
+    input.reopenedAt &&
+      timestamp(input.reopenedAt) >= timestamp(input.dueAt),
+  );
+}
+
+/**
+ * Deadline bersifat mengunci: checklist yang masih terbuka tidak dapat diisi
+ * setelah `due_at`, kecuali atasan sudah membukanya kembali setelah deadline.
+ */
+export function checklistDeadlineLocked(
+  input: {
+    status: string;
+    dueAt: string | Date;
+    reopenedAt?: string | Date | null;
+  },
+  now = new Date(),
+) {
+  if (input.status === "selesai" || input.status === "dilewati") return false;
+  if (timestamp(input.dueAt) >= now.getTime()) return false;
+  return !checklistDeadlineUnlocked(input);
 }
 
 /** Penyelesaian dianggap terlambat bila melewati tanggal jadwal atau deadline. */

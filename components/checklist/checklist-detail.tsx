@@ -11,6 +11,7 @@ import {
   Eye,
   FolderTree,
   ListChecks,
+  LockKeyhole,
   MapPin,
   Package,
   RotateCcw,
@@ -53,6 +54,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AnswerCard, type AnswerDraftState } from "@/components/checklist/answer-card";
 import {
   ChecklistFollowUpBadge,
+  ChecklistLockedBadge,
   ChecklistOverdueBadge,
   ChecklistPriorityBadge,
   ChecklistStatusBadge,
@@ -136,6 +138,7 @@ export function ChecklistDetail({
   const total = detail.answers.length;
   const overdue = detail.overdue;
   const closed = ["selesai", "dilewati"].includes(inspection.status);
+  const unlocking = detail.deadlineLocked;
   const canUpdateFollowUps =
     !detail.readOnly &&
     detail.hasStarted &&
@@ -303,7 +306,9 @@ export function ChecklistDetail({
 
   async function reopen() {
     if (reopenReason.trim().length < 10) {
-      toast.error("Alasan membuka kembali minimal 10 karakter.");
+      toast.error(
+        `Alasan ${unlocking ? "membuka kunci" : "membuka kembali"} minimal 10 karakter.`,
+      );
       return;
     }
     setReopening(true);
@@ -324,12 +329,20 @@ export function ChecklistDetail({
         toast.error(data.message ?? "Gagal membuka kembali checklist.");
         return;
       }
-      toast.success("Checklist dibuka kembali.");
+      toast.success(
+        unlocking
+          ? "Kunci deadline dibuka. Pengisian dapat dilanjutkan."
+          : "Checklist dibuka kembali.",
+      );
       setReopenOpen(false);
       setReopenReason("");
       router.refresh();
     } catch {
-      toast.error("Gagal membuka kembali checklist. Coba lagi.");
+      toast.error(
+        unlocking
+          ? "Gagal membuka kunci deadline. Coba lagi."
+          : "Gagal membuka kembali checklist. Coba lagi.",
+      );
     } finally {
       setReopening(false);
     }
@@ -361,15 +374,23 @@ export function ChecklistDetail({
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <ChecklistStatusBadge status={inspection.status} />
-      {overdue && <ChecklistOverdueBadge />}
-      {detail.canReopen && (
+      {overdue && !detail.deadlineLocked && <ChecklistOverdueBadge />}
+      {detail.deadlineLocked && <ChecklistLockedBadge />}
+      {(detail.canUnlock || detail.canReopen) && (
         <Button
           size="sm"
           variant="outline"
-          onClick={() => setReopenOpen(true)}
+          onClick={() => {
+            setReopenReason("");
+            setReopenOpen(true);
+          }}
         >
-          <RotateCcw aria-hidden="true" />
-          Buka kembali
+          {detail.canUnlock ? (
+            <LockKeyhole aria-hidden="true" />
+          ) : (
+            <RotateCcw aria-hidden="true" />
+          )}
+          {detail.canUnlock ? "Buka kunci" : "Buka kembali"}
         </Button>
       )}
     </div>
@@ -442,6 +463,16 @@ export function ChecklistDetail({
             "d MMMM yyyy",
           )}
           . Item baru dapat diisi mulai tanggal tersebut.
+        </InfoBanner>
+      )}
+
+      {detail.deadlineLocked && (
+        <InfoBanner tone="warning" icon={LockKeyhole}>
+          Deadline sudah lewat sehingga pengisian dikunci. Keterlambatan tetap
+          tercatat;{" "}
+          {detail.canUnlock
+            ? "buka kunci bila pekerjaan perlu dilanjutkan."
+            : "minta atasan membuka kunci bila pekerjaan perlu dilanjutkan."}
         </InfoBanner>
       )}
 
@@ -676,7 +707,9 @@ export function ChecklistDetail({
                       occurrenceIso(inspection.occurrenceDate),
                       "d MMMM yyyy",
                     )}.`
-                  : "Isi dan simpan setiap item pemeriksaan."}
+                  : detail.deadlineLocked
+                    ? "Pengisian dikunci karena deadline sudah lewat."
+                    : "Isi dan simpan setiap item pemeriksaan."}
             </FrameDescription>
           </div>
           <Badge variant="outline" className="tabular-nums">
@@ -1043,21 +1076,30 @@ export function ChecklistDetail({
           initialFocus={isMobile ? reopenContentRef : undefined}
         >
           <AlertDialogHeader>
-            <AlertDialogTitle>Buka kembali checklist?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {unlocking ? "Buka kunci pengisian?" : "Buka kembali checklist?"}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Checklist kembali berstatus berlangsung dan dapat diisi ulang.
-              Alasan wajib diisi dan tercatat di log audit.
+              {unlocking
+                ? "Deadline sudah lewat sehingga checklist terkunci. Membuka kunci mengizinkan tim melanjutkan pengisian dan penyelesaian; keterlambatan tetap tercatat di laporan dan audit."
+                : "Checklist kembali berstatus berlangsung dan dapat diisi ulang. Alasan wajib diisi dan tercatat di log audit."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="reopen-reason">Alasan membuka kembali</Label>
+            <Label htmlFor="reopen-reason">
+              {unlocking ? "Alasan membuka kunci" : "Alasan membuka kembali"}
+            </Label>
             <Textarea
               id="reopen-reason"
               value={reopenReason}
               onChange={(event) => setReopenReason(event.target.value)}
               rows={3}
               maxLength={500}
-              placeholder="Contoh: Foto item nomor 3 perlu diperbarui setelah perbaikan."
+              placeholder={
+                unlocking
+                  ? "Contoh: Pekerjaan terhambat banjir dan perlu diselesaikan malam ini."
+                  : "Contoh: Foto item nomor 3 perlu diperbarui setelah perbaikan."
+              }
             />
           </div>
           <AlertDialogFooter>
@@ -1066,7 +1108,11 @@ export function ChecklistDetail({
               onClick={reopen}
               disabled={reopening || reopenReason.trim().length < 10}
             >
-              {reopening ? "Membuka…" : "Buka kembali"}
+              {reopening
+                ? "Membuka…"
+                : unlocking
+                  ? "Buka kunci"
+                  : "Buka kembali"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
