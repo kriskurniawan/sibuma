@@ -14,6 +14,8 @@ import {
 interface PushConfigState {
   configured: boolean;
   publicKey: string | null;
+  /** Jumlah perangkat yang sudah terdaftar untuk akun ini. */
+  subscriptions: number;
 }
 
 interface LocalPushState {
@@ -43,11 +45,14 @@ export function usePushSettings() {
         const data = (await response.json()) as {
           configured?: boolean;
           publicKey?: string | null;
+          subscriptions?: number;
         };
         if (cancelled) return;
         setConfig({
           configured: Boolean(data.configured),
           publicKey: data.publicKey ?? null,
+          subscriptions:
+            typeof data.subscriptions === "number" ? data.subscriptions : 0,
         });
         setLocal(state);
         if (state.capability === "granted" && state.subscribed) {
@@ -183,6 +188,7 @@ export function usePushSettings() {
     unavailable,
     unavailableLabel,
     canActivate,
+    subscriptions: config?.subscriptions ?? 0,
     activate,
     disable,
     toggle,

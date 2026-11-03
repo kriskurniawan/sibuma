@@ -44,6 +44,7 @@ import { QrScanButton } from "@/components/checklist/qr-scanner";
 import { EmailChangeNotice } from "@/components/email-change-notice";
 import { LogoMark } from "@/components/logo";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationPermissionPrompt } from "@/components/notifications/notification-permission-prompt";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import { SessionUserProvider } from "@/components/session-user-provider";
 import { Avatar, Badge } from "@/components/ui";
@@ -560,6 +561,9 @@ export function AppShell({
   return (
     <SidebarProvider className="print:block">
       <CloseMobileSidebarOnNavigate />
+      {pathname === "/" && user.role === "pekerja" && (
+        <NotificationPermissionPrompt userId={user.id} />
+      )}
       <Sidebar collapsible="icon" className="no-print">
         <SidebarHeader className="h-14 justify-center border-b border-sidebar-border px-2">
           <SidebarMenu>
