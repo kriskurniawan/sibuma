@@ -8,11 +8,14 @@ import {
   useRef,
   useState,
   useTransition,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 import {
   AlertTriangle,
   Camera,
   Check,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Copy,
   Download,
@@ -24,6 +27,7 @@ import {
   Save,
   Shuffle,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DatePicker } from "@/components/date-picker";
@@ -59,7 +63,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { DataRow, EmptyState, PageHeader } from "@/components/ui";
@@ -236,8 +239,19 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
   const [replacingId, setReplacingId] = useState<string | null>(null);
   const [collageOpen, setCollageOpen] = useState(false);
   const [collages, setCollages] = useState<DailyCollage[]>([]);
+  const [collageIndex, setCollageIndex] = useState(0);
   const [building, setBuilding] = useState(false);
   const [collageError, setCollageError] = useState<string | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+  const swipeStart = useRef<{
+    x: number;
+    y: number;
+    pointerId: number;
+  } | null>(null);
+  const swipeImageRef = useRef<HTMLImageElement | null>(null);
+  const collageRequest = useRef(0);
+  const [swiping, setSwiping] = useState(false);
 
   const photoById = useMemo(
     () => new Map(data.photos.map((photo) => [photo.id, photo])),
@@ -297,6 +311,36 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
     selectedPhotos.length === 0
       ? 0
       : Math.ceil(selectedPhotos.length / DAILY_COLLAGE_PHOTO_LIMIT);
+  const activeCollageIndex =
+    collages.length === 0
+      ? 0
+      : Math.min(Math.max(collageIndex, 0), collages.length - 1);
+  const activeCollage = collages[activeCollageIndex] ?? null;
+  const canSwitchCollage = collages.length > 1;
+
+  useEffect(() => {
+    setCollageIndex((current) =>
+      Math.min(Math.max(current, 0), Math.max(collages.length - 1, 0)),
+    );
+  }, [collages.length]);
+
+  useEffect(() => {
+    if (!collageOpen || collages.length < 2) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      event.preventDefault();
+      resetSwipe();
+      const step = event.key === "ArrowRight" ? 1 : -1;
+      setCollageIndex((current) => {
+        const next = current + step;
+        return Math.min(Math.max(next, 0), collages.length - 1);
+      });
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [collageOpen, collages.length]);
 
   useEffect(() => {
     return () => {
@@ -426,8 +470,12 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
 
   async function generateCollages() {
     if (selectedPhotos.length === 0) return;
+    const requestId = ++collageRequest.current;
     setBuilding(true);
     setCollageError(null);
+    setDownloadNotice(null);
+    setCollageIndex(0);
+    resetSwipe();
     const options: CollageBuildOptions = {
       date: data.date,
       title: reportTitle,
@@ -435,12 +483,17 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
     };
     try {
       const result = await buildDailyCollages(selectedPhotos, options);
+      if (collageRequest.current !== requestId) {
+        for (const collage of result) URL.revokeObjectURL(collage.url);
+        return;
+      }
       setCollages(result);
     } catch (error) {
+      if (collageRequest.current !== requestId) return;
       console.error("Gagal membuat kolase laporan harian:", error);
       setCollageError("Kolase gagal dibuat. Periksa koneksi lalu coba lagi.");
     } finally {
-      setBuilding(false);
+      if (collageRequest.current === requestId) setBuilding(false);
     }
   }
 
@@ -448,6 +501,62 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
     if (selectedPhotos.length === 0) return;
     setCollageOpen(true);
     void generateCollages();
+  }
+
+  function stepCollage(step: number) {
+    resetSwipe();
+    setCollageIndex((current) => {
+      const next = current + step;
+      return Math.min(Math.max(next, 0), Math.max(collages.length - 1, 0));
+    });
+  }
+
+  function handleSwipeStart(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!canSwitchCollage || building) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    swipeStart.current = {
+      x: event.clientX,
+      y: event.clientY,
+      pointerId: event.pointerId,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setSwiping(true);
+  }
+
+  function handleSwipeMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = swipeStart.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) {
+      resetSwipe();
+      return;
+    }
+    const atStart = activeCollageIndex === 0 && dx > 0;
+    const atEnd =
+      activeCollageIndex === collages.length - 1 && dx < 0;
+    if (swipeImageRef.current) {
+      const offset = atStart || atEnd ? dx * 0.25 : dx;
+      swipeImageRef.current.style.transform = `translate3d(${offset}px, 0, 0)`;
+    }
+  }
+
+  function resetSwipe() {
+    swipeStart.current = null;
+    if (swipeImageRef.current) {
+      swipeImageRef.current.style.transform = "";
+    }
+    setSwiping(false);
+  }
+
+  function handleSwipeEnd(event: ReactPointerEvent<HTMLDivElement>) {
+    const start = swipeStart.current;
+    if (!start || start.pointerId !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    resetSwipe();
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return;
+    stepCollage(dx < 0 ? 1 : -1);
   }
 
   function downloadCollage(collage: DailyCollage) {
@@ -460,14 +569,24 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
   }
 
   async function downloadAll() {
-    if (collages.length === 0) return;
-    for (const collage of collages) {
-      downloadCollage(collage);
-      await new Promise((resolve) => window.setTimeout(resolve, 350));
+    if (collages.length === 0 || downloadingAll) return;
+    setDownloadingAll(true);
+    setDownloadNotice(`Menyiapkan ${collages.length} kolase…`);
+    try {
+      for (const collage of collages) {
+        downloadCollage(collage);
+        await new Promise((resolve) => window.setTimeout(resolve, 350));
+      }
+      setDownloadNotice(
+        `${collages.length} kolase diunduh. Periksa folder unduhan perangkat.`,
+      );
+    } catch {
+      setDownloadNotice(
+        "Sebagian kolase gagal diunduh. Coba unduh satu per satu.",
+      );
+    } finally {
+      setDownloadingAll(false);
     }
-    toast.success(
-      `${collages.length} kolase disiapkan. Periksa folder unduhan perangkat.`,
-    );
   }
 
   return (
@@ -864,101 +983,176 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
       </Dialog>
 
       <Dialog open={collageOpen} onOpenChange={setCollageOpen}>
-        <DialogContent className="max-h-[85dvh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Kolase foto</DialogTitle>
-            <DialogDescription>
-              {collageCount} gambar, maksimal {DAILY_COLLAGE_PHOTO_LIMIT} foto
-              per kolase. Periksa dulu sebelum mengunduh.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="min-h-0 overflow-y-auto pr-1">
-            {building ? (
-              <div
-                className="grid gap-3 sm:grid-cols-2"
-                aria-busy="true"
+        <DialogContent
+          showCloseButton={false}
+          className="top-0 left-0 z-[1000000000] flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-black p-0 text-white ring-0 outline-none sm:max-w-none"
+        >
+          <div className="flex shrink-0 items-start gap-2 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <DialogTitle className="truncate text-sm text-white">
+                Kolase foto
+              </DialogTitle>
+              <DialogDescription
+                className="truncate text-xs text-white/70"
                 aria-live="polite"
               >
-                <span className="sr-only">Membuat kolase foto…</span>
-                <Skeleton className="aspect-[4/5] w-full rounded-lg" />
-                <Skeleton className="aspect-[4/5] w-full rounded-lg" />
-              </div>
-            ) : collageError ? (
-              <Alert variant="warning">
-                <AlertTriangle aria-hidden="true" />
-                <AlertTitle>Kolase gagal dibuat</AlertTitle>
-                <AlertDescription>{collageError}</AlertDescription>
-                <AlertAction>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    type="button"
-                    onClick={() => void generateCollages()}
-                  >
-                    <RotateCcw />
-                    Coba lagi
-                  </Button>
-                </AlertAction>
-              </Alert>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {collages.map((collage) => (
-                  <figure
-                    key={collage.fileName}
-                    className="flex min-w-0 flex-col gap-2"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={collage.url}
-                      alt={`Kolase ${collage.index + 1} dari ${collage.total}`}
-                      className="w-full rounded-lg border border-border"
-                    />
-                    <figcaption className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">
-                        Kolase {collage.index + 1} dari {collage.total} •{" "}
-                        {collage.photoCount} foto
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        type="button"
-                        onClick={() => downloadCollage(collage)}
-                      >
-                        <Download />
-                        Unduh
-                      </Button>
-                    </figcaption>
-                  </figure>
-                ))}
-              </div>
+                {building
+                  ? "Membuat kolase foto…"
+                  : collageError
+                    ? "Kolase gagal dibuat."
+                    : activeCollage
+                      ? `Kolase ${activeCollageIndex + 1} dari ${collages.length} • ${activeCollage.photoCount} foto`
+                      : `${collageCount} kolase • maksimal ${DAILY_COLLAGE_PHOTO_LIMIT} foto per kolase`}
+              </DialogDescription>
+            </div>
+            {activeCollage && !building && !collageError && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-lg"
+                className="text-white hover:bg-white/10 hover:text-white"
+                onClick={() => downloadCollage(activeCollage)}
+                aria-label={`Unduh kolase ${activeCollageIndex + 1}`}
+              >
+                <Download aria-hidden="true" />
+              </Button>
             )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              className="text-white hover:bg-white/10 hover:text-white"
+              onClick={() => setCollageOpen(false)}
+              aria-label="Tutup kolase"
+            >
+              <X aria-hidden="true" />
+            </Button>
           </div>
 
-          <DialogFooter className="sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              Jika browser memblokir unduhan beruntun, unduh satu per satu.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                onClick={() => setCollageOpen(false)}
+          <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden p-2">
+            {building ? (
+              <div
+                className="flex flex-col items-center gap-2 text-white/70"
+                role="status"
+                aria-live="polite"
               >
-                Tutup
-              </Button>
+                <Spinner aria-label="Membuat kolase" />
+                <p className="text-xs">
+                  Menyiapkan {collageCount} kolase…
+                </p>
+              </div>
+            ) : collageError ? (
+              <div className="w-full max-w-md px-2">
+                <Alert variant="warning">
+                  <AlertTriangle aria-hidden="true" />
+                  <AlertTitle>Kolase gagal dibuat</AlertTitle>
+                  <AlertDescription>{collageError}</AlertDescription>
+                  <AlertAction>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      type="button"
+                      onClick={() => void generateCollages()}
+                    >
+                      <RotateCcw />
+                      Coba lagi
+                    </Button>
+                  </AlertAction>
+                </Alert>
+              </div>
+            ) : activeCollage ? (
+              <>
+                <div
+                  className={cn(
+                    "flex h-full w-full touch-pan-y items-center justify-center select-none",
+                    canSwitchCollage &&
+                      (swiping ? "cursor-grabbing" : "cursor-grab"),
+                  )}
+                  onPointerDown={handleSwipeStart}
+                  onPointerMove={handleSwipeMove}
+                  onPointerUp={handleSwipeEnd}
+                  onPointerCancel={resetSwipe}
+                  onLostPointerCapture={resetSwipe}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    ref={swipeImageRef}
+                    src={activeCollage.url}
+                    alt={`Kolase ${activeCollageIndex + 1} dari ${collages.length}`}
+                    draggable={false}
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+                {canSwitchCollage && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-lg"
+                      className="absolute top-1/2 left-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/60 hover:text-white"
+                      onClick={() => stepCollage(-1)}
+                      disabled={activeCollageIndex === 0}
+                      aria-label="Kolase sebelumnya"
+                    >
+                      <ChevronLeft aria-hidden="true" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-lg"
+                      className="absolute top-1/2 right-2 -translate-y-1/2 bg-black/40 text-white hover:bg-black/60 hover:text-white"
+                      onClick={() => stepCollage(1)}
+                      disabled={activeCollageIndex === collages.length - 1}
+                      aria-label="Kolase berikutnya"
+                    >
+                      <ChevronRight aria-hidden="true" />
+                    </Button>
+                  </>
+                )}
+              </>
+            ) : null}
+          </div>
+
+          <div className="shrink-0 border-t border-white/10 bg-black/80 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <p className="truncate text-xs text-white/70">
+                  {activeCollage && !building && !collageError
+                    ? activeCollage.fileName
+                    : `Maksimal ${DAILY_COLLAGE_PHOTO_LIMIT} foto per kolase.`}
+                </p>
+                {downloadNotice ? (
+                  <p className="text-xs text-white/60" role="status">
+                    {downloadNotice}
+                  </p>
+                ) : canSwitchCollage && !building && !collageError ? (
+                  <p className="text-xs text-white/50">
+                    Geser ke kiri atau kanan untuk berpindah kolase.
+                  </p>
+                ) : null}
+              </div>
               <Button
                 size="sm"
+                variant="secondary"
                 type="button"
                 onClick={() => void downloadAll()}
-                disabled={building || collages.length === 0}
+                disabled={
+                  building ||
+                  Boolean(collageError) ||
+                  collages.length === 0 ||
+                  downloadingAll
+                }
+                aria-busy={downloadingAll}
               >
-                <Download />
-                Unduh semua
+                {downloadingAll ? (
+                  <Spinner aria-label="Mengunduh kolase" />
+                ) : (
+                  <Download />
+                )}
+                {downloadingAll ? "Menyiapkan…" : "Unduh semua"}
               </Button>
             </div>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
