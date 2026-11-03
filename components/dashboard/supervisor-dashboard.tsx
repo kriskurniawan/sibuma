@@ -18,6 +18,11 @@ import { currentTimeZoneLabel, formatDateHuman, formatTime } from "@/lib/time";
 
 const STAT_LABELS = ["Checklist aktif", "Terlambat", "Tindak lanjut", "Selesai bulan ini"];
 
+/** Beranda atasan juga fokus ke checklist hari ini; item terkunci tidak dipajang. */
+function supervisorChecklistRows(data: DashboardChecklists) {
+  return data.items.filter((row) => !row.overdue && !row.locked);
+}
+
 export function SupervisorDashboard({
   user,
   overview,
@@ -86,7 +91,7 @@ export function SupervisorDashboard({
 }
 
 function SupervisorFocus({ data }: { data: DashboardChecklists }) {
-  const focus = data.items[0];
+  const focus = supervisorChecklistRows(data)[0];
   const overdue = data.totals.overdue;
   return (
     <>
@@ -110,7 +115,7 @@ function SupervisorFocus({ data }: { data: DashboardChecklists }) {
 function SupervisorSummary({ data: { totals } }: { data: DashboardChecklists }) {
   return (
     <MobileSummary items={[
-      { label: "Checklist aktif", value: totals.todo, icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: `Buka ${totals.todo} checklist aktif` },
+      { label: "Checklist aktif", value: totals.todayTodo, icon: ClipboardList, tone: "primary", href: "/checklist?status=aktif", ariaLabel: `Buka ${totals.todayTodo} checklist aktif hari ini` },
       { label: "Terlambat", value: totals.overdue, icon: AlertTriangle, tone: totals.overdue > 0 ? "destructive" : "neutral", href: "/checklist?status=terlambat", ariaLabel: `Buka ${totals.overdue} checklist terlambat` },
       { label: "Tindak lanjut", value: totals.openFollowUps, icon: Wrench, tone: totals.openFollowUps > 0 ? "warning" : "neutral", href: "/checklist/tindak-lanjut", ariaLabel: `Buka tindak lanjut, ${totals.openFollowUps} belum selesai` },
       { label: "Selesai bulan ini", value: totals.completedThisMonth, icon: CheckCircle2, tone: "success" },
@@ -121,7 +126,7 @@ function SupervisorSummary({ data: { totals } }: { data: DashboardChecklists }) 
 function SupervisorStats({ data: { totals }, overview }: { data: DashboardChecklists; overview: DashboardRequest<SupervisorOverview> }) {
   return (
     <>
-      <StatCard label="Checklist aktif" value={totals.todo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai jadwal</Badge>} />
+      <StatCard label="Checklist aktif" value={totals.todayTodo} suffix="checklist" icon={ClipboardList} helper={totals.overdue > 0 ? <Badge variant="warning-light">{totals.overdue} terlambat</Badge> : <Badge variant="success-light">Sesuai jadwal</Badge>} />
       <StatCard label="Terlambat" value={totals.overdue} suffix="checklist" icon={AlertTriangle} tone={totals.overdue > 0 ? "destructive" : "neutral"} helper={totals.overdue > 0 ? "Buka kunci atau tindak lanjuti" : "Tidak ada keterlambatan"} />
       <StatCard label="Tindak lanjut" value={totals.openFollowUps} suffix="temuan" icon={Wrench} tone={totals.openFollowUps > 0 ? "warning" : "neutral"} helper={totals.openFollowUps > 0 ? "Temuan dari checklist tim" : "Tidak ada temuan terbuka"} />
       <StatCard label="Selesai bulan ini" value={totals.completedThisMonth} suffix="checklist" icon={CheckCircle2} tone="success" helper={
@@ -175,14 +180,29 @@ function SupervisorOvertime({ overview, readOnly }: { overview: SupervisorOvervi
 }
 
 function SupervisorChecklists({ data, readOnly }: { data: DashboardChecklists; readOnly: boolean }) {
-  return data.items.length > 0 ? data.items.map((row, index) => (
+  const rows = supervisorChecklistRows(data);
+  const overdue = data.totals.overdue > 0;
+  return rows.length > 0 ? rows.map((row, index) => (
     <div key={row.inspection.id}>{index > 0 && <Separator />}<ChecklistSummaryRow row={row} /></div>
   )) : (
-    <EmptyState icon={ClipboardList} title="Tidak ada checklist aktif" description="Checklist baru muncul otomatis sesuai jadwal yang dibuat." action={
-      <Button size="sm" variant="outline" nativeButton={false} render={<Link href={readOnly ? "/checklist" : "/checklist/jadwal"} />}>
-        {readOnly ? "Lihat checklist" : "Atur jadwal"}
-      </Button>
-    } />
+    <EmptyState
+      icon={ClipboardList}
+      title="Tidak ada checklist untuk hari ini"
+      description={
+        overdue
+          ? "Checklist yang terlambat atau terkunci tidak ditampilkan di antrean ini."
+          : "Semua checklist hari ini sudah selesai atau belum ada jadwal untuk hari ini."
+      }
+      action={
+        overdue ? (
+          <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist?status=terlambat" />}>Lihat checklist terlambat</Button>
+        ) : (
+          <Button size="sm" variant="outline" nativeButton={false} render={<Link href={readOnly ? "/checklist" : "/checklist/jadwal"} />}>
+            {readOnly ? "Lihat checklist" : "Atur jadwal"}
+          </Button>
+        )
+      }
+    />
   );
 }
 

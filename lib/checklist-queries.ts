@@ -158,8 +158,6 @@ export interface ChecklistFilters {
   locationId?: string;
   /** Default true: area yang dipilih mencakup seluruh sub-lokasinya. */
   includeSubLocations?: boolean;
-  /** Status aktif biasanya mengecualikan yang terlambat; dashboard perlu keduanya. */
-  includeLate?: boolean;
   search?: string;
   from?: string;
   to?: string;
@@ -186,8 +184,7 @@ export async function getChecklistDashboard(
 
   const status = filters.status ?? "aktif";
   if (status === "aktif") {
-    where += ` AND i.status IN ('belum_dimulai','berlangsung')`;
-    if (!filters.includeLate) where += ` AND NOT ${lateInspectionSql()}`;
+    where += ` AND i.status IN ('belum_dimulai','berlangsung') AND NOT ${lateInspectionSql()}`;
   } else if (status === "terlambat") {
     where += ` AND i.status IN ('belum_dimulai','berlangsung') AND ${lateInspectionSql()}`;
   } else if (INSPECTION_STATUSES.includes(status)) {

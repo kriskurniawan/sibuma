@@ -35,15 +35,13 @@ export default async function HomePage() {
 
   // One request per query: regions reuse these promises, including queries that
   // generate scheduled checklists or finalize overtime while reading.
-  // Pekerja hanya melihat checklist hari ini; item terlambat/terkunci tetap
-  // dapat ditinjau dari halaman Checklist.
+  // Beranda menampilkan checklist hari ini untuk semua peran; item terlambat
+  // atau terkunci tetap dapat ditinjau dari halaman Checklist.
   const today = todayLocal();
   const checklists = dashboardQuery(() =>
     getChecklistDashboard(
       user,
-      user.role === "atasan"
-        ? { status: "aktif", includeLate: true }
-        : { status: "aktif", from: today, to: today },
+      { status: "aktif", from: today, to: today },
       CHECKLIST_PREVIEW,
     ),
   );
