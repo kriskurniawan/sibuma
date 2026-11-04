@@ -66,6 +66,7 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { DataRow, EmptyState, PageHeader } from "@/components/ui";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import {
   buildDailyReportText,
   formatDailyReportDate,
@@ -252,6 +253,8 @@ export function DailyReportView({ data }: { data: DailyReportData }) {
   const swipeImageRef = useRef<HTMLImageElement | null>(null);
   const collageRequest = useRef(0);
   const [swiping, setSwiping] = useState(false);
+
+  useDialogHistory(collageOpen, () => setCollageOpen(false));
 
   const photoById = useMemo(
     () => new Map(data.photos.map((photo) => [photo.id, photo])),

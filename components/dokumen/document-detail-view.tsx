@@ -58,6 +58,7 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge, DataRow, InfoBanner, PageHeader } from "@/components/ui";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { formatDateTime } from "@/lib/time";
 import {
   formatDocumentBytes,
@@ -100,6 +101,8 @@ export function DocumentDetailView({
   const [busy, setBusy] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmAction>(null);
   const canPreview = WORK_DOCUMENT_PREVIEW_EXTENSIONS.has(document.extension);
+
+  useDialogHistory(imageOpen, () => setImageOpen(false));
   const fileUrl = `/api/dokumen/${document.id}/file`;
   const downloadUrl = `${fileUrl}?download=1`;
 

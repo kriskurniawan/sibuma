@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { cn } from "@/lib/utils";
 import type { NoteAttachment } from "@/lib/note-types";
 
@@ -47,6 +48,8 @@ export function NotePhoto({
   const retry = attempt > 0 ? `&retry=${attempt}` : "";
   const mediaUrl = `/api/catatan/${encodeURIComponent(noteId)}/media?photo=${encodeURIComponent(attachment.id)}${retry}`;
   const photoLabel = `foto ${index + 1}: ${attachment.fileName}`;
+
+  useDialogHistory(open, () => setOpen(false));
 
   // Gambar dari HTML server dapat selesai dimuat sebelum hidrasi, sehingga
   // event onLoad tidak selalu terpanggil. Sinkronkan status dari elemen asli.

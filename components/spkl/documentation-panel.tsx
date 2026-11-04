@@ -52,6 +52,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { compressImage } from "@/lib/compress-image";
 import { buildDocumentationMarker } from "@/lib/documentation-marker";
 import { readImageExif } from "@/lib/exif";
@@ -144,6 +145,8 @@ export function DocumentationPanel({
   const galleryRef = useRef<HTMLInputElement>(null);
   const queueRef = useRef<PendingDocumentation[]>([]);
   const nextIdRef = useRef(0);
+
+  useDialogHistory(photoOpen && Boolean(selected), () => setPhotoOpen(false));
 
   useEffect(() => {
     return () => {

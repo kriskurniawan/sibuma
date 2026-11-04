@@ -31,6 +31,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { useDialogHistory } from "@/hooks/use-dialog-history";
 import { compressImage } from "@/lib/compress-image";
 import { UPLOAD_MAX_BYTES } from "@/lib/constants";
 import { buildManualWorkMarker } from "@/lib/documentation-marker";
@@ -95,6 +96,8 @@ export function ManualWorkPhotoGallery({
   );
   const [deleting, setDeleting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  useDialogHistory(preview !== null, () => setPreview(null));
 
   const busy = uploading || processing;
   const photoItems = photos.filter((photo) => photo.kind !== "video");
