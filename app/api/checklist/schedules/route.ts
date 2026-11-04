@@ -9,6 +9,10 @@ import {
   weekdayOf,
 } from "@/lib/checklist-schedule";
 import { checklistScheduleSchema } from "@/lib/checklist-validation";
+import {
+  assertNoDuplicateActiveSchedule,
+  CHECKLIST_SCHEDULE_DUPLICATE_MESSAGE,
+} from "@/lib/checklist-schedule-write";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 
@@ -65,6 +69,15 @@ export async function POST(request: Request) {
         throw new Error(
           "Sebagian anggota tim tidak aktif, hanya lihat, atau bukan bagian dari tim Anda.",
         );
+      }
+      if (parsed.data.active) {
+        await assertNoDuplicateActiveSchedule(connection, {
+          ownerId: user.id,
+          templateId: parsed.data.templateId,
+          locationId: parsed.data.locationId,
+          intervalUnit: parsed.data.intervalUnit,
+          intervalCount: parsed.data.intervalCount,
+        });
       }
 
       const now = new Date().toISOString();
@@ -137,6 +150,6 @@ export async function POST(request: Request) {
       201,
     );
   } catch (error) {
-    return apiError(checklistErrorMessage(error));
+    return apiError(checklistErrorMessage(error, CHECKLIST_SCHEDULE_DUPLICATE_MESSAGE));
   }
 }

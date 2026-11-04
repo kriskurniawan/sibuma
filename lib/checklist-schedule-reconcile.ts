@@ -180,6 +180,51 @@ export async function reconcileChecklistSchedule(
 }
 
 /**
+ * Saat jadwal dinonaktifkan, occurrence yang belum pernah disentuh tidak boleh
+ * tetap tampil sebagai item checklist. Riwayat selesai/berlangsung, occurrence
+ * yang sudah diisi, dan occurrence yang punya media selalu dipertahankan agar
+ * tidak ada data pekerjaan atau objek storage yang hilang.
+ */
+export async function discardUntouchedScheduleOccurrences(
+  connection: Connection,
+  scheduleId: string,
+  ownerId: string,
+) {
+  const deleted = await query<{ id: string }>(
+    `DELETE FROM checklist_inspections i
+      WHERE i.schedule_id=$1 AND i.owner_id=$2
+        AND i.status='belum_dimulai' AND i.started_at IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM checklist_answers a
+          WHERE a.inspection_id=i.id
+            AND (a.condition IS NOT NULL OR btrim(a.note)<>''
+                 OR a.updated_by IS NOT NULL OR a.updated_at IS NOT NULL
+                 OR a.version<>0)
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM checklist_follow_ups f WHERE f.inspection_id=i.id
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM checklist_photos p WHERE p.inspection_id=i.id
+        )
+      RETURNING i.id`,
+    [scheduleId, ownerId],
+    connection,
+  );
+  const packages = await query<{ id: string }>(
+    `DELETE FROM checklist_inspection_packages p
+      WHERE p.schedule_id=$1 AND p.owner_id=$2
+        AND NOT EXISTS (
+          SELECT 1 FROM checklist_inspections i WHERE i.package_id=p.id
+        )
+      RETURNING p.id`,
+    [scheduleId, ownerId],
+    connection,
+  );
+  return { removed: deleted.length, packages: packages.length };
+}
+
+/**
  * Menyesuaikan seluruh jadwal setelah zona waktu kebijakan berubah. Snapshot
  * `opens_at`/`due_at` lama dihitung dengan zona sebelumnya, sehingga tanggal
  * kalender lokalnya bisa bergeser satu hari bila tidak dihitung ulang.

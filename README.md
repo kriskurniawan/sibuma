@@ -147,6 +147,8 @@ Notifikasi aplikasi dan Web Push memakai `npm run db:migrate:notifications` (DDL
 
 Judul dan catatan laporan harian disimpan per tim dan tanggal lewat `npm run db:migrate:daily-report-settings` (DDL `db/migrations/035_daily_report_settings.sql`). Migrasi menambah `daily_report_settings` dengan kunci `(owner_id, report_date)`; seluruh pekerja di bawah atasan yang sama berbagi baris tim tersebut. Tanggal yang belum pernah disimpan memakai nilai terakhir dari tanggal sebelumnya sebagai awalan. Database baru lewat `db:init` sudah memuat tabel ini.
 
+Jadwal checklist aktif kini unik per pemilik, template, lokasi, dan interval lewat `npm run db:migrate:checklist-schedule-unique` (DDL `db/migrations/036_checklist_schedule_unique_active.sql`). Partial unique index hanya membatasi jadwal aktif; jadwal nonaktif tetap tersimpan sebagai arsip. Saat jadwal dinonaktifkan, occurrence `belum_dimulai` yang belum pernah disentuh—tanpa jawaban, tindak lanjut, atau media—dihapus agar tidak lagi tampil sebagai item checklist, sedangkan riwayat selesai/berlangsung dipertahankan. Database baru lewat `db:init` sudah memuat indeks ini.
+
 `DATABASE_URL` dan seluruh variabel S3 wajib diisi, termasuk saat pengembangan. Jika konfigurasi hilang, aplikasi gagal dengan pesan yang jelas, bukan membuat database/upload di mesin lokal.
 
 ### Migrasi lokal yang sudah dilakukan
@@ -371,6 +373,7 @@ scripts/
   migrate-policy-timezone.mjs  Terapkan migrasi 026 (Allowlist zona waktu kebijakan)
   migrate-overtime-period.mjs  Terapkan migrasi 027 (Tanggal mulai periode lembur)
   migrate-checklist-schedule-windows.mjs  Terapkan migrasi 028 (Hari dan jam jadwal checklist)
+  migrate-checklist-schedule-unique-active.mjs  Terapkan migrasi 036 (Jadwal aktif unik)
   migrate-notifications.mjs  Terapkan migrasi 034 (notifikasi aplikasi dan Web Push)
   generate-vapid-keys.mjs     Buat pasangan kunci VAPID untuk Web Push
   migrate-relational.mjs   Migrasi terverifikasi, snapshot lama read-only

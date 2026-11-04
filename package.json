@@ -28,6 +28,7 @@
     "db:migrate:policy-timezone": "node scripts/migrate-policy-timezone.mjs",
     "db:migrate:overtime-period": "node scripts/migrate-overtime-period.mjs",
     "db:migrate:checklist-windows": "node scripts/migrate-checklist-schedule-windows.mjs",
+    "db:migrate:checklist-schedule-unique": "node scripts/migrate-checklist-schedule-unique-active.mjs",
     "db:migrate:automation": "node scripts/migrate-automation.mjs",
     "db:migrate:notes": "node scripts/migrate-notes.mjs",
     "db:migrate:note-divisions": "node scripts/migrate-note-divisions.mjs",

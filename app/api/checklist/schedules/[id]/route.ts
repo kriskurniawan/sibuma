@@ -7,8 +7,15 @@ import {
   resolvedScheduleDays,
   weekdayOf,
 } from "@/lib/checklist-schedule";
-import { reconcileChecklistSchedule } from "@/lib/checklist-schedule-reconcile";
+import {
+  discardUntouchedScheduleOccurrences,
+  reconcileChecklistSchedule,
+} from "@/lib/checklist-schedule-reconcile";
 import { checklistScheduleUpdateSchema } from "@/lib/checklist-validation";
+import {
+  assertNoDuplicateActiveSchedule,
+  CHECKLIST_SCHEDULE_DUPLICATE_MESSAGE,
+} from "@/lib/checklist-schedule-write";
 import { query, transaction } from "@/lib/db";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import type { ChecklistScheduleDay } from "@/lib/checklist-types";
@@ -115,6 +122,16 @@ export async function PATCH(
           "Tanggal mulai mingguan jatuh pada hari yang tidak aktif. Aktifkan hari tersebut atau ubah tanggal mulai.",
         );
       }
+      if (next.active) {
+        await assertNoDuplicateActiveSchedule(connection, {
+          ownerId: user.id,
+          templateId: next.templateId,
+          locationId: next.locationId,
+          intervalUnit: next.intervalUnit,
+          intervalCount: next.intervalCount,
+          excludeId: id,
+        });
+      }
       const now = new Date().toISOString();
       await query(
         `UPDATE checklist_schedules SET template_id=$3,location_id=$4,distribution_mode=$5,
@@ -154,6 +171,10 @@ export async function PATCH(
         ],
         connection,
       );
+
+      const discarded = next.active
+        ? { removed: 0, packages: 0 }
+        : await discardUntouchedScheduleOccurrences(connection, id, user.id);
 
       const reconciled = await reconcileChecklistSchedule(connection, id, user.id);
 
@@ -201,6 +222,7 @@ export async function PATCH(
         days,
         assigneeIds: assigneeIds ?? null,
         reconciled,
+        discarded,
         updatedAt: now,
       };
     });
@@ -208,6 +230,6 @@ export async function PATCH(
     const generated = await generateChecklistInspections(user.id).catch(() => ({ created: 0 }));
     return apiOk({ schedule, generated: generated.created, message: "Jadwal checklist diperbarui." });
   } catch (error) {
-    return apiError(checklistErrorMessage(error));
+    return apiError(checklistErrorMessage(error, CHECKLIST_SCHEDULE_DUPLICATE_MESSAGE));
   }
 }
