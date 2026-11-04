@@ -74,6 +74,24 @@ export const correctionSchema = z.object({
     .max(500, "Alasan koreksi maksimal 500 karakter."),
 });
 
+/** Data penggajian dikirim terpisah agar tidak pernah masuk ke tipe Employee. */
+export const payrollInputSchema = z.object({
+  jobTitle: z
+    .string()
+    .trim()
+    .min(2, "Jabatan minimal 2 karakter.")
+    .max(80, "Jabatan maksimal 80 karakter."),
+  basicSalary: z
+    .number()
+    .int("Gaji pokok harus bilangan bulat rupiah.")
+    .min(1, "Gaji pokok wajib diisi.")
+    .max(1_000_000_000_000, "Gaji pokok terlalu besar."),
+  effectiveMonth: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Bulan berlaku gaji tidak valid."),
+});
+
 export const employeeInputSchema = z.object({
   name: z
     .string()
@@ -88,6 +106,7 @@ export const employeeInputSchema = z.object({
   phone: z.string().trim().min(8, "Nomor HP wajib diisi."),
   email: z.string().trim().toLowerCase().max(254).email("Format email tidak valid."),
   divisionId: z.string().trim().min(1, "Pilih divisi."),
+  payroll: payrollInputSchema.optional(),
 });
 
 export const employeeUpdateSchema = z.object({
@@ -97,6 +116,29 @@ export const employeeUpdateSchema = z.object({
   email: z.string().trim().toLowerCase().max(254).email("Format email tidak valid.").optional(),
   divisionId: z.string().trim().min(1).optional(),
   active: z.boolean().optional(),
+  payroll: payrollInputSchema.optional(),
+});
+
+/** Ekspor rekap lembur bulanan; nama penandatangan opsional. */
+export const overtimeRecapExportSchema = z.object({
+  format: z.enum(["pdf", "xlsx"], {
+    message: "Format ekspor tidak valid.",
+  }),
+  month: z
+    .string()
+    .trim()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Bulan rekap tidak valid."),
+  ownerId: z.string().trim().min(1).max(64).optional(),
+  buildingManagerName: z
+    .string()
+    .trim()
+    .max(80, "Nama Building Manager maksimal 80 karakter.")
+    .optional(),
+  managerName: z
+    .string()
+    .trim()
+    .max(80, "Nama Manager maksimal 80 karakter.")
+    .optional(),
 });
 
 /** Akun atasan dibuat super admin; tidak memiliki supervisor maupun divisi. */

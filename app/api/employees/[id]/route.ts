@@ -1,6 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
+import {
+  getEmployeePayroll,
+  saveEmployeePayroll,
+} from "@/lib/overtime-recap";
 import { normalizePhone } from "@/lib/phone";
 import { mutateDb, pushAudit } from "@/lib/store";
 import { employeeUpdateSchema } from "@/lib/validation";
@@ -37,11 +41,17 @@ export async function PATCH(
   }
 
   try {
+    const previousPayroll = parsed.data.payroll
+      ? await getEmployeePayroll(id)
+      : null;
     const employee = await mutateDb({ kind: "employee", id, supervisorId: user.id, phone, email: parsed.data.email, nik: parsed.data.nik }, (db) => {
       const item = db.employees.find((entry) => entry.id === id);
       if (!item) throw new Error("Pekerja tidak ditemukan.");
       if (item.supervisorId !== user.id) {
         throw new Error("Pekerja ini bukan bagian dari timmu.");
+      }
+      if (parsed.data.payroll && item.role !== "pekerja") {
+        throw new Error("Data penggajian hanya dapat diisi untuk pekerja.");
       }
 
       const targetDivision = parsed.data.divisionId
@@ -109,6 +119,7 @@ export async function PATCH(
         email: item.email ?? null,
         divisionId: item.divisionId,
         active: item.active,
+        payroll: previousPayroll,
       };
       if (parsed.data.name) item.name = parsed.data.name;
       if (parsed.data.nik) item.nik = parsed.data.nik;
@@ -141,11 +152,21 @@ export async function PATCH(
             db.divisions.find((entry) => entry.id === item.divisionId)?.name ??
             null,
           active: item.active,
+          payroll: parsed.data.payroll ?? previousPayroll,
         },
       });
 
       return item;
-    });
+    }, parsed.data.payroll ? {
+      afterPersist: async (connection, updated) => {
+        await saveEmployeePayroll({
+          connection,
+          employeeId: updated.id,
+          payroll: parsed.data.payroll!,
+          actorId: user.id,
+        });
+      },
+    } : undefined);
 
     return apiOk({
       employee,

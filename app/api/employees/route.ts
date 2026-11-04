@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
+import { saveEmployeePayroll } from "@/lib/overtime-recap";
 import { normalizePhone } from "@/lib/phone";
 import { mutateDb, pushAudit } from "@/lib/store";
 import type { Employee } from "@/lib/types";
@@ -89,10 +90,20 @@ export async function POST(request: Request) {
           divisionId: created.divisionId,
           divisionName: division.name,
           active: created.active,
+          payroll: parsed.data.payroll ?? null,
         },
       });
       return created;
-    });
+    }, parsed.data.payroll ? {
+      afterPersist: async (connection, created) => {
+        await saveEmployeePayroll({
+          connection,
+          employeeId: created.id,
+          payroll: parsed.data.payroll!,
+          actorId: user.id,
+        });
+      },
+    } : undefined);
 
     return apiOk({
       employee,

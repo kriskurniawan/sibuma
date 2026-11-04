@@ -15,8 +15,10 @@ import {
   Search,
   UserPlus,
   UsersRound,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
+import { MonthPicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
 import { useDialogIntent } from "@/hooks/use-dialog-intent";
 import { Alert, AlertDescription } from "@/components/reui/alert";
@@ -51,6 +53,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { currentMonthRange } from "@/lib/time";
 import type { Division, Employee } from "@/lib/types";
 
 type StatusFilter = "semua" | "aktif" | "nonaktif";
@@ -75,9 +78,32 @@ interface EmployeeForm {
   active: boolean;
 }
 
+interface PayrollForm {
+  jobTitle: string;
+  /** Digit rupiah tanpa pemisah; kosong berarti belum diisi. */
+  basicSalary: string;
+  effectiveMonth: string;
+}
+
 interface DivisionForm {
   name: string;
   description: string;
+}
+
+const salaryInputFormat = new Intl.NumberFormat("id-ID", {
+  maximumFractionDigits: 0,
+});
+
+function emptyPayrollForm(): PayrollForm {
+  return {
+    jobTitle: "",
+    basicSalary: "",
+    effectiveMonth: currentMonthRange().from.slice(0, 7),
+  };
+}
+
+function salaryDigits(value: string) {
+  return value.replace(/\D/g, "").slice(0, 15);
 }
 
 const EMPTY_FORM: EmployeeForm = {
@@ -218,6 +244,11 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [payrollForm, setPayrollForm] =
+    useState<PayrollForm>(emptyPayrollForm);
+  const [payrollLoading, setPayrollLoading] = useState(false);
+  const [payrollError, setPayrollError] = useState<string | null>(null);
+  const [payrollLoaded, setPayrollLoaded] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [divisionModal, setDivisionModal] = useState<
     { mode: "create" } | { mode: "edit"; division: Division } | null
@@ -294,6 +325,10 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
       ...EMPTY_FORM,
       divisionId: divisionId ?? firstActiveDivisionId,
     });
+    setPayrollForm(emptyPayrollForm());
+    setPayrollLoading(false);
+    setPayrollError(null);
+    setPayrollLoaded(true);
     setErrors({});
     setServerError(null);
     setAddOpen(true);
@@ -329,6 +364,50 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
     openEdit(employee);
   }
 
+  async function loadPayroll(employeeId: string) {
+    setPayrollLoading(true);
+    setPayrollError(null);
+    setPayrollLoaded(false);
+    try {
+      const response = await fetch(`/api/employees/${employeeId}/payroll`);
+      const data = (await response.json()) as {
+        ok: boolean;
+        message?: string;
+        payroll?: {
+          jobTitle: string;
+          basicSalary: number;
+          effectiveMonth: string;
+        } | null;
+      };
+      if (!response.ok || !data.ok) {
+        setPayrollError(
+          data.message ?? "Data penggajian belum dapat dimuat.",
+        );
+        return;
+      }
+      const currentMonth = emptyPayrollForm().effectiveMonth;
+      setPayrollForm(
+        data.payroll
+          ? {
+              jobTitle: data.payroll.jobTitle,
+              basicSalary: String(data.payroll.basicSalary),
+              // Gaji lama tetap berlaku sampai diubah; awalan bulan berjalan
+              // membuat simpanan berikutnya tidak menimpa riwayat bulan lalu.
+              effectiveMonth:
+                data.payroll.effectiveMonth < currentMonth
+                  ? currentMonth
+                  : data.payroll.effectiveMonth,
+            }
+          : emptyPayrollForm(),
+      );
+      setPayrollLoaded(true);
+    } catch {
+      setPayrollError("Tidak dapat menghubungi server. Periksa koneksimu.");
+    } finally {
+      setPayrollLoading(false);
+    }
+  }
+
   function openEdit(employee: Employee) {
     if (readOnly) return;
     setPendingEmployeeAction(null);
@@ -342,14 +421,20 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
       divisionId: employee.divisionId ?? firstActiveDivisionId,
       active: employee.active,
     });
+    setPayrollForm(emptyPayrollForm());
+    setPayrollError(null);
+    setPayrollLoaded(false);
     setErrors({});
     setServerError(null);
+    void loadPayroll(employee.id);
   }
 
   function closeModal() {
     if (saving) return;
     setAddOpen(false);
     setEditing(null);
+    setPayrollLoading(false);
+    setPayrollError(null);
     setErrors({});
     setServerError(null);
   }
@@ -372,6 +457,37 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
     if (!form.divisionId) {
       nextErrors.divisionId = "Pilih divisi.";
     }
+
+    const payrollJobTitle = payrollForm.jobTitle.trim();
+    const payrollSalaryDigits = salaryDigits(payrollForm.basicSalary);
+    const payrollHasInput = Boolean(payrollJobTitle || payrollSalaryDigits);
+    let payrollPayload:
+      | { jobTitle: string; basicSalary: number; effectiveMonth: string }
+      | undefined;
+    if (payrollHasInput) {
+      if (payrollJobTitle.length < 2) {
+        nextErrors.payrollJobTitle = "Jabatan minimal 2 karakter.";
+      }
+      const basicSalary = Number(payrollSalaryDigits);
+      if (!Number.isFinite(basicSalary) || basicSalary < 1) {
+        nextErrors.payrollBasicSalary = "Gaji pokok wajib diisi.";
+      }
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(payrollForm.effectiveMonth)) {
+        nextErrors.payrollEffectiveMonth = "Pilih bulan berlaku gaji.";
+      }
+      if (
+        !nextErrors.payrollJobTitle &&
+        !nextErrors.payrollBasicSalary &&
+        !nextErrors.payrollEffectiveMonth
+      ) {
+        payrollPayload = {
+          jobTitle: payrollJobTitle,
+          basicSalary: Number(payrollSalaryDigits),
+          effectiveMonth: payrollForm.effectiveMonth,
+        };
+      }
+    }
+
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -391,6 +507,7 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
           ...(form.email.trim() ? { email: form.email.trim().toLowerCase() } : {}),
           divisionId: form.divisionId,
           ...(editing ? { active: form.active } : {}),
+          ...(payrollPayload ? { payroll: payrollPayload } : {}),
         }),
       });
       const data = (await response.json()) as {
@@ -871,6 +988,138 @@ export function TeamView({ team, total, pagination, divisionCounts, filters, pri
             <p className="text-xs text-muted-foreground">
               Pekerja hanya bisa ditugaskan pada SPKL di divisi ini.
             </p>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-border pt-4">
+            <div className="flex items-start gap-2">
+              <Wallet
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <p className="text-sm font-medium text-foreground">
+                  Data penggajian
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Dipakai untuk rekap lembur bulanan. Hanya atasan pengelola
+                  tim yang dapat mengubahnya.
+                </p>
+              </div>
+            </div>
+
+            {payrollLoading ? (
+              <div
+                className="flex flex-col gap-2"
+                role="status"
+                aria-label="Memuat data penggajian"
+              >
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-8 w-2/3" />
+              </div>
+            ) : payrollError ? (
+              <div className="flex flex-col gap-2">
+                <Alert variant="destructive">
+                  <AlertDescription>{payrollError}</AlertDescription>
+                </Alert>
+                {editing && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void loadPayroll(editing.id)}
+                  >
+                    <RefreshCw aria-hidden="true" />
+                    Coba lagi
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="employee-job-title">Jabatan</Label>
+                  <Input
+                    id="employee-job-title"
+                    value={payrollForm.jobTitle}
+                    onChange={(event) =>
+                      setPayrollForm((current) => ({
+                        ...current,
+                        jobTitle: event.target.value,
+                      }))
+                    }
+                    aria-invalid={Boolean(errors.payrollJobTitle)}
+                    placeholder="Contoh: Teknisi Listrik"
+                  />
+                  <FieldError>{errors.payrollJobTitle}</FieldError>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="employee-basic-salary">
+                    Gaji pokok (Rp)
+                  </Label>
+                  <Input
+                    id="employee-basic-salary"
+                    inputMode="numeric"
+                    value={
+                      payrollForm.basicSalary
+                        ? salaryInputFormat.format(
+                            Number(payrollForm.basicSalary),
+                          )
+                        : ""
+                    }
+                    onChange={(event) =>
+                      setPayrollForm((current) => ({
+                        ...current,
+                        basicSalary: salaryDigits(event.target.value),
+                      }))
+                    }
+                    aria-invalid={Boolean(errors.payrollBasicSalary)}
+                    placeholder="3.841.000"
+                  />
+                  <FieldError>{errors.payrollBasicSalary}</FieldError>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="employee-payroll-month">
+                    Berlaku mulai bulan
+                  </Label>
+                  <MonthPicker
+                    id="employee-payroll-month"
+                    value={payrollForm.effectiveMonth}
+                    onChange={(nextMonth) =>
+                      setPayrollForm((current) => ({
+                        ...current,
+                        effectiveMonth: nextMonth,
+                      }))
+                    }
+                    invalid={Boolean(errors.payrollEffectiveMonth)}
+                    ariaLabel="Berlaku mulai bulan"
+                    ariaDescribedBy="employee-payroll-month-hint"
+                  />
+                  <FieldError>{errors.payrollEffectiveMonth}</FieldError>
+                  <p
+                    id="employee-payroll-month-hint"
+                    className="text-xs text-muted-foreground"
+                  >
+                    Gaji berlaku penuh sejak bulan ini sampai diubah. Rekap
+                    bulan sebelumnya tidak ikut berubah.
+                  </p>
+                </div>
+
+                {payrollLoaded &&
+                  !payrollForm.jobTitle &&
+                  !payrollForm.basicSalary && (
+                    <p className="text-xs text-muted-foreground">
+                      Belum ada data gaji. Rekap lembur akan menandai pekerja
+                      ini belum lengkap.
+                    </p>
+                  )}
+                <p className="text-xs text-muted-foreground">
+                  Opsional, tetapi jabatan dan gaji pokok wajib lengkap agar
+                  rekap lembur dapat diekspor.
+                </p>
+              </>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

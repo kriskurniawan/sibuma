@@ -398,9 +398,9 @@ export function TeamWorkersGrid({
                           <p className="break-all text-xs text-muted-foreground">
                             {employee.email ?? "Email belum diisi"}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground">
                             <WorkerDivision id={employee.divisionId} options={divisionOptions} compact />
-                          </p>
+                          </div>
                         </div>
                       </div>
                       <Badge

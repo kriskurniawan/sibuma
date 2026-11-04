@@ -64,6 +64,23 @@ export function isObserver(
 }
 
 /**
+ * Pengaturan rekap (nama penandatangan) boleh diubah pemilik tim yang punya
+ * akses tulis. Pengamat tetap dapat mengekspor, tetapi tidak menyimpan
+ * perubahan pengaturan tim. Super admin mengelola lintas tim.
+ */
+export function canManageTeamReportSettings(
+  user: Pick<SessionUser, "id" | "role" | "accessMode">,
+  ownerId: string,
+) {
+  if (user.role === "super_admin") return true;
+  return (
+    user.role === "atasan" &&
+    user.accessMode === "full" &&
+    user.id === ownerId
+  );
+}
+
+/**
  * Pemilik data untuk query pembacaan. `null` berarti seluruh perusahaan,
  * dipakai super admin dan atasan pengamat. Pekerja memakai atasan mereka.
  */
