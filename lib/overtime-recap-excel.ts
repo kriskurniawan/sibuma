@@ -249,7 +249,6 @@ function signatureRows(
 export interface OvertimeRecapExcelInput {
   preview: OvertimeRecapPreview;
   signers: OvertimeRecapSigners;
-  exportedAt: string;
 }
 
 export function buildOvertimeRecapSheet(
@@ -269,7 +268,7 @@ export function buildOvertimeRecapSheet(
   ]);
   data.push([
     mergedCell(
-      `Periode: ${preview.periodLabel}  |  Tim: ${preview.owner.name}`,
+      `Periode: ${preview.periodLabel}`,
       13,
       {
         fontSize: 10,
@@ -358,23 +357,6 @@ export function buildOvertimeRecapSheet(
     { fontWeight: "bold", backgroundColor: TOTAL_BG },
   );
   data.push(total);
-
-  data.push(emptyRow());
-  const notes = [
-    "Tarif per jam = gaji pokok / 173.",
-    "HK = jam HK x tarif x 1,5; HL = jam HL x tarif x 2.",
-    "HL otomatis untuk hari Minggu dan libur nasional resmi; cuti bersama tidak termasuk HL.",
-    `Diekspor ${input.exportedAt}. Sel gaji, jam, dan nama dapat diubah; rumus akan menghitung ulang.`,
-  ];
-  for (const note of notes) {
-    const row = emptyRow();
-    row[0] = mergedCell(note, 13, {
-      fontSize: 8,
-      textColor: MUTED_TEXT,
-      height: 16,
-    });
-    data.push(row);
-  }
 
   data.push(emptyRow(), ...signatureRows(input.signers));
 

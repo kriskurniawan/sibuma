@@ -49,82 +49,31 @@ function pageSize(doc: jsPDF) {
   };
 }
 
-function drawSlimHeader(doc: jsPDF, subtitle: string) {
-  const { width } = pageSize(doc);
-  doc
-    .setFont("helvetica", "normal")
-    .setFontSize(6.5)
-    .setTextColor(...MUTED);
-  doc.text("SIBUMA - Sistem Building Management", MARGIN, 22);
-  doc.text(clean(subtitle), width - MARGIN, 22, { align: "right" });
-  doc
-    .setDrawColor(...BORDER)
-    .setLineWidth(0.6)
-    .line(MARGIN, 30, width - MARGIN, 30);
-}
-
 function drawTitle(doc: jsPDF, preview: OvertimeRecapPreview) {
   const { width } = pageSize(doc);
-  doc
-    .setFont("helvetica", "bold")
-    .setFontSize(7)
-    .setTextColor(...MUTED);
-  doc.text("SIBUMA - SISTEM BUILDING MANAGEMENT", MARGIN, 34);
-
   doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(...INK);
-  doc.text("REKAPITULASI LEMBUR", width / 2, 57, { align: "center" });
+  doc.text("REKAPITULASI LEMBUR", width / 2, 52, { align: "center" });
 
   doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(...MUTED);
   doc.text(
     clean(`Periode: ${preview.periodLabel}`),
     width / 2,
-    72,
-    { align: "center" },
-  );
-  doc.text(
-    clean(`Tim: ${preview.owner.name}`),
-    width / 2,
-    84,
+    68,
     { align: "center" },
   );
 
   doc
     .setDrawColor(...BORDER)
     .setLineWidth(0.8)
-    .line(MARGIN, 94, width - MARGIN, 94);
+    .line(MARGIN, 80, width - MARGIN, 80);
 
-  return 108;
+  return 94;
 }
 
-function drawFooters(doc: jsPDF, exportedAt: string) {
-  const { width, height } = pageSize(doc);
-  const total = doc.getNumberOfPages();
-
-  for (let page = 1; page <= total; page += 1) {
-    doc.setPage(page);
-    doc
-      .setDrawColor(...BORDER)
-      .setLineWidth(0.6)
-      .line(MARGIN, height - 28, width - MARGIN, height - 28);
-    doc
-      .setFont("helvetica", "normal")
-      .setFontSize(6.3)
-      .setTextColor(...MUTED);
-    doc.text("SIBUMA - Sistem Building Management", MARGIN, height - 17);
-    doc.text(
-      `Diekspor ${exportedAt}  |  Halaman ${page} dari ${total}`,
-      width - MARGIN,
-      height - 17,
-      { align: "right" },
-    );
-  }
-}
-
-function ensureSpace(doc: jsPDF, y: number, needed: number, title: string) {
+function ensureSpace(doc: jsPDF, y: number, needed: number) {
   const { height } = pageSize(doc);
   if (y + needed <= height - BOTTOM_MARGIN) return y;
   doc.addPage();
-  drawSlimHeader(doc, title);
   return TOP_MARGIN;
 }
 
@@ -135,35 +84,27 @@ function signatureName(value: string) {
 
 function drawSignatures(
   doc: jsPDF,
-  preview: OvertimeRecapPreview,
   signers: OvertimeRecapSigners,
   y: number,
-  title: string,
 ) {
   const { width } = pageSize(doc);
   const contentWidth = width - MARGIN * 2;
-  const startY = ensureSpace(doc, y + 26, 92, title);
+  const startY = ensureSpace(doc, y + 24, 80);
   const blockWidth = contentWidth * 0.3;
   const leftX = MARGIN + contentWidth * 0.1;
   const rightX = MARGIN + contentWidth * 0.58;
 
-  const drawBlock = (
-    x: number,
-    label: string,
-    name: string,
-    date: string,
-  ) => {
+  const drawBlock = (x: number, label: string, name: string) => {
     doc
       .setFont("helvetica", "normal")
       .setFontSize(8.5)
       .setTextColor(...INK);
     doc.text(label, x + blockWidth / 2, startY, { align: "center" });
-    doc.text(date, x + blockWidth / 2, startY + 13, { align: "center" });
 
     doc
       .setDrawColor(...BORDER)
       .setLineWidth(0.6)
-      .line(x, startY + 55, x + blockWidth, startY + 55);
+      .line(x, startY + 42, x + blockWidth, startY + 42);
 
     doc
       .setFont("helvetica", "bold")
@@ -172,20 +113,14 @@ function drawSignatures(
     doc.text(
       clean(`( ${signatureName(name)} )`),
       x + blockWidth / 2,
-      startY + 68,
+      startY + 55,
       { align: "center" },
     );
   };
 
-  const exportedDate = new Intl.DateTimeFormat("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date());
-
-  drawBlock(leftX, "Building Manager,", signers.buildingManagerName, exportedDate);
-  drawBlock(rightX, "Manager,", signers.managerName, exportedDate);
-  return startY + 86;
+  drawBlock(leftX, "Building Manager,", signers.buildingManagerName);
+  drawBlock(rightX, "Manager,", signers.managerName);
+  return startY + 72;
 }
 
 function totalRow(
@@ -209,7 +144,6 @@ function totalRow(
 export interface OvertimeRecapPdfInput {
   preview: OvertimeRecapPreview;
   signers: OvertimeRecapSigners;
-  exportedAt: string;
 }
 
 export function createOvertimeRecapPdf(input: OvertimeRecapPdfInput) {
@@ -223,9 +157,7 @@ export function createOvertimeRecapPdf(input: OvertimeRecapPdfInput) {
 
   const { width } = pageSize(doc);
   const contentWidth = width - MARGIN * 2;
-  const headedPages = new Set<number>([1]);
-  const title = `Rekapitulasi Lembur ${preview.monthLabel}`;
-  let startY = drawTitle(doc, preview);
+  const startY = drawTitle(doc, preview);
 
   const head: CellDef[][] = [
     [
@@ -327,37 +259,14 @@ export function createOvertimeRecapPdf(input: OvertimeRecapPdfInput) {
         data.cell.styles.fillColor = TOTAL_BG;
       }
     },
-    didDrawPage: (data) => {
-      if (data.pageNumber > 1 && !headedPages.has(data.pageNumber)) {
-        drawSlimHeader(doc, title);
-        headedPages.add(data.pageNumber);
-      }
-    },
   });
 
   const tableDoc = doc as jsPDF & {
     lastAutoTable?: { finalY?: number };
   };
-  let lastY = tableDoc.lastAutoTable?.finalY ?? startY;
+  const lastY = tableDoc.lastAutoTable?.finalY ?? startY;
 
-  doc
-    .setFont("helvetica", "italic")
-    .setFontSize(6.6)
-    .setTextColor(...MUTED);
-  const notes = [
-    "Tarif per jam = gaji pokok / 173. HK = jam HK x tarif x 1,5; HL = jam HL x tarif x 2.",
-    "HL otomatis untuk hari Minggu dan libur nasional resmi; cuti bersama tidak termasuk HL.",
-    "Nominal dihitung dengan nilai penuh dan dibulatkan saat ditampilkan.",
-  ];
-  for (const note of notes) {
-    lastY = ensureSpace(doc, lastY + 10, 12, title);
-    const lines = doc.splitTextToSize(clean(note), contentWidth);
-    doc.text(lines, MARGIN, lastY + 8);
-    lastY += lines.length * 9 + 2;
-  }
-
-  drawSignatures(doc, preview, input.signers, lastY + 16, title);
-  drawFooters(doc, input.exportedAt);
+  drawSignatures(doc, input.signers, lastY + 24);
   return doc;
 }
 

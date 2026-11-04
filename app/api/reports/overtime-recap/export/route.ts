@@ -13,7 +13,6 @@ import {
 } from "@/lib/overtime-recap";
 import { overtimeRecapExcelResponse } from "@/lib/overtime-recap-excel";
 import { overtimeRecapPdfResponse } from "@/lib/overtime-recap-pdf";
-import { formatDateHuman } from "@/lib/time";
 import { overtimeRecapExportSchema } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -80,14 +79,10 @@ export async function POST(request: Request) {
         parsed.data.managerName ?? preview.signers.managerName,
       ),
     };
-    const exportedAt = formatDateHuman(
-      new Date().toISOString(),
-      "d MMMM yyyy, HH:mm",
-    );
     const response =
       parsed.data.format === "pdf"
-        ? overtimeRecapPdfResponse({ preview, signers, exportedAt })
-        : await overtimeRecapExcelResponse({ preview, signers, exportedAt });
+        ? overtimeRecapPdfResponse({ preview, signers })
+        : await overtimeRecapExcelResponse({ preview, signers });
 
     if (canManageSigners) {
       await saveRecapSigners({
