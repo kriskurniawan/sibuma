@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImageOff, RotateCcw } from "lucide-react";
+import { ImageOff, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { NoteAttachment } from "@/lib/note-types";
@@ -16,7 +22,7 @@ const SHELL =
 
 /**
  * Foto catatan dimuat terpisah agar kegagalan satu berkas tidak menjatuhkan
- * seluruh halaman detail. Tautan baru aktif setelah gambar benar-benar siap.
+ * seluruh halaman detail. Pratinjau baru aktif setelah gambar benar-benar siap.
  */
 export function NotePhoto({
   noteId,
@@ -32,6 +38,7 @@ export function NotePhoto({
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
+  const [open, setOpen] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const imageRef = useRef<HTMLImageElement>(null);
   const retry = attempt > 0 ? `&retry=${attempt}` : "";
@@ -48,7 +55,7 @@ export function NotePhoto({
 
   return (
     <div className={cn(SHELL, "relative")}>
-      <div className="relative aspect-[4/3] w-full bg-muted">
+      <div className="group relative aspect-[4/3] w-full bg-muted">
         {status === "loading" && (
           <Skeleton className="absolute inset-0 rounded-none" />
         )}
@@ -82,13 +89,22 @@ export function NotePhoto({
             src={mediaUrl}
             alt={`${title} — ${photoLabel}`}
             className={cn(
-              "size-full object-cover",
+              "size-full object-cover group-hover:opacity-90",
               status === "loading" && "opacity-0",
             )}
             loading="lazy"
             decoding="async"
             onLoad={() => setStatus("ready")}
             onError={() => setStatus("error")}
+          />
+        )}
+
+        {status === "ready" && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={`Buka ${photoLabel}`}
+            className="absolute inset-0 cursor-zoom-in rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
           />
         )}
       </div>
@@ -100,15 +116,47 @@ export function NotePhoto({
         </span>
       </span>
 
-      {status === "ready" && (
-        <a
-          href={mediaUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`Buka ${photoLabel}`}
-          className="absolute inset-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-        />
-      )}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          showCloseButton={false}
+          className="top-0 left-0 z-[1000000000] flex h-[100dvh] max-h-[100dvh] w-full max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none bg-black p-0 text-white ring-0 outline-none sm:max-w-none"
+        >
+          <div className="flex shrink-0 items-start gap-3 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <DialogTitle className="truncate text-sm text-white">
+                {title}
+              </DialogTitle>
+              <DialogDescription className="truncate text-xs text-white/70">
+                Pratinjau foto · {attachment.fileName} ·{" "}
+                {sizeLabel(attachment.sizeBytes)}
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              onClick={() => setOpen(false)}
+              aria-label={`Tutup pratinjau ${photoLabel}`}
+              className="text-white hover:bg-white/10 hover:text-white"
+            >
+              <X aria-hidden="true" />
+            </Button>
+          </div>
+          <div
+            className="flex min-h-0 flex-1 items-center justify-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+            onClick={(event) => {
+              if (event.target === event.currentTarget) setOpen(false);
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={mediaUrl}
+              alt={`${title} — ${photoLabel}`}
+              className="max-h-full max-w-full object-contain"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
