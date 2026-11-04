@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImageOff, RotateCcw, X } from "lucide-react";
+import { Download, ImageOff, RotateCcw, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { NoteAttachment } from "@/lib/note-types";
 
@@ -39,6 +41,7 @@ export function NotePhoto({
     "loading",
   );
   const [open, setOpen] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const imageRef = useRef<HTMLImageElement>(null);
   const retry = attempt > 0 ? `&retry=${attempt}` : "";
@@ -52,6 +55,35 @@ export function NotePhoto({
     if (!image?.complete) return;
     setStatus(image.naturalWidth > 0 ? "ready" : "error");
   }, [attempt]);
+
+  async function downloadPhoto() {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const response = await fetch(`${mediaUrl}&download=1`);
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+        toast.error(data?.message ?? "Gagal mengunduh foto.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = attachment.fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      toast.success("Foto catatan diunduh.");
+    } catch {
+      toast.error("Gagal mengunduh foto. Periksa koneksi lalu coba lagi.");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   return (
     <div className={cn(SHELL, "relative")}>
@@ -131,6 +163,19 @@ export function NotePhoto({
                 {sizeLabel(attachment.sizeBytes)}
               </DialogDescription>
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              disabled={downloading}
+              onClick={() => {
+                void downloadPhoto();
+              }}
+              aria-label={`Unduh ${photoLabel}`}
+              className="text-white hover:bg-white/10 hover:text-white"
+            >
+              {downloading ? <Spinner /> : <Download aria-hidden="true" />}
+            </Button>
             <Button
               type="button"
               variant="ghost"

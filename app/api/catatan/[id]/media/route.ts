@@ -15,7 +15,9 @@ export async function GET(
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
 
   const { id } = await params;
-  const requestedPhoto = new URL(request.url).searchParams.get("photo")?.trim();
+  const searchParams = new URL(request.url).searchParams;
+  const requestedPhoto = searchParams.get("photo")?.trim();
+  const wantsDownload = searchParams.get("download") === "1";
   if (
     requestedPhoto &&
     (requestedPhoto.length > 160 ||
@@ -53,7 +55,7 @@ export async function GET(
           object.contentLength ?? object.bytes.byteLength,
         ),
         "Cache-Control": "private, no-store",
-        "Content-Disposition": `inline; filename*=UTF-8''${encodeURIComponent(media.file_name)}`,
+        "Content-Disposition": `${wantsDownload ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(media.file_name)}`,
         "X-Content-Type-Options": "nosniff",
       },
     });
