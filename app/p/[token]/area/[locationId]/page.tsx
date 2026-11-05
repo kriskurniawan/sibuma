@@ -73,6 +73,7 @@ export default async function PublicChecklistAreaPage({
       conditions={conditions}
       backHref={qr.mode === "langsung" ? null : `/p/${token}`}
       detailHref={`/p/${token}/area/${locationId}`}
+      equipmentHref={`/p/${token}/area/${locationId}/peralatan`}
       loginNext={`/p/${token}/area/${locationId}`}
     />
   );

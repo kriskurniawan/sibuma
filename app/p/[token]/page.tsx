@@ -86,6 +86,7 @@ export default async function PublicChecklistPage({
         conditions={conditions}
         backHref={null}
         detailHref={`/p/${token}`}
+        equipmentHref={`/p/${token}/area/${area.location.id}/peralatan`}
         loginNext={`/p/${token}`}
       />
     );

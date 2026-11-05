@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CalendarClock, CheckCircle2, ClipboardList, Clock3, ListChecks, RefreshCw, Settings2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardList, Clock3, ListChecks, RefreshCw, Settings2, Wrench } from "lucide-react";
 import { ChecklistGrid } from "@/components/checklist/checklist-grid";
 import { ChecklistPrimaryFilters } from "@/components/checklist/checklist-primary-filters";
 import { ChecklistPrimaryGridSkeleton } from "@/components/checklist/checklist-primary-grid-skeleton";
@@ -73,6 +73,11 @@ export function ChecklistView({ user: snapshot, summary, count, followUpCount, f
               <ListChecks />Tindak lanjut{followUpCount ?? <ChecklistCountSkeleton />}
             </Button>
             <QrScanButton className="hidden md:inline-flex" />
+            {user.role === "atasan" && (
+              <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/peralatan" />}>
+                <Wrench />Peralatan
+              </Button>
+            )}
             {canManage && <>
               <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/template" />}><Settings2 />Template</Button>
               <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/jadwal" />}><CalendarClock />Jadwal</Button>

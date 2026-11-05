@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider } from "@/components/theme-provider";
 import { HydrationMarker } from "@/components/hydration-marker";
+import { InlineScript } from "@/components/inline-script";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeColorSync } from "@/components/theme-color-sync";
 import { ThemeToaster } from "@/components/theme-toaster";
@@ -56,8 +57,9 @@ export default function RootLayout({
         <TimeZoneBootstrap timeZone={APP_TIMEZONE} />
         {/* Inline sengaja: beforeInteractive baru dieksekusi setelah bootstrap
             Next diunduh. Capture harus aktif sebelum tombol SSR terlihat. */}
-        <script id="dialog-intent">
-          {`(function () {
+        <InlineScript
+          id="dialog-intent"
+          html={`(function () {
   var INTENT = "__sibumaDialogIntent";
   var AT = "__sibumaDialogIntentAt";
   document.addEventListener("click", function (event) {
@@ -76,9 +78,10 @@ export default function RootLayout({
     // tetap tersimpan sampai handler halaman tersebut terpasang.
   }, true);
 })();`}
-        </script>
-        <script id="pwa-install-capture">
-          {`(function () {
+        />
+        <InlineScript
+          id="pwa-install-capture"
+          html={`(function () {
   window.__sibumaInstallPrompt = null;
   window.addEventListener("beforeinstallprompt", function (event) {
     event.preventDefault();
@@ -88,7 +91,7 @@ export default function RootLayout({
     window.__sibumaInstallPrompt = null;
   });
 })();`}
-        </script>
+        />
         <HydrationMarker />
         <ThemeProvider
           attribute="class"

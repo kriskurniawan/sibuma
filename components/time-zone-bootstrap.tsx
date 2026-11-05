@@ -1,3 +1,4 @@
+import { InlineScript } from "@/components/inline-script";
 import { TimeZoneSync } from "@/components/time-zone-sync";
 
 /**
@@ -7,7 +8,9 @@ import { TimeZoneSync } from "@/components/time-zone-sync";
 export function TimeZoneBootstrap({ timeZone }: { timeZone: string }) {
   return (
     <>
-      <script>{`window.__SIBUMA_TIME_ZONE__=${JSON.stringify(timeZone)};`}</script>
+      <InlineScript
+        html={`window.__SIBUMA_TIME_ZONE__=${JSON.stringify(timeZone)};`}
+      />
       <TimeZoneSync timeZone={timeZone} />
     </>
   );

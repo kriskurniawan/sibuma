@@ -109,6 +109,7 @@ try {
     "034_notifications.sql",
     "035_daily_report_settings.sql",
     "036_checklist_schedule_unique_active.sql",
+    "038_checklist_equipment.sql",
   ]) {
     await connection.query(await readFile(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
   }

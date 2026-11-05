@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CalendarDays,
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   Clock3,
@@ -9,6 +10,7 @@ import {
   ListChecks,
   MapPin,
   TriangleAlert,
+  Wrench,
 } from "lucide-react";
 import { MobileSummary } from "@/components/mobile-summary";
 import {
@@ -48,8 +50,11 @@ import {
   TimelineTitle,
 } from "@/components/reui/timeline";
 import { ManualWorkStatusBadge } from "@/components/pekerjaan/manual-work-badges";
+import { EquipmentActivityBadge } from "@/components/checklist/equipment-badges";
 import {
   findChecklistCondition,
+  formatEquipmentHourMeter,
+  formatEquipmentQuantity,
   type ChecklistConditionOption,
   type ChecklistConditionTone,
   type ChecklistPublicArea,
@@ -71,6 +76,7 @@ export function PublicAreaDetail({
   conditions,
   backHref,
   detailHref,
+  equipmentHref,
   loginNext,
 }: {
   qrName: string;
@@ -79,10 +85,13 @@ export function PublicAreaDetail({
   conditions: ChecklistConditionOption[];
   backHref: string | null;
   detailHref: string;
+  /** Basis URL detail peralatan; QR langsung tidak memakai segmen area. */
+  equipmentHref: string;
   loginNext: string;
 }) {
   const { location, latest, items, history, followUps, timeline, viewingHistory } = area;
   const manualWorks = area.manualWorks;
+  const equipment = area.equipment;
   const timelineItems = timeline.slice().reverse();
   const ongoingEntry =
     history.find((entry) => entry.status === "berlangsung") ?? null;
@@ -367,6 +376,139 @@ export function PublicAreaDetail({
           )}
         </FramePanel>
       </Frame>
+
+      {equipment.length > 0 && (
+        <Frame spacing="default">
+          <FrameHeader className="flex-row flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <FrameTitle><h2>Peralatan &amp; perawatan</h2></FrameTitle>
+              <FrameDescription className="wrap-anywhere text-xs">
+                Riwayat terakhir per komponen. Identitas petugas tidak
+                ditampilkan.
+              </FrameDescription>
+            </div>
+            <Badge variant="outline">{equipment.length} peralatan</Badge>
+          </FrameHeader>
+          <FramePanel className="p-0">
+            <ul className="divide-y divide-border">
+              {equipment.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex min-w-0 flex-col gap-3 px-4 py-4 sm:px-5"
+                >
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <p className="min-w-0 wrap-anywhere text-sm font-medium text-foreground">
+                          {item.name}
+                        </p>
+                        <Badge variant="outline">{item.code}</Badge>
+                        {item.category && (
+                          <span className="text-xs text-muted-foreground">
+                            {item.category}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {item.maintenanceCount} catatan perawatan
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={`${equipmentHref}/${item.id}`}
+                          aria-label={`Lihat riwayat ${item.name}`}
+                        />
+                      }
+                    >
+                      Lihat riwayat
+                      <ChevronRight aria-hidden="true" />
+                    </Button>
+                  </div>
+
+                  {item.summary.length > 0 ? (
+                    <ul className="flex min-w-0 flex-wrap gap-x-4 gap-y-1.5">
+                      {item.summary.map((entry) => {
+                        const quantity = formatEquipmentQuantity(
+                          entry.quantity,
+                          entry.unit,
+                        );
+                        const hourMeter = formatEquipmentHourMeter(
+                          entry.hourMeter,
+                        );
+                        return (
+                          <li
+                            key={entry.component}
+                            className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs"
+                          >
+                            <span className="font-medium text-foreground">
+                              {entry.component}
+                            </span>
+                            {quantity && (
+                              <span className="text-muted-foreground">
+                                {quantity}
+                              </span>
+                            )}
+                            {hourMeter && (
+                              <span className="text-muted-foreground tabular-nums">
+                                {hourMeter}
+                              </span>
+                            )}
+                            <span className="text-muted-foreground tabular-nums">
+                              {formatDateHuman(
+                                `${entry.performedDate}T12:00:00`,
+                                "d MMM",
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Belum ada riwayat perawatan.
+                    </p>
+                  )}
+
+                  {item.history.length > 0 && (
+                    <ul className="flex min-w-0 flex-col gap-1.5 border-t border-border/70 pt-2">
+                      {item.history.slice(0, 2).map((entry) => {
+                        const quantity = formatEquipmentQuantity(
+                          entry.quantity,
+                          entry.unit,
+                        );
+                        return (
+                          <li
+                            key={entry.id}
+                            className="flex min-w-0 flex-wrap items-center gap-2 text-xs text-muted-foreground"
+                          >
+                            <EquipmentActivityBadge
+                              activity={entry.activity}
+                            />
+                            <span className="font-medium text-foreground">
+                              {entry.component}
+                            </span>
+                            {quantity && <span>{quantity}</span>}
+                            <span className="tabular-nums">
+                              {formatDateHuman(
+                                `${entry.performedDate}T12:00:00`,
+                                "d MMM yyyy",
+                              )}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </FramePanel>
+        </Frame>
+      )}
 
       {manualWorks.length > 0 && (
         <Frame spacing="default">

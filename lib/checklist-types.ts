@@ -116,6 +116,48 @@ export const CHECKLIST_PRIORITY_LABEL: Record<ChecklistPriority, string> = {
   mendesak: "Mendesak",
 };
 
+export type ChecklistEquipmentActivity =
+  | "penggantian"
+  | "perbaikan"
+  | "pengisian"
+  | "servis";
+
+export const CHECKLIST_EQUIPMENT_ACTIVITY_LABEL: Record<
+  ChecklistEquipmentActivity,
+  string
+> = {
+  penggantian: "Penggantian",
+  perbaikan: "Perbaikan",
+  pengisian: "Penambahan",
+  servis: "Servis",
+};
+
+/** Urutan tampilan komponen yang paling sering dipantau. */
+const EQUIPMENT_COMPONENT_ORDER = ["aki", "oli", "coolant", "bbm"];
+
+export function equipmentComponentRank(component: string) {
+  const index = EQUIPMENT_COMPONENT_ORDER.indexOf(
+    component.trim().toLowerCase(),
+  );
+  return index === -1 ? EQUIPMENT_COMPONENT_ORDER.length : index;
+}
+
+export function formatEquipmentQuantity(
+  quantity: number | null,
+  unit: string,
+) {
+  if (quantity === null) return unit.trim();
+  const formatted = new Intl.NumberFormat("id-ID", {
+    maximumFractionDigits: 2,
+  }).format(quantity);
+  return unit.trim() ? `${formatted} ${unit.trim()}` : formatted;
+}
+
+export function formatEquipmentHourMeter(hourMeter: number | null) {
+  if (hourMeter === null) return null;
+  return `${new Intl.NumberFormat("id-ID").format(hourMeter)} HM`;
+}
+
 export const CHECKLIST_FOLLOW_UP_LABEL: Record<
   ChecklistFollowUpStatus,
   string
@@ -170,6 +212,94 @@ export interface ChecklistLocation {
   /** Nama atasan pemilik, diisi saat lokasi ditampilkan lintas pemilik. */
   ownerName?: string | null;
 }
+
+export interface ChecklistEquipment {
+  id: string;
+  ownerId: string;
+  locationId: string;
+  code: string;
+  name: string;
+  category: string;
+  publicEnabled: boolean;
+  active: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistEquipmentMaintenance {
+  id: string;
+  equipmentId: string;
+  ownerId: string;
+  activity: ChecklistEquipmentActivity;
+  component: string;
+  quantity: number | null;
+  unit: string;
+  hourMeter: number | null;
+  performedDate: string;
+  performedBy: string | null;
+  /** Nama pelaksana/pencatat, hanya untuk halaman internal. */
+  performedByName: string | null;
+  description: string;
+  publicVisible: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChecklistEquipmentSummaryEntry {
+  component: string;
+  activity: ChecklistEquipmentActivity;
+  performedDate: string;
+  quantity: number | null;
+  unit: string;
+  hourMeter: number | null;
+}
+
+export interface ChecklistEquipmentListItem extends ChecklistEquipment {
+  locationName: string;
+  locationPath: string;
+  locationPublicEnabled: boolean;
+  maintenanceCount: number;
+  lastMaintenance: ChecklistEquipmentMaintenance | null;
+}
+
+export interface ChecklistEquipmentSetup {
+  equipment: ChecklistEquipmentListItem[];
+  locations: ChecklistLocationOption[];
+}
+
+export interface ChecklistEquipmentDetail {
+  equipment: ChecklistEquipmentListItem;
+  locations: ChecklistLocationOption[];
+  maintenance: ChecklistEquipmentMaintenance[];
+  summary: ChecklistEquipmentSummaryEntry[];
+}
+
+export interface ChecklistEquipmentInput {
+  locationId: string;
+  code: string;
+  name: string;
+  category: string;
+  publicEnabled: boolean;
+}
+
+export type ChecklistEquipmentUpdateInput = Partial<
+  Omit<ChecklistEquipmentInput, "locationId">
+> & { locationId?: string; active?: boolean };
+
+export interface ChecklistEquipmentMaintenanceInput {
+  activity: ChecklistEquipmentActivity;
+  component: string;
+  quantity: number | null;
+  unit: string;
+  hourMeter: number | null;
+  performedDate: string;
+  description: string;
+  publicVisible: boolean;
+}
+
+export type ChecklistEquipmentMaintenanceUpdateInput = Partial<ChecklistEquipmentMaintenanceInput>;
 
 export interface ChecklistTemplate {
   id: string;
@@ -562,6 +692,51 @@ export interface ChecklistPublicManualWork {
   completedAt: string | null;
 }
 
+export interface ChecklistPublicEquipmentMaintenance {
+  id: string;
+  activity: ChecklistEquipmentActivity;
+  component: string;
+  quantity: number | null;
+  unit: string;
+  hourMeter: number | null;
+  performedDate: string;
+  description: string;
+}
+
+export interface ChecklistPublicEquipmentSummaryEntry {
+  component: string;
+  activity: ChecklistEquipmentActivity;
+  performedDate: string;
+  quantity: number | null;
+  unit: string;
+  hourMeter: number | null;
+}
+
+export interface ChecklistPublicEquipment {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  maintenanceCount: number;
+  lastMaintenance: ChecklistPublicEquipmentMaintenance | null;
+  /** Riwayat terbaru untuk ringkasan di halaman QR area. */
+  history: ChecklistPublicEquipmentMaintenance[];
+  /** Catatan terakhir per komponen/bahan. */
+  summary: ChecklistPublicEquipmentSummaryEntry[];
+}
+
+export interface ChecklistPublicEquipmentDetail {
+  equipment: {
+    id: string;
+    code: string;
+    name: string;
+    category: string;
+    locationName: string;
+  };
+  maintenance: ChecklistPublicEquipmentMaintenance[];
+  summary: ChecklistPublicEquipmentSummaryEntry[];
+}
+
 export interface ChecklistPublicArea {
   location: ChecklistPublicLocation;
   latest: ChecklistPublicLatest | null;
@@ -570,6 +745,7 @@ export interface ChecklistPublicArea {
   followUps: { open: number; done: number };
   timeline: ChecklistPublicTimelineEntry[];
   manualWorks: ChecklistPublicManualWork[];
+  equipment: ChecklistPublicEquipment[];
   lastUpdated: string | null;
   viewingHistory: boolean;
 }

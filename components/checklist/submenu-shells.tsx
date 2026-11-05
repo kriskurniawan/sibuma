@@ -2,7 +2,7 @@
 
 import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
-import { MapPin, Plus, QrCode, ShieldCheck } from "lucide-react";
+import { MapPin, Plus, QrCode, Settings2, ShieldCheck, Wrench } from "lucide-react";
 import { MobileFab } from "@/components/mobile-fab";
 import { Alert, AlertDescription } from "@/components/reui/alert";
 import {
@@ -60,6 +60,10 @@ export function ChecklistTemplateShell({ children }: ShellProps) {
               <QrCode aria-hidden="true" />
               Kelola QR area
             </Button>
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/peralatan" />}>
+              <Wrench aria-hidden="true" />
+              Peralatan
+            </Button>
             <Button size="sm" variant="outline" nativeButton={false} render={<a href="#lokasi-baru" />} aria-haspopup="dialog" data-dialog-intent="location-new">
               <MapPin aria-hidden="true" />
               Lokasi baru
@@ -100,6 +104,60 @@ export function ChecklistScheduleShell({ children }: ShellProps) {
       {children}
       {canManage && (
         <ChecklistSubmenuFab hash="#jadwal-baru" label="Jadwal baru" />
+      )}
+    </div>
+  );
+}
+
+export function ChecklistEquipmentShell({ children }: ShellProps) {
+  const user = useSessionUser();
+  const canManage = user.role === "atasan" && !isReadOnly(user);
+  const canRead = user.role === "atasan";
+
+  return (
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
+      <BackLink href="/checklist">Kembali ke Checklist</BackLink>
+      <PageHeader
+        mobileCompact
+        eyebrow="Operasional"
+        title="Peralatan"
+        description="Identitas unit dan riwayat perawatannya per area."
+        descriptionClassName="hidden md:block"
+        action={
+          canRead ? (
+            <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
+              <div className="max-md:hidden">
+                {canManage && (
+                  <Button
+                    size="sm"
+                    nativeButton={false}
+                    render={<a href="#peralatan-baru" />}
+                    aria-haspopup="dialog"
+                    data-dialog-intent="equipment-new"
+                  >
+                    <Plus aria-hidden="true" />
+                    Peralatan baru
+                  </Button>
+                )}
+              </div>
+              {canManage && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href="/checklist/template" />}
+                >
+                  <Settings2 aria-hidden="true" />
+                  Template & lokasi
+                </Button>
+              )}
+            </div>
+          ) : undefined
+        }
+      />
+      {children}
+      {canManage && (
+        <ChecklistSubmenuFab hash="#peralatan-baru" label="Peralatan baru" />
       )}
     </div>
   );

@@ -38,6 +38,7 @@ import {
   Sun,
   UserRound,
   UsersRound,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { QrScanButton } from "@/components/checklist/qr-scanner";
@@ -161,12 +162,14 @@ function navigationFor(
       manage: readOnly
         ? [
             { href: "/tim", label: "Tim", icon: UsersRound },
+            { href: "/checklist/peralatan", label: "Peralatan", icon: Wrench },
             { href: "/checklist/qr", label: "Kelola QR area", icon: QrCode },
           ]
         : [
             { href: "/tim", label: "Tim", icon: UsersRound },
             { href: "/checklist/template", label: "Template checklist", icon: Settings2 },
             { href: "/checklist/jadwal", label: "Jadwal checklist", icon: CalendarClock },
+            { href: "/checklist/peralatan", label: "Peralatan", icon: Wrench },
             { href: "/checklist/qr", label: "Kelola QR area", icon: QrCode },
             { href: "/audit", label: "Log audit", icon: ScrollText },
           ],
@@ -185,11 +188,12 @@ function navigationFor(
           label: "Menu",
           icon: LayoutGrid,
           match: readOnly
-            ? ["/tim", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan-harian", "/laporan", "/catatan", "/notifikasi"]
+            ? ["/tim", "/checklist/peralatan", "/checklist/qr", "/checklist/tindak-lanjut", "/laporan-harian", "/laporan", "/catatan", "/notifikasi"]
             : [
                 "/tim",
                 "/checklist/template",
                 "/checklist/jadwal",
+                "/checklist/peralatan",
                 "/checklist/qr",
                 "/checklist/tindak-lanjut",
                 "/audit",
@@ -292,6 +296,9 @@ function mobileBackLink(
   if (/^\/checklist\/template\/[^/]+$/.test(pathname)) {
     return { href: "/checklist/template", label: "Template checklist" };
   }
+  if (/^\/checklist\/peralatan\/[^/]+$/.test(pathname)) {
+    return { href: "/checklist/peralatan", label: "Peralatan" };
+  }
   if (pathname === "/checklist/qr") {
     return readOnly
       ? { href: "/checklist", label: "Checklist" }
@@ -322,6 +329,8 @@ function currentSectionLabel(
   if (pathname.startsWith("/spkl/")) return "Detail SPKL";
   if (pathname.startsWith("/checklist/tindak-lanjut")) return "Tindak lanjut";
   if (pathname === "/checklist/qr") return "QR area";
+  if (pathname.startsWith("/checklist/peralatan/")) return "Detail peralatan";
+  if (pathname === "/checklist/peralatan") return "Peralatan";
   if (pathname.startsWith("/checklist/template/")) return "Detail template";
   if (pathname === "/checklist/template") return "Template checklist";
   if (pathname === "/checklist/jadwal") return "Jadwal checklist";

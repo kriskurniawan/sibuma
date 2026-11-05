@@ -5,6 +5,7 @@ import { isObserver } from "./access";
 import { query, transaction } from "./db";
 import { rowToCamel } from "./db-model";
 import { insertChecklistAudit } from "./checklist-audit";
+import { listChecklistPublicEquipment } from "./checklist-equipment";
 import { buildChecklistLocationOptions } from "./checklist-location-path";
 import { getChecklistLocationScope } from "./checklist-location-scope";
 import type {
@@ -270,7 +271,7 @@ export async function getChecklistPublicArea(
   const displayedInspectionId =
     (displayRow.inspection_id as string | null) ?? null;
 
-  const [itemRows, historyRows, followUpRow, eventRows, manualWorkRows] = await Promise.all([
+  const [itemRows, historyRows, followUpRow, eventRows, manualWorkRows, equipment] = await Promise.all([
     displayedInspectionId
       ? query(
           `SELECT a.prompt,a.group_path,a.condition,a.updated_at
@@ -327,6 +328,7 @@ export async function getChecklistPublicArea(
        LIMIT 12`,
       [ownerId, locationId],
     ),
+    listChecklistPublicEquipment(ownerId, locationId),
   ]);
 
   const items: ChecklistPublicItem[] = itemRows.map((item) => ({
@@ -401,6 +403,7 @@ export async function getChecklistPublicArea(
       done: Number(followUpRow[0]?.done ?? 0),
     },
     manualWorks,
+    equipment,
     timeline: timeline.slice(0, 20),
     lastUpdated: latestItemUpdate,
     viewingHistory: displayRow !== row,

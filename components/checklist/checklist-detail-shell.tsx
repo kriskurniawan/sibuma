@@ -18,3 +18,16 @@ export function ChecklistTemplateDetailShell({ children }: { children: ReactNode
     </div>
   );
 }
+
+export function ChecklistEquipmentDetailShell({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
+      <BackLink href="/checklist/peralatan">Kembali ke Peralatan</BackLink>
+      {children}
+    </div>
+  );
+}

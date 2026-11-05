@@ -424,3 +424,101 @@ export const checklistQrUpdateSchema = z.object({
   locationId: id.nullish(),
   active: z.boolean().optional(),
 });
+
+const equipmentCode = z
+  .string()
+  .trim()
+  .min(2, "Kode peralatan minimal 2 karakter.")
+  .max(40, "Kode peralatan maksimal 40 karakter.")
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9._/-]*$/,
+    "Kode hanya boleh berisi huruf, angka, titik, garis miring, garis bawah, atau tanda hubung.",
+  );
+
+const equipmentName = z
+  .string()
+  .trim()
+  .min(2, "Nama peralatan minimal 2 karakter.")
+  .max(100, "Nama peralatan maksimal 100 karakter.");
+
+const equipmentCategory = z
+  .string()
+  .trim()
+  .max(60, "Kategori maksimal 60 karakter.");
+
+export const checklistEquipmentSchema = z.object({
+  locationId: id,
+  code: equipmentCode,
+  name: equipmentName,
+  category: equipmentCategory.optional().default(""),
+  publicEnabled: z.boolean().optional().default(false),
+});
+
+export const checklistEquipmentUpdateSchema = z.object({
+  locationId: id.optional(),
+  code: equipmentCode.optional(),
+  name: equipmentName.optional(),
+  category: equipmentCategory.optional(),
+  publicEnabled: z.boolean().optional(),
+  active: z.boolean().optional(),
+});
+
+const equipmentActivity = z.enum([
+  "penggantian",
+  "perbaikan",
+  "pengisian",
+  "servis",
+]);
+
+const equipmentComponent = z
+  .string()
+  .trim()
+  .min(1, "Komponen atau bahan wajib diisi.")
+  .max(80, "Komponen atau bahan maksimal 80 karakter.");
+
+const equipmentQuantity = z
+  .number()
+  .positive("Jumlah harus lebih dari 0.")
+  .max(1_000_000, "Jumlah terlalu besar.");
+
+const equipmentHourMeter = z
+  .number()
+  .int("Hour meter harus bilangan bulat.")
+  .min(0, "Hour meter tidak boleh negatif.")
+  .max(100_000_000, "Hour meter terlalu besar.");
+
+export const checklistEquipmentMaintenanceSchema = z.object({
+  activity: equipmentActivity,
+  component: equipmentComponent,
+  quantity: equipmentQuantity.nullable().optional().default(null),
+  unit: z
+    .string()
+    .trim()
+    .max(20, "Satuan maksimal 20 karakter.")
+    .optional()
+    .default(""),
+  hourMeter: equipmentHourMeter.nullable().optional().default(null),
+  performedDate: dateOnly,
+  description: z
+    .string()
+    .trim()
+    .max(1_000, "Uraian maksimal 1.000 karakter.")
+    .optional()
+    .default(""),
+  publicVisible: z.boolean().optional().default(true),
+});
+
+export const checklistEquipmentMaintenanceUpdateSchema = z.object({
+  activity: equipmentActivity.optional(),
+  component: equipmentComponent.optional(),
+  quantity: equipmentQuantity.nullable().optional(),
+  unit: z.string().trim().max(20, "Satuan maksimal 20 karakter.").optional(),
+  hourMeter: equipmentHourMeter.nullable().optional(),
+  performedDate: dateOnly.optional(),
+  description: z
+    .string()
+    .trim()
+    .max(1_000, "Uraian maksimal 1.000 karakter.")
+    .optional(),
+  publicVisible: z.boolean().optional(),
+});
