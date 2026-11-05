@@ -5,40 +5,39 @@ import writeXlsxFile, {
   type Sheet,
   type SheetData,
 } from "write-excel-file/node";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
+import {
+  RECAP_DOCUMENT,
+  recapDocumentName,
+  recapDocumentPeriod,
+} from "./overtime-recap-document";
 import type {
   OvertimeRecapPreview,
   OvertimeRecapSigners,
 } from "./overtime-recap-types";
 
-const HEADER_BG = "#E2E8F0";
-const HK_BG = "#FEF3C7";
-const HL_BG = "#DBEAFE";
-const TOTAL_BG = "#FDE047";
-const GRAND_TOTAL_BG = "#FEF9C3";
-const BORDER_COLOR = "#94A3B8";
-const MUTED_TEXT = "#64748B";
-const INK_TEXT = "#1E293B";
-
-const COLUMN_WIDTHS = [5, 30, 22, 15, 16, 8, 8, 9, 9, 14, 14, 17, 12];
-
-const RUPIAH_FORMAT = '#,##0';
-const HOURS_FORMAT = '#,##0.##';
-const KET_FORMAT = '#,##0.##" jam"';
+const { colors, headers } = RECAP_DOCUMENT;
+const AMOUNT_FORMAT = '0;-0;"-"';
+const DAYS_FORMAT = "0;-0;;@";
+// General tidak meninggalkan tanda desimal pada jam bulat (misalnya '5,').
+const HOURS_FORMAT = "General;General;;@";
+const KET_FORMAT = "General";
 
 function emptyRow(): SheetData[number] {
   return Array.from({ length: 13 }, () => null);
 }
 
-function textCell(
-  value: string,
+function tableCell(
+  value: string | number,
+  type: CellObject["type"],
   options: Partial<CellObject> = {},
 ): CellObject {
   return {
     value,
-    type: String,
-    fontSize: 10,
-    textColor: INK_TEXT,
-    borderColor: BORDER_COLOR,
+    type,
+    fontSize: 8,
+    textColor: colors.ink,
+    borderColor: colors.ink,
     borderStyle: "thin",
     alignVertical: "center",
     ...options,
@@ -49,201 +48,102 @@ function numberCell(
   value: number,
   format: string,
   options: Partial<CellObject> = {},
-): CellObject {
-  return {
-    value,
-    type: Number,
-    format,
-    fontSize: 10,
-    textColor: INK_TEXT,
-    borderColor: BORDER_COLOR,
-    borderStyle: "thin",
-    align: "right",
-    alignVertical: "center",
-    ...options,
-  };
+) {
+  return tableCell(value, Number, { format, align: "right", ...options });
 }
 
 function formulaCell(
   value: string,
   format: string,
   options: Partial<CellObject> = {},
-): CellObject {
-  return {
-    value,
-    type: "Formula",
-    format,
-    fontSize: 10,
-    textColor: INK_TEXT,
-    borderColor: BORDER_COLOR,
-    borderStyle: "thin",
-    align: "right",
-    alignVertical: "center",
-    ...options,
-  };
-}
-
-function mergedCell(
-  value: string,
-  columnSpan: number,
-  options: Partial<CellObject> = {},
-): CellObject {
-  return {
-    value,
-    columnSpan,
-    fontSize: 10,
-    textColor: INK_TEXT,
-    alignVertical: "center",
-    ...options,
-  };
+) {
+  return tableCell(value, "Formula", { format, align: "right", ...options });
 }
 
 function headerCells(): SheetData {
   const top = emptyRow();
-  top[0] = textCell("No", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-    height: 28,
-  });
-  top[1] = textCell("Nama", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-  });
-  top[2] = textCell("Jabatan", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-  });
-  top[3] = textCell("Basic Salary", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-    wrap: true,
-  });
-  top[4] = textCell("Tarif Lembur per Jam", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-    wrap: true,
-  });
-  top[5] = textCell("Jumlah Hari", {
-    columnSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-    height: 24,
-  });
-  top[6] = null;
-  top[7] = textCell("Jumlah Jam", {
-    columnSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-  });
-  top[8] = null;
-  top[9] = textCell("Jumlah Lembur", {
-    columnSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-  });
-  top[10] = null;
-  top[11] = textCell("Total Lembur", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: TOTAL_BG,
-    wrap: true,
-  });
-  top[12] = textCell("KET", {
-    rowSpan: 2,
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HEADER_BG,
-    wrap: true,
-  });
-
   const bottom = emptyRow();
-  bottom[5] = textCell("HK", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HK_BG,
+  const columns = [
+    { index: 0, label: headers.no },
+    { index: 1, label: headers.name },
+    { index: 2, label: headers.jobTitle },
+    { index: 3, label: headers.basicSalary },
+    { index: 4, label: headers.hourlyRate },
+    { index: 5, label: headers.days, columnSpan: 2 },
+    { index: 7, label: headers.hours, columnSpan: 2 },
+    { index: 9, label: headers.pay, columnSpan: 2 },
+    { index: 11, label: headers.totalPay },
+    { index: 12, label: headers.remarks },
+  ];
+  for (const column of columns) {
+    top[column.index] = tableCell(column.label, String, {
+      ...(column.columnSpan ? { columnSpan: column.columnSpan } : { rowSpan: 2 }),
+      fontWeight: "bold",
+      align: "center",
+      backgroundColor: colors.header,
+      wrap: true,
+      height: 22,
+    });
+  }
+  const labels = [
+    headers.hk,
+    headers.hl,
+    headers.hk,
+    headers.hl,
+    headers.hkPay,
+    headers.hlPay,
+  ];
+  labels.forEach((label, index) => {
+    bottom[5 + index] = tableCell(label, String, {
+      fontWeight: "bold",
+      align: "center",
+      backgroundColor: colors.header,
+      height: 22,
+    });
   });
-  bottom[6] = textCell("HL", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HL_BG,
-  });
-  bottom[7] = textCell("HK", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HK_BG,
-  });
-  bottom[8] = textCell("HL", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HL_BG,
-  });
-  bottom[9] = textCell("Hari Kerja", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HK_BG,
-  });
-  bottom[10] = textCell("Hari Libur", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: HL_BG,
-  });
-
   return [top, bottom];
 }
 
-function signatureRows(
-  signers: OvertimeRecapSigners,
-): SheetData {
-  const labels = emptyRow();
-  labels[1] = mergedCell("Building Manager,", 4, {
-    align: "center",
-    fontSize: 10,
-    height: 22,
+function signatureRows(signers: OvertimeRecapSigners): SheetData {
+  const rows: SheetData = [];
+  const names = [signers.buildingManagerName, signers.managerName];
+  const positions = [
+    { column: 1, span: 1 },
+    { column: 9, span: 4 },
+  ];
+  const addRow = (
+    values: readonly string[],
+    options: Partial<CellObject> = {},
+  ) => {
+    const row = emptyRow();
+    positions.forEach((position, index) => {
+      row[position.column] = {
+        value: values[index],
+        type: String,
+        columnSpan: position.span,
+        fontSize: 8,
+        textColor: colors.ink,
+        align: "center",
+        alignVertical: "center",
+        height: 14,
+        ...options,
+      };
+    });
+    rows.push(row);
+  };
+
+  addRow(RECAP_DOCUMENT.signatures.map((signature) => signature.introduction));
+  addRow(RECAP_DOCUMENT.signatures.map((signature) => signature.department), {
+    fontWeight: "bold",
   });
-  labels[7] = mergedCell("Manager,", 4, {
-    align: "center",
-    fontSize: 10,
+  const space = emptyRow();
+  space[0] = { value: "", height: 48 };
+  rows.push(space);
+  addRow(names.map(recapDocumentName), { textDecoration: { underline: true } });
+  addRow(RECAP_DOCUMENT.signatures.map((signature) => signature.role), {
+    fontWeight: "bold",
   });
-
-  const spacer = emptyRow();
-  spacer[1] = { value: "", height: 24 };
-
-  const names = emptyRow();
-  names[1] = mergedCell(
-    `( ${signers.buildingManagerName.trim() || "............................"} )`,
-    4,
-    {
-      align: "center",
-      fontWeight: "bold",
-      fontSize: 10,
-      height: 30,
-    },
-  );
-  names[7] = mergedCell(
-    `( ${signers.managerName.trim() || "............................"} )`,
-    4,
-    {
-      align: "center",
-      fontWeight: "bold",
-      fontSize: 10,
-    },
-  );
-
-  return [labels, spacer, names];
+  return rows;
 }
 
 export interface OvertimeRecapExcelInput {
@@ -256,129 +156,137 @@ export function buildOvertimeRecapSheet(
 ): Sheet<Buffer> {
   const { preview } = input;
   const data: SheetData = [];
+  const title = emptyRow();
+  title[0] = {
+    value: `${RECAP_DOCUMENT.title}\n${recapDocumentPeriod(preview.periodLabel)}`,
+    type: String,
+    columnSpan: 13,
+    fontSize: 8,
+    fontWeight: "bold",
+    textColor: colors.ink,
+    align: "center",
+    alignVertical: "center",
+    wrap: true,
+    height: 26,
+  };
+  const titleGap = emptyRow();
+  titleGap[0] = { value: "", height: 20 };
+  data.push(title, titleGap, ...headerCells());
 
-  data.push([
-    mergedCell("REKAPITULASI LEMBUR", 13, {
-      fontSize: 15,
-      fontWeight: "bold",
-      align: "center",
-      height: 30,
-    }),
-    ...Array.from({ length: 12 }, () => null),
-  ]);
-  data.push([
-    mergedCell(
-      `Periode: ${preview.periodLabel}`,
-      13,
-      {
-        fontSize: 10,
-        textColor: MUTED_TEXT,
-        align: "center",
-        height: 20,
-      },
-    ),
-    ...Array.from({ length: 12 }, () => null),
-  ]);
-  data.push(emptyRow());
-  data.push(...headerCells());
-
-  const firstDataRow = 6;
+  const firstDataRow = data.length + 1;
   preview.rows.forEach((row, index) => {
     const excelRow = firstDataRow + index;
-    const cells = emptyRow();
-    cells[0] = numberCell(index + 1, "0", { align: "center" });
-    cells[1] = textCell(row.name, { wrap: true });
-    cells[2] = textCell(row.jobTitle ?? "-", { wrap: true });
-    cells[3] = numberCell(row.basicSalary ?? 0, RUPIAH_FORMAT);
-    cells[4] = formulaCell(`=D${excelRow}/173`, RUPIAH_FORMAT);
-    cells[5] = numberCell(row.hkDays, "0", { align: "center" });
-    cells[6] = numberCell(row.hlDays, "0", { align: "center" });
-    cells[7] = numberCell(row.hkMinutes / 60, HOURS_FORMAT);
-    cells[8] = numberCell(row.hlMinutes / 60, HOURS_FORMAT);
-    cells[9] = formulaCell(`=E${excelRow}*H${excelRow}*1.5`, RUPIAH_FORMAT);
-    cells[10] = formulaCell(`=E${excelRow}*I${excelRow}*2`, RUPIAH_FORMAT);
-    cells[11] = formulaCell(
-      `=J${excelRow}+K${excelRow}`,
-      RUPIAH_FORMAT,
-      { backgroundColor: GRAND_TOTAL_BG },
-    );
-    cells[12] = formulaCell(`=H${excelRow}+I${excelRow}`, KET_FORMAT, {
-      align: "right",
-    });
-    data.push(cells);
+    data.push([
+      numberCell(index + 1, "0", { align: "center", height: 20.25 }),
+      tableCell(recapDocumentName(row.name), String, { wrap: true }),
+      tableCell(recapDocumentName(row.jobTitle ?? ""), String, {
+        align: "center",
+        wrap: true,
+      }),
+      numberCell(row.basicSalary ?? 0, AMOUNT_FORMAT),
+      formulaCell(`=D${excelRow}/173`, AMOUNT_FORMAT),
+      numberCell(row.hkDays, DAYS_FORMAT, {
+        align: "center",
+        backgroundColor: colors.hk,
+      }),
+      numberCell(row.hlDays, DAYS_FORMAT, {
+        align: "center",
+        backgroundColor: colors.hl,
+      }),
+      numberCell(row.hkMinutes / 60, HOURS_FORMAT, {
+        align: "center",
+        backgroundColor: colors.hk,
+      }),
+      numberCell(row.hlMinutes / 60, HOURS_FORMAT, {
+        align: "center",
+        backgroundColor: colors.hl,
+      }),
+      formulaCell(`=E${excelRow}*H${excelRow}*1.5`, AMOUNT_FORMAT),
+      formulaCell(`=E${excelRow}*I${excelRow}*2`, AMOUNT_FORMAT),
+      formulaCell(`=SUM(J${excelRow}:K${excelRow})`, AMOUNT_FORMAT, {
+        backgroundColor: colors.total,
+      }),
+      formulaCell(`=H${excelRow}+I${excelRow}`, KET_FORMAT),
+    ]);
   });
 
-  const lastDataRow = firstDataRow + preview.rows.length - 1;
-  const total = emptyRow();
-  total[0] = mergedCell("TOTAL", 5, {
-    fontWeight: "bold",
-    align: "left",
-    backgroundColor: GRAND_TOTAL_BG,
-    height: 22,
-  });
-  total[5] = formulaCell(`=SUM(F${firstDataRow}:F${lastDataRow})`, "0", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: GRAND_TOTAL_BG,
-  });
-  total[6] = formulaCell(`=SUM(G${firstDataRow}:G${lastDataRow})`, "0", {
-    fontWeight: "bold",
-    align: "center",
-    backgroundColor: GRAND_TOTAL_BG,
-  });
-  total[7] = formulaCell(
-    `=SUM(H${firstDataRow}:H${lastDataRow})`,
-    HOURS_FORMAT,
-    { fontWeight: "bold", backgroundColor: GRAND_TOTAL_BG },
-  );
-  total[8] = formulaCell(
-    `=SUM(I${firstDataRow}:I${lastDataRow})`,
-    HOURS_FORMAT,
-    { fontWeight: "bold", backgroundColor: GRAND_TOTAL_BG },
-  );
-  total[9] = formulaCell(
-    `=SUM(J${firstDataRow}:J${lastDataRow})`,
-    RUPIAH_FORMAT,
-    { fontWeight: "bold", backgroundColor: GRAND_TOTAL_BG },
-  );
-  total[10] = formulaCell(
-    `=SUM(K${firstDataRow}:K${lastDataRow})`,
-    RUPIAH_FORMAT,
-    { fontWeight: "bold", backgroundColor: GRAND_TOTAL_BG },
-  );
-  total[11] = formulaCell(
-    `=SUM(L${firstDataRow}:L${lastDataRow})`,
-    RUPIAH_FORMAT,
-    { fontWeight: "bold", backgroundColor: TOTAL_BG },
-  );
-  total[12] = formulaCell(
-    `=SUM(M${firstDataRow}:M${lastDataRow})`,
-    KET_FORMAT,
-    { fontWeight: "bold", backgroundColor: TOTAL_BG },
-  );
-  data.push(total);
-
-  data.push(emptyRow(), ...signatureRows(input.signers));
+  // Contoh resmi langsung diikuti tanda tangan, tanpa baris TOTAL tambahan.
+  const signatureGap = emptyRow();
+  signatureGap[0] = { value: "", height: 24 };
+  data.push(signatureGap, ...signatureRows(input.signers));
 
   return {
     sheet: "Rekapitulasi Lembur",
     data,
-    columns: COLUMN_WIDTHS.map((width) => ({ width })),
-    stickyRowsCount: 5,
+    columns: RECAP_DOCUMENT.columnWidths.map((width) => ({ width: width / 5.5 })),
+    stickyRowsCount: 4,
     showGridLines: false,
     orientation: "landscape",
   };
+}
+
+/**
+ * Koma bawaan format '#,##0' mengikuti locale Excel pengguna. Format bersyarat
+ * dengan koma literal mempertahankan format contoh tanpa mengubah nilai/rumus.
+ * Batas desimal mencegah nominal yang dibulatkan naik kehilangan grup ribuan.
+ */
+function literalGroupingFormats() {
+  return Array.from({ length: 5 }, (_, index) => {
+    const groups = index + 1;
+    return {
+      threshold: 10 ** (groups * 3) - 0.5,
+      code: `#${'","000'.repeat(groups)}`,
+    };
+  });
+}
+
+function applyDocumentNumberFormats(buffer: Buffer, rowCount: number) {
+  const files = unzipSync(buffer);
+  let styles = strFromU8(files["xl/styles.xml"]);
+  let sheet = strFromU8(files["xl/worksheets/sheet1.xml"]);
+  const formats = literalGroupingFormats();
+  const existingIds = [...styles.matchAll(/numFmtId="(\d+)"/g)].map((match) => Number(match[1]));
+  const firstId = Math.max(163, ...existingIds) + 1;
+  const numberFormats = formats.map((format, index) =>
+    `<numFmt numFmtId="${firstId + index}" formatCode="${format.code.replaceAll('"', "&quot;")}"/>`,
+  );
+  if (styles.includes("</numFmts>")) {
+    styles = styles.replace(/<numFmts count="(\d+)">/, (_, count) =>
+      `<numFmts count="${Number(count) + formats.length}">`,
+    ).replace("</numFmts>", `${numberFormats.join("")}</numFmts>`);
+  } else {
+    styles = styles.replace("<fonts", `<numFmts count="${formats.length}">${numberFormats.join("")}</numFmts><fonts`);
+  }
+  const differentialStyles = formats.map((_, index) =>
+    `<dxf>${numberFormats[index]}</dxf>`,
+  ).join("");
+  styles = styles.replace("</styleSheet>", `<dxfs count="${formats.length}">${differentialStyles}</dxfs></styleSheet>`);
+
+  if (rowCount > 0) {
+    const lastRow = 4 + rowCount;
+    const rules = formats.map((format, index) =>
+      `<cfRule type="cellIs" dxfId="${index}" priority="${formats.length - index}" stopIfTrue="1" operator="greaterThanOrEqual"><formula>${format.threshold}</formula></cfRule>`,
+    ).reverse().join("");
+    sheet = sheet.replace("<pageMargins", `<conditionalFormatting sqref="D5:E${lastRow} J5:L${lastRow}">${rules}</conditionalFormatting><pageMargins`);
+  }
+  // Seluruh tabel harus muat pada lebar satu halaman saat dicetak dari Excel.
+  sheet = sheet.replace(/(<worksheet\b[^>]*>)/, '$1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>');
+  sheet = sheet.replace("<pageSetup ", '<pageSetup fitToWidth="1" fitToHeight="0" ');
+  files["xl/styles.xml"] = strToU8(styles);
+  files["xl/worksheets/sheet1.xml"] = strToU8(sheet);
+  return zipSync(files);
 }
 
 export async function overtimeRecapExcelResponse(
   input: OvertimeRecapExcelInput,
 ) {
   const buffer = await writeXlsxFile([buildOvertimeRecapSheet(input)], {
-    fontFamily: "Calibri",
-    fontSize: 10,
+    fontFamily: "Times New Roman",
+    fontSize: 8,
   }).toBuffer();
+  const file = applyDocumentNumberFormats(buffer, input.preview.rows.length);
 
-  return new Response(new Uint8Array(buffer), {
+  return new Response(file, {
     status: 200,
     headers: {
       "Content-Type":

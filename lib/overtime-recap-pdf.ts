@@ -1,144 +1,67 @@
 import "server-only";
 
 import { jsPDF } from "jspdf";
-import autoTable, {
-  type CellDef,
-  type RowInput,
-  type UserOptions,
-} from "jspdf-autotable";
+import autoTable, { type CellDef, type UserOptions } from "jspdf-autotable";
 import {
-  formatRecapHours,
-  formatRecapRupiah,
-} from "./overtime-recap-format";
+  RECAP_DOCUMENT,
+  recapDocumentHours,
+  recapDocumentName,
+  recapDocumentNominal,
+  recapDocumentPeriod,
+} from "./overtime-recap-document";
 import type {
   OvertimeRecapPreview,
   OvertimeRecapSigners,
 } from "./overtime-recap-types";
 
 const MARGIN = 24;
-const TOP_MARGIN = 48;
-const BOTTOM_MARGIN = 44;
-
-const INK: [number, number, number] = [30, 41, 59];
-const MUTED: [number, number, number] = [100, 116, 139];
-const BORDER: [number, number, number] = [148, 163, 184];
-const HEADER_BG: [number, number, number] = [226, 232, 240];
-const HK_BG: [number, number, number] = [254, 243, 199];
-const HL_BG: [number, number, number] = [219, 234, 254];
-const TOTAL_BG: [number, number, number] = [253, 224, 71];
-const GRAND_TOTAL_BG: [number, number, number] = [254, 249, 195];
-
-const COLUMN_WIDTHS = [
-  22, 164, 120, 78, 78, 25, 25, 28, 28, 54, 54, 74, 43.8,
-];
-
-function clean(value: string | number | null | undefined) {
-  if (value === null || value === undefined) return "";
-  return String(value)
-    .replace(/\u00a0/g, " ")
-    .replace(/[\u2013\u2014]/g, "-")
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201c\u201d]/g, '"')
-    .replace(/[\u00b7\u2022]/g, "-");
-}
-
-function pageSize(doc: jsPDF) {
-  return {
-    width: doc.internal.pageSize.getWidth(),
-    height: doc.internal.pageSize.getHeight(),
-  };
-}
+const { colors, headers } = RECAP_DOCUMENT;
 
 function drawTitle(doc: jsPDF, preview: OvertimeRecapPreview) {
-  const { width } = pageSize(doc);
-  doc.setFont("helvetica", "bold").setFontSize(16).setTextColor(...INK);
-  doc.text("REKAPITULASI LEMBUR", width / 2, 52, { align: "center" });
-
-  doc.setFont("helvetica", "normal").setFontSize(9).setTextColor(...MUTED);
-  doc.text(
-    clean(`Periode: ${preview.periodLabel}`),
-    width / 2,
-    68,
-    { align: "center" },
-  );
-
-  doc
-    .setDrawColor(...BORDER)
-    .setLineWidth(0.8)
-    .line(MARGIN, 80, width - MARGIN, 80);
-
-  return 94;
-}
-
-function ensureSpace(doc: jsPDF, y: number, needed: number) {
-  const { height } = pageSize(doc);
-  if (y + needed <= height - BOTTOM_MARGIN) return y;
-  doc.addPage();
-  return TOP_MARGIN;
-}
-
-function signatureName(value: string) {
-  const name = value.replace(/\s+/g, " ").trim();
-  return name || "............................";
+  const width = doc.internal.pageSize.getWidth();
+  doc.setFont("times", "bold").setFontSize(10).setTextColor(colors.ink);
+  doc.text(RECAP_DOCUMENT.title, width / 2, 34, { align: "center" });
+  doc.setFontSize(9);
+  doc.text(recapDocumentPeriod(preview.periodLabel), width / 2, 45, {
+    align: "center",
+  });
+  return 68;
 }
 
 function drawSignatures(
   doc: jsPDF,
   signers: OvertimeRecapSigners,
-  y: number,
+  tableEndY: number,
 ) {
-  const { width } = pageSize(doc);
-  const contentWidth = width - MARGIN * 2;
-  const startY = ensureSpace(doc, y + 24, 80);
-  const blockWidth = contentWidth * 0.3;
-  const leftX = MARGIN + contentWidth * 0.1;
-  const rightX = MARGIN + contentWidth * 0.58;
+  const contentWidth = doc.internal.pageSize.getWidth() - MARGIN * 2;
+  const height = doc.internal.pageSize.getHeight();
+  let startY = tableEndY + 32;
+  if (startY + 90 > height - MARGIN) {
+    doc.addPage();
+    startY = MARGIN + 10;
+  }
 
-  const drawBlock = (x: number, label: string, name: string) => {
-    doc
-      .setFont("helvetica", "normal")
-      .setFontSize(8.5)
-      .setTextColor(...INK);
-    doc.text(label, x + blockWidth / 2, startY, { align: "center" });
+  const names = [signers.buildingManagerName, signers.managerName];
+  const centers = [0.13, 0.844];
+  RECAP_DOCUMENT.signatures.forEach((signature, index) => {
+    const centerX = MARGIN + contentWidth * centers[index];
+    doc.setTextColor(colors.ink).setFont("times", "normal").setFontSize(8);
+    doc.text(signature.introduction, centerX, startY, { align: "center" });
+    doc.setFont("times", "bold");
+    doc.text(signature.department, centerX, startY + 12, { align: "center" });
 
-    doc
-      .setDrawColor(...BORDER)
-      .setLineWidth(0.6)
-      .line(x, startY + 42, x + blockWidth, startY + 42);
-
-    doc
-      .setFont("helvetica", "bold")
-      .setFontSize(8.5)
-      .setTextColor(...INK);
-    doc.text(
-      clean(`( ${signatureName(name)} )`),
-      x + blockWidth / 2,
-      startY + 55,
-      { align: "center" },
-    );
-  };
-
-  drawBlock(leftX, "Building Manager,", signers.buildingManagerName);
-  drawBlock(rightX, "Manager,", signers.managerName);
-  return startY + 72;
-}
-
-function totalRow(
-  preview: OvertimeRecapPreview,
-): RowInput {
-  const hkPay = preview.rows.reduce((total, row) => total + row.hkPay, 0);
-  const hlPay = preview.rows.reduce((total, row) => total + row.hlPay, 0);
-  return [
-    { content: "TOTAL", colSpan: 5, styles: { halign: "left" } },
-    preview.totals.hkDays,
-    preview.totals.hlDays,
-    formatRecapHours(preview.totals.hkMinutes),
-    formatRecapHours(preview.totals.hlMinutes),
-    formatRecapRupiah(hkPay),
-    formatRecapRupiah(hlPay),
-    formatRecapRupiah(preview.totals.totalPay),
-    `${formatRecapHours(preview.totals.hkMinutes + preview.totals.hlMinutes)} jam`,
-  ];
+    const name = recapDocumentName(names[index]);
+    const nameY = startY + 74;
+    doc.setFont("times", "normal");
+    if (name) {
+      doc.text(name, centerX, nameY, { align: "center" });
+      const nameWidth = doc.getTextWidth(name);
+      doc.setDrawColor(colors.ink).setLineWidth(0.4);
+      doc.line(centerX - nameWidth / 2, nameY + 1, centerX + nameWidth / 2, nameY + 1);
+    }
+    doc.setFont("times", "bold");
+    doc.text(signature.role, centerX, nameY + 13, { align: "center" });
+  });
 }
 
 export interface OvertimeRecapPdfInput {
@@ -155,58 +78,61 @@ export function createOvertimeRecapPdf(input: OvertimeRecapPdfInput) {
     compress: true,
   });
 
-  const { width } = pageSize(doc);
-  const contentWidth = width - MARGIN * 2;
+  const contentWidth = doc.internal.pageSize.getWidth() - MARGIN * 2;
+  const referenceWidth = RECAP_DOCUMENT.columnWidths.reduce<number>(
+    (sum, width) => sum + width,
+    0,
+  );
   const startY = drawTitle(doc, preview);
 
   const head: CellDef[][] = [
     [
-      { content: "No", rowSpan: 2 },
-      { content: "Nama", rowSpan: 2 },
-      { content: "Jabatan", rowSpan: 2 },
-      { content: "Basic Salary", rowSpan: 2 },
-      { content: "Tarif Lembur per Jam", rowSpan: 2 },
-      { content: "Jumlah Hari", colSpan: 2 },
-      { content: "Jumlah Jam", colSpan: 2 },
-      { content: "Jumlah Lembur", colSpan: 2 },
-      { content: "Total Lembur", rowSpan: 2 },
-      { content: "KET", rowSpan: 2 },
+      { content: headers.no, rowSpan: 2 },
+      { content: headers.name, rowSpan: 2 },
+      { content: headers.jobTitle, rowSpan: 2 },
+      { content: headers.basicSalary, rowSpan: 2 },
+      { content: headers.hourlyRate, rowSpan: 2 },
+      { content: headers.days, colSpan: 2 },
+      { content: headers.hours, colSpan: 2 },
+      { content: headers.pay, colSpan: 2 },
+      { content: headers.totalPay, rowSpan: 2 },
+      { content: headers.remarks, rowSpan: 2 },
     ],
     [
-      { content: "HK", styles: { fillColor: HK_BG } },
-      { content: "HL", styles: { fillColor: HL_BG } },
-      { content: "HK", styles: { fillColor: HK_BG } },
-      { content: "HL", styles: { fillColor: HL_BG } },
-      { content: "Hari Kerja", styles: { fillColor: HK_BG } },
-      { content: "Hari Libur", styles: { fillColor: HL_BG } },
+      { content: headers.hk },
+      { content: headers.hl },
+      { content: headers.hk },
+      { content: headers.hl },
+      { content: headers.hkPay },
+      { content: headers.hlPay },
     ],
   ];
 
   const body = preview.rows.map((row, index) => [
     index + 1,
-    row.name,
-    row.jobTitle ?? "-",
-    formatRecapRupiah(row.basicSalary),
-    formatRecapRupiah(row.hourlyRate),
-    row.hkDays,
-    row.hlDays,
-    formatRecapHours(row.hkMinutes),
-    formatRecapHours(row.hlMinutes),
-    formatRecapRupiah(row.hkPay),
-    formatRecapRupiah(row.hlPay),
-    formatRecapRupiah(row.totalPay),
-    `${formatRecapHours(row.hkMinutes + row.hlMinutes)} jam`,
+    recapDocumentName(row.name),
+    recapDocumentName(row.jobTitle ?? ""),
+    recapDocumentNominal(row.basicSalary),
+    recapDocumentNominal(row.hourlyRate),
+    row.hkDays || "",
+    row.hlDays || "",
+    recapDocumentHours(row.hkMinutes, true),
+    recapDocumentHours(row.hlMinutes, true),
+    recapDocumentNominal(row.hkPay),
+    recapDocumentNominal(row.hlPay),
+    recapDocumentNominal(row.totalPay),
+    recapDocumentHours(row.hkMinutes + row.hlMinutes),
   ]);
 
   const columnStyles: UserOptions["columnStyles"] = Object.fromEntries(
-    COLUMN_WIDTHS.map((cellWidth, index) => [
-      String(index),
+    RECAP_DOCUMENT.columnWidths.map((width, index) => [
+      index,
       {
-        cellWidth,
+        cellWidth: (width / referenceWidth) * contentWidth,
         halign:
-          index === 1 || index === 2
+          index === 1
             ? "left"
-            : index === 0
+            : index === 0 || index === 2 || (index >= 5 && index <= 8)
               ? "center"
               : "right",
       },
@@ -216,57 +142,46 @@ export function createOvertimeRecapPdf(input: OvertimeRecapPdfInput) {
   autoTable(doc, {
     head,
     body,
-    foot: [totalRow(preview)],
     startY,
-    margin: {
-      top: TOP_MARGIN,
-      right: MARGIN,
-      bottom: BOTTOM_MARGIN,
-      left: MARGIN,
-    },
+    margin: { top: MARGIN, right: MARGIN, bottom: MARGIN, left: MARGIN },
     tableWidth: contentWidth,
     theme: "grid",
     showHead: "everyPage",
-    showFoot: "lastPage",
     rowPageBreak: "avoid",
     styles: {
-      font: "helvetica",
-      fontSize: 7,
-      cellPadding: { top: 4, right: 3.5, bottom: 4, left: 3.5 },
+      font: "times",
+      fontSize: 8,
+      cellPadding: { top: 4, right: 3, bottom: 4, left: 3 },
       overflow: "linebreak",
-      textColor: INK,
-      lineColor: BORDER,
-      lineWidth: 0.4,
+      textColor: colors.ink,
+      lineColor: colors.ink,
+      lineWidth: 0.5,
       valign: "middle",
     },
     headStyles: {
-      fillColor: HEADER_BG,
-      textColor: INK,
+      fillColor: colors.header,
+      textColor: colors.ink,
       fontStyle: "bold",
       halign: "center",
-      lineColor: BORDER,
-      fontSize: 6.8,
+      lineColor: colors.ink,
+      fontSize: 7.5,
     },
-    footStyles: {
-      fillColor: GRAND_TOTAL_BG,
-      textColor: INK,
-      fontStyle: "bold",
-      lineColor: BORDER,
-    },
+    bodyStyles: { minCellHeight: 23 },
     columnStyles,
     didParseCell: (data) => {
-      if (data.section === "foot" && data.column.index === 11) {
-        data.cell.styles.fillColor = TOTAL_BG;
+      if (data.section !== "body") return;
+      if (data.column.index === 5 || data.column.index === 7) {
+        data.cell.styles.fillColor = colors.hk;
+      } else if (data.column.index === 6 || data.column.index === 8) {
+        data.cell.styles.fillColor = colors.hl;
+      } else if (data.column.index === 11) {
+        data.cell.styles.fillColor = colors.total;
       }
     },
   });
 
-  const tableDoc = doc as jsPDF & {
-    lastAutoTable?: { finalY?: number };
-  };
-  const lastY = tableDoc.lastAutoTable?.finalY ?? startY;
-
-  drawSignatures(doc, input.signers, lastY + 24);
+  const tableDoc = doc as jsPDF & { lastAutoTable?: { finalY?: number } };
+  drawSignatures(doc, input.signers, tableDoc.lastAutoTable?.finalY ?? startY);
   return doc;
 }
 
