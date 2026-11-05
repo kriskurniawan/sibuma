@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readOwnerId } from "./access";
 import { insertChecklistAudit } from "./checklist-audit";
 import {
   getChecklistLocationPathMap,
@@ -404,11 +405,15 @@ export async function createChecklistEquipmentMaintenance(
   equipmentId: string,
   input: ChecklistEquipmentMaintenanceInput,
 ) {
+  // Pekerja mencatat untuk unit milik tim atasannya; atasan memakai data
+  // miliknya sendiri. Peran lain tidak memiliki cakupan tulis peralatan.
+  const ownerId = readOwnerId(user);
   return transaction(async (connection) => {
+    if (!ownerId) throw new Error("Peralatan tidak ditemukan.");
     const [equipment] = await query(
       `SELECT id,name FROM checklist_equipment
        WHERE id=$1 AND owner_id=$2 FOR UPDATE`,
-      [equipmentId, user.id],
+      [equipmentId, ownerId],
       connection,
     );
     if (!equipment) throw new Error("Peralatan tidak ditemukan.");
@@ -424,7 +429,7 @@ export async function createChecklistEquipmentMaintenance(
       [
         id,
         equipmentId,
-        user.id,
+        ownerId,
         input.activity,
         input.component,
         input.quantity,
@@ -452,7 +457,7 @@ export async function createChecklistEquipmentMaintenance(
     return {
       id,
       equipmentId,
-      ownerId: user.id,
+      ownerId,
       activity: input.activity,
       component: input.component,
       quantity: input.quantity,
@@ -476,7 +481,9 @@ export async function updateChecklistEquipmentMaintenance(
   maintenanceId: string,
   input: ChecklistEquipmentMaintenanceUpdateInput,
 ) {
+  const ownerId = readOwnerId(user);
   return transaction(async (connection) => {
+    if (!ownerId) throw new Error("Catatan perawatan tidak ditemukan.");
     const [currentRow] = await query(
       `SELECT ${MAINTENANCE_COLUMNS},emp.name performed_by_name
        FROM checklist_equipment_maintenance m
@@ -484,11 +491,16 @@ export async function updateChecklistEquipmentMaintenance(
        LEFT JOIN employees emp ON emp.id=m.performed_by
        WHERE m.id=$1 AND m.equipment_id=$2 AND e.owner_id=$3
        FOR UPDATE OF m`,
-      [maintenanceId, equipmentId, user.id],
+      [maintenanceId, equipmentId, ownerId],
       connection,
     );
     if (!currentRow) throw new Error("Catatan perawatan tidak ditemukan.");
     const current = mapMaintenance(currentRow);
+    if (user.role === "pekerja" && current.createdBy !== user.id) {
+      throw new Error(
+        "Kamu hanya dapat mengubah catatan perawatan yang kamu buat.",
+      );
+    }
 
     const next = {
       activity: input.activity ?? current.activity,

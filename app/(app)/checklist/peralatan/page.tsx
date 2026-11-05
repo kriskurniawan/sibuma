@@ -5,13 +5,14 @@ import { ChecklistSubmenuDataError } from "@/components/checklist/submenu-skelet
 import { ChecklistEquipmentSkeleton } from "@/components/checklist/equipment-skeletons";
 import { ChecklistEquipmentView } from "@/components/checklist/equipment-view";
 import { getCurrentUser } from "@/lib/auth";
+import { checklistReadOwner } from "@/lib/checklist-access";
 import { getChecklistEquipmentSetup } from "@/lib/checklist-equipment";
 
 export const metadata = {
   title: "Peralatan",
 };
 
-async function EquipmentData({ ownerId }: { ownerId: string }) {
+async function EquipmentData({ ownerId }: { ownerId: string | null }) {
   try {
     const setup = await getChecklistEquipmentSetup(ownerId);
     return <ChecklistEquipmentView setup={setup} />;
@@ -25,12 +26,17 @@ async function EquipmentData({ ownerId }: { ownerId: string }) {
 export default async function ChecklistEquipmentPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "atasan") redirect("/checklist");
+  if (user.role !== "pekerja" && user.role !== "atasan") {
+    redirect("/checklist");
+  }
+  const ownerId = checklistReadOwner(user);
+  // Pekerja tanpa atasan tidak punya cakupan tim; jangan jatuh ke "semua data".
+  if (user.role === "pekerja" && !ownerId) redirect("/checklist");
 
   return (
     <ChecklistEquipmentShell>
       <Suspense fallback={<ChecklistEquipmentSkeleton />}>
-        <EquipmentData ownerId={user.id} />
+        <EquipmentData ownerId={ownerId} />
       </Suspense>
     </ChecklistEquipmentShell>
   );

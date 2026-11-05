@@ -211,6 +211,7 @@ function navigationFor(
     main: [
       { href: "/", label: "Beranda", icon: Home, exact: true },
       { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
+      { href: "/checklist/peralatan", label: "Peralatan", icon: Wrench },
       { href: "/pekerjaan", label: "Pekerjaan harian", icon: Hammer },
       { href: "/laporan-harian", label: "Laporan harian", icon: FileText },
       { href: "/dokumen", label: "Dokumen kerja", icon: FolderLock },

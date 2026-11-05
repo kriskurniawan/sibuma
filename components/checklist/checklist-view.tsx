@@ -73,11 +73,9 @@ export function ChecklistView({ user: snapshot, summary, count, followUpCount, f
               <ListChecks />Tindak lanjut{followUpCount ?? <ChecklistCountSkeleton />}
             </Button>
             <QrScanButton className="hidden md:inline-flex" />
-            {user.role === "atasan" && (
-              <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/peralatan" />}>
-                <Wrench />Peralatan
-              </Button>
-            )}
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/peralatan" />}>
+              <Wrench />Peralatan
+            </Button>
             {canManage && <>
               <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/template" />}><Settings2 />Template</Button>
               <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/jadwal" />}><CalendarClock />Jadwal</Button>
@@ -93,8 +91,11 @@ export function ChecklistView({ user: snapshot, summary, count, followUpCount, f
             <FrameTitle className="max-md:sr-only">Daftar checklist</FrameTitle>
             <FrameDescription className="hidden text-xs md:block">{resultCount} checklist sesuai filter.</FrameDescription>
           </div>
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="flex flex-wrap items-center justify-end gap-2 md:hidden">
             <span className="text-xs text-muted-foreground tabular-nums">{resultCount} hasil</span>
+            <Button size="sm" variant="outline" nativeButton={false} render={<Link href="/checklist/peralatan" />}>
+              <Wrench />Peralatan
+            </Button>
             {user.role === "atasan" && <QrScanButton />}
           </div>
         </FrameHeader>

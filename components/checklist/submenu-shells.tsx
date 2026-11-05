@@ -112,7 +112,6 @@ export function ChecklistScheduleShell({ children }: ShellProps) {
 export function ChecklistEquipmentShell({ children }: ShellProps) {
   const user = useSessionUser();
   const canManage = user.role === "atasan" && !isReadOnly(user);
-  const canRead = user.role === "atasan";
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
@@ -124,33 +123,29 @@ export function ChecklistEquipmentShell({ children }: ShellProps) {
         description="Identitas unit dan riwayat perawatannya per area."
         descriptionClassName="hidden md:block"
         action={
-          canRead ? (
+          canManage ? (
             <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
               <div className="max-md:hidden">
-                {canManage && (
-                  <Button
-                    size="sm"
-                    nativeButton={false}
-                    render={<a href="#peralatan-baru" />}
-                    aria-haspopup="dialog"
-                    data-dialog-intent="equipment-new"
-                  >
-                    <Plus aria-hidden="true" />
-                    Peralatan baru
-                  </Button>
-                )}
-              </div>
-              {canManage && (
                 <Button
                   size="sm"
-                  variant="outline"
                   nativeButton={false}
-                  render={<Link href="/checklist/template" />}
+                  render={<a href="#peralatan-baru" />}
+                  aria-haspopup="dialog"
+                  data-dialog-intent="equipment-new"
                 >
-                  <Settings2 aria-hidden="true" />
-                  Template & lokasi
+                  <Plus aria-hidden="true" />
+                  Peralatan baru
                 </Button>
-              )}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href="/checklist/template" />}
+              >
+                <Settings2 aria-hidden="true" />
+                Template & lokasi
+              </Button>
             </div>
           ) : undefined
         }

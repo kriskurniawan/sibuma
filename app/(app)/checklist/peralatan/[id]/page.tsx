@@ -5,6 +5,7 @@ import { ChecklistEquipmentDetailShell } from "@/components/checklist/checklist-
 import { ChecklistEquipmentDetailSkeleton } from "@/components/checklist/equipment-skeletons";
 import { ChecklistEquipmentDetailView } from "@/components/checklist/equipment-detail-view";
 import { getCurrentUser } from "@/lib/auth";
+import { checklistReadOwner } from "@/lib/checklist-access";
 import { getChecklistEquipmentDetail } from "@/lib/checklist-equipment";
 
 export const metadata = {
@@ -26,12 +27,17 @@ export default function ChecklistEquipmentDetailPage({ params }: PageProps) {
 async function EquipmentDetailData({ params }: PageProps) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  if (user.role !== "atasan") redirect("/checklist");
+  if (user.role !== "pekerja" && user.role !== "atasan") {
+    redirect("/checklist");
+  }
+  const ownerId = checklistReadOwner(user);
+  // Pekerja tanpa atasan tidak punya cakupan tim; jangan jatuh ke "semua data".
+  if (user.role === "pekerja" && !ownerId) redirect("/checklist");
 
   const { id } = await params;
   let detail;
   try {
-    detail = await getChecklistEquipmentDetail(user.id, id);
+    detail = await getChecklistEquipmentDetail(ownerId, id);
   } catch {
     return (
       <DataLoadError message="Detail peralatan gagal dimuat. Coba lagi." />

@@ -41,36 +41,44 @@ export function ChecklistEquipmentDetailView({
   const router = useRouter();
   const user = useSessionUser();
   const canManage = user.role === "atasan" && !isReadOnly(user);
+  // Perawatan dicatat oleh pekerja/teknisi; atasan tetap dapat mencatat.
+  const canRecordMaintenance =
+    !isReadOnly(user) && (user.role === "atasan" || user.role === "pekerja");
   const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [maintenanceOpen, setMaintenanceOpen] = useState(false);
   const [editingMaintenance, setEditingMaintenance] =
     useState<ChecklistEquipmentMaintenance | null>(null);
   const equipment = detail.equipment;
 
-  const headerActions = canManage ? (
-    <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
-      <Button
-        type="button"
-        size="sm"
-        variant="outline"
-        onClick={() => setEquipmentOpen(true)}
-      >
-        <Pencil aria-hidden="true" />
-        Ubah
-      </Button>
-      <Button
-        type="button"
-        size="sm"
-        onClick={() => {
-          setEditingMaintenance(null);
-          setMaintenanceOpen(true);
-        }}
-      >
-        <Plus aria-hidden="true" />
-        Catat perawatan
-      </Button>
-    </div>
-  ) : undefined;
+  const headerActions =
+    canManage || canRecordMaintenance ? (
+      <div className="flex min-w-0 max-w-full items-center gap-2 overflow-x-auto">
+        {canManage && (
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setEquipmentOpen(true)}
+          >
+            <Pencil aria-hidden="true" />
+            Ubah
+          </Button>
+        )}
+        {canRecordMaintenance && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setEditingMaintenance(null);
+              setMaintenanceOpen(true);
+            }}
+          >
+            <Plus aria-hidden="true" />
+            Catat perawatan
+          </Button>
+        )}
+      </div>
+    ) : undefined;
 
   return (
     <div className="flex min-w-0 flex-col gap-6 lg:gap-8">
@@ -151,7 +159,7 @@ export function ChecklistEquipmentDetailView({
               title="Belum ada perawatan"
               description="Catat penggantian, pengisian, perbaikan, atau servis pertama untuk unit ini."
               action={
-                canManage ? (
+                canRecordMaintenance ? (
                   <Button
                     size="sm"
                     type="button"
@@ -255,7 +263,9 @@ export function ChecklistEquipmentDetailView({
                           <Badge variant="outline">Internal</Badge>
                         )}
                       </div>
-                      {canManage && (
+                      {(canManage ||
+                        (canRecordMaintenance &&
+                          entry.createdBy === user.id)) && (
                         <Button
                           size="sm"
                           variant="ghost"
@@ -306,23 +316,23 @@ export function ChecklistEquipmentDetailView({
       </Frame>
 
       {canManage && (
-        <>
-          <EquipmentFormDialog
-            open={equipmentOpen}
-            onClose={() => setEquipmentOpen(false)}
-            equipment={equipment}
-            locations={detail.locations}
-            onSaved={() => router.refresh()}
-          />
-          <MaintenanceFormDialog
-            open={maintenanceOpen}
-            onClose={() => setMaintenanceOpen(false)}
-            equipmentId={equipment.id}
-            equipmentName={equipment.name}
-            maintenance={editingMaintenance}
-            onSaved={() => router.refresh()}
-          />
-        </>
+        <EquipmentFormDialog
+          open={equipmentOpen}
+          onClose={() => setEquipmentOpen(false)}
+          equipment={equipment}
+          locations={detail.locations}
+          onSaved={() => router.refresh()}
+        />
+      )}
+      {canRecordMaintenance && (
+        <MaintenanceFormDialog
+          open={maintenanceOpen}
+          onClose={() => setMaintenanceOpen(false)}
+          equipmentId={equipment.id}
+          equipmentName={equipment.name}
+          maintenance={editingMaintenance}
+          onSaved={() => router.refresh()}
+        />
       )}
     </div>
   );

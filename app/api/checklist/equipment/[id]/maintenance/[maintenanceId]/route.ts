@@ -13,8 +13,11 @@ export async function PATCH(
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
   const denied = readOnlyWrite(user);
   if (denied) return denied;
-  if (user.role !== "atasan") {
-    return apiError("Hanya atasan yang dapat mengubah riwayat perawatan.", 403);
+  if (user.role !== "pekerja" && user.role !== "atasan") {
+    return apiError(
+      "Kamu tidak memiliki izin untuk mengubah riwayat perawatan.",
+      403,
+    );
   }
 
   const { id, maintenanceId } = await params;

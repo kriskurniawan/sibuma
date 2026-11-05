@@ -1,5 +1,9 @@
+"use client";
+
 import { Frame, FrameDescription, FrameHeader, FramePanel, FrameTitle } from "@/components/reui/frame";
+import { useSessionUser } from "@/components/session-user-provider";
 import { Skeleton } from "@/components/ui/skeleton";
+import { isReadOnly } from "@/lib/access";
 
 function EquipmentRowSkeleton() {
   return (
@@ -52,6 +56,11 @@ export function ChecklistEquipmentSkeleton() {
 }
 
 export function ChecklistEquipmentDetailSkeleton() {
+  const user = useSessionUser();
+  const canManage = user.role === "atasan" && !isReadOnly(user);
+  const canRecordMaintenance =
+    !isReadOnly(user) && (user.role === "atasan" || user.role === "pekerja");
+
   return (
     <div
       aria-busy="true"
@@ -67,8 +76,8 @@ export function ChecklistEquipmentDetailSkeleton() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-8 w-24" />
-          <Skeleton className="h-8 w-32" />
+          {canManage && <Skeleton className="h-8 w-24" />}
+          {canRecordMaintenance && <Skeleton className="h-8 w-32" />}
         </div>
       </div>
       <Frame className="md:hidden">
@@ -81,8 +90,8 @@ export function ChecklistEquipmentDetailSkeleton() {
             <Skeleton className="h-5 w-16 rounded-full" />
           </div>
           <div className="flex flex-wrap gap-2">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-32" />
+            {canManage && <Skeleton className="h-8 w-24" />}
+            {canRecordMaintenance && <Skeleton className="h-8 w-32" />}
           </div>
         </FramePanel>
       </Frame>
@@ -134,7 +143,9 @@ export function ChecklistEquipmentDetailSkeleton() {
                     <Skeleton className="h-5 w-24 rounded-full" />
                     <Skeleton className="h-4 w-20" />
                   </div>
-                  <Skeleton className="h-8 w-16" />
+                  {(canManage || canRecordMaintenance) && (
+                    <Skeleton className="h-8 w-16" />
+                  )}
                 </div>
                 <Skeleton className="h-3 w-44 max-w-full" />
                 <Skeleton className="h-4 w-3/4 max-w-full" />

@@ -98,7 +98,11 @@ export function ChecklistEquipmentView({
             <EmptyState
               icon={Wrench}
               title="Belum ada peralatan"
-              description="Tambahkan unit seperti genset, pompa air, atau kompresor agar riwayat perawatannya tercatat per kode."
+              description={
+                canManage
+                  ? "Tambahkan unit seperti genset, pompa air, atau kompresor agar riwayat perawatannya tercatat per kode."
+                  : "Belum ada unit terdaftar untuk timmu. Minta atasan menambahkan peralatan agar riwayat perawatannya bisa dicatat."
+              }
               action={
                 canManage ? (
                   <div className="max-md:hidden">
@@ -114,7 +118,16 @@ export function ChecklistEquipmentView({
                       Tambah peralatan
                     </Button>
                   </div>
-                ) : undefined
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    nativeButton={false}
+                    render={<Link href="/checklist" />}
+                  >
+                    Kembali ke Checklist
+                  </Button>
+                )
               }
             />
           ) : (

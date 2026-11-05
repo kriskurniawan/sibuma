@@ -13,8 +13,8 @@ export async function POST(
   if (!user) return apiError("Sesi berakhir. Silakan masuk kembali.", 401);
   const denied = readOnlyWrite(user);
   if (denied) return denied;
-  if (user.role !== "atasan") {
-    return apiError("Hanya atasan yang dapat mencatat perawatan.", 403);
+  if (user.role !== "pekerja" && user.role !== "atasan") {
+    return apiError("Kamu tidak memiliki izin untuk mencatat perawatan.", 403);
   }
 
   const { id } = await params;

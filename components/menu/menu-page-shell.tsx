@@ -14,6 +14,7 @@ import {
   SlidersHorizontal,
   StickyNote,
   UsersRound,
+  Wrench,
 } from "lucide-react";
 import { MenuScanRow } from "@/components/checklist/menu-scan-row";
 import { ProfileActions } from "@/components/profile/profile-actions";
@@ -55,6 +56,7 @@ const GROUPS: Record<"atasan" | "super_admin", MenuGroupData[]> = {
         { href: "/tim", label: "Tim", description: "Anggota, divisi, dan penugasan.", icon: UsersRound },
         { href: "/checklist/template", label: "Template checklist", description: "Susun item dan bukti yang diminta.", icon: Settings2 },
         { href: "/checklist/jadwal", label: "Jadwal checklist", description: "Frekuensi, area, dan anggota yang bertugas.", icon: CalendarClock },
+        { href: "/checklist/peralatan", label: "Peralatan", description: "Unit, kode, dan riwayat perawatan tiap area.", icon: Wrench },
         { href: "/checklist/qr", label: "Kelola QR area", description: "Cetak, unduh, dan atur QR untuk tiap area.", icon: QrCode },
         { href: "/checklist/tindak-lanjut", label: "Tindak lanjut", description: "Temuan yang masih terbuka atau diproses.", icon: ListChecks },
         { href: "/catatan", label: "Catatan", description: "Catatan singkat untuk satu atau beberapa divisi, atau rekan kerja.", icon: StickyNote },
