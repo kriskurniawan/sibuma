@@ -125,8 +125,16 @@ try {
   }
 }
 
-const icon = await readFile(new URL("../public/icons/icon-180.png", import.meta.url));
-assert.equal(icon.subarray(1, 4).toString(), "PNG");
-assert.equal(icon.readUInt32BE(16), 180);
-assert.equal(icon.readUInt32BE(20), 180);
-console.log("PASS: PWA platform/guide, related app matching, iOS push prerequisites, no premature permission/subscription calls, and Apple icon dimensions.");
+const icons = [
+  ["icon-180-v4.png", 180],
+  ["icon-192-v4.png", 192],
+  ["icon-512-v4.png", 512],
+  ["icon-maskable-512-v4.png", 512],
+];
+for (const [name, size] of icons) {
+  const icon = await readFile(new URL(`../public/icons/${name}`, import.meta.url));
+  assert.equal(icon.subarray(1, 4).toString(), "PNG");
+  assert.equal(icon.readUInt32BE(16), size);
+  assert.equal(icon.readUInt32BE(20), size);
+}
+console.log("PASS: PWA platform/guide, related app matching, iOS push prerequisites, no premature permission/subscription calls, and all versioned icon dimensions.");

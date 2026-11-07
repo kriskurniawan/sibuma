@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   applicationName: APP_NAME,
   manifest: "/manifest.webmanifest",
   icons: {
-    apple: [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }],
+    apple: [{ url: "/icons/icon-180-v4.png", sizes: "180x180", type: "image/png" }],
   },
   appleWebApp: {
     capable: true,

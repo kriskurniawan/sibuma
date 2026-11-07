@@ -23,19 +23,22 @@ export default function manifest(): MetadataRoute.Manifest {
         id: "/",
       },
     ],
+    // Nama file ikon berversi memaksa browser/WebAPK mengambil artwork baru,
+    // bukan PNG lama yang sudah tersimpan di cache. Nama lama tetap disimpan
+    // agar klien yang sudah terpasang tidak meminta berkas yang hilang.
     icons: [
       {
-        src: "/icons/icon-192.png",
+        src: "/icons/icon-192-v4.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/icons/icon-512.png",
+        src: "/icons/icon-512-v4.png",
         sizes: "512x512",
         type: "image/png",
       },
       {
-        src: "/icons/icon-maskable-512.png",
+        src: "/icons/icon-maskable-512-v4.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

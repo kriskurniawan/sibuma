@@ -5,10 +5,10 @@
  * API, because a cached document can outlive logout or an account switch on a
  * shared phone. Only public, versionless shell assets are precached.
  */
-const CACHE_NAME = "sibuma-static-v4";
+const CACHE_NAME = "sibuma-static-v5";
 const LEGACY_CACHE_PREFIXES = ["lembur-shell-", "sibuma-static-"];
 const OFFLINE_URL = "/offline.html";
-const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icons/icon-192.png"];
+const PRECACHE = [OFFLINE_URL, "/manifest.webmanifest", "/icons/icon-192-v4.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -98,8 +98,8 @@ self.addEventListener("push", (event) => {
     self.registration
       .showNotification(title, {
         body,
-        icon: "/icons/icon-192.png",
-        badge: "/icons/icon-192.png",
+        icon: "/icons/icon-192-v4.png",
+        badge: "/icons/icon-192-v4.png",
         tag,
         renotify: false,
         data: { href, notificationId },
