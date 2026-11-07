@@ -223,7 +223,7 @@ export function ReportShell({
         ? "Pantau temuan yang belum selesai, deadline, dan PIC berdasarkan periode pemeriksaan. Unduh Excel untuk analisis, CSV untuk integrasi, atau PDF untuk arsip."
         : tab === "pekerjaan"
           ? `Tinjau pekerjaan harian ${isSuperAdmin(user) ? "seluruh tim" : "tim"} berdasarkan tanggal mulai, termasuk pekerja yang terlibat dan dokumentasi foto. Unduh Excel untuk rekap, CSV untuk integrasi, atau PDF untuk arsip.`
-          : `Tinjau kehadiran, durasi, dokumentasi, dan koreksi ${isSuperAdmin(user) ? "seluruh tim" : "anggota tim"}. Unduh Excel, CSV, atau PDF untuk rincian absensi, atau buka Rekap lembur untuk laporan bulanan bergaji dan bertanda tangan.`;
+          : `Tinjau kehadiran, durasi, dokumentasi, dan koreksi ${isSuperAdmin(user) ? "seluruh tim" : "anggota tim"}. Unduh Excel, CSV, atau PDF untuk rincian absensi, atau buka Rekap lembur untuk laporan periode bergaji dan bertanda tangan.`;
   const defaultOvertimePeriodLabel =
     overtimePeriodStartDay === undefined
       ? currentOvertimePeriodLabel()
@@ -276,7 +276,8 @@ export function ReportShell({
             <div className="flex flex-wrap gap-2">
               {tab === "lembur" && (
                 <OvertimeRecapExportDialog
-                  defaultMonth={currentMonthRange().from.slice(0, 7)}
+                  defaultFrom={from}
+                  defaultTo={to}
                   canSelectTeam={readOwnerId(user) === null}
                 />
               )}

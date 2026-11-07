@@ -48,8 +48,10 @@ export interface OvertimeRecapBlocker {
 
 export interface OvertimeRecapPreview {
   owner: OvertimeRecapTeam;
-  month: string;
-  monthLabel: string;
+  /** Tanggal awal periode, inklusif (yyyy-MM-dd). */
+  from: string;
+  /** Tanggal akhir periode, inklusif (yyyy-MM-dd). */
+  to: string;
   periodLabel: string;
   rows: OvertimeRecapRow[];
   totals: OvertimeRecapTotals;

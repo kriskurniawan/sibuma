@@ -57,6 +57,7 @@ export async function hydrateSpkls(spkls: Spkl[], connection?: Connection): Prom
         spklEndAt: spkl.endAt,
         spklDate: spkl.date,
         spklCanceledAt: spkl.canceledAt,
+        piketStartAt: attendance.piketStartAt,
         policy,
       }),
     };
@@ -84,7 +85,7 @@ export async function overviewData(user: SessionUser) {
 // tetap disimpan pada attendance; fungsi SQL memakai jadwal SPKL dan tanggal
 // SPKL agar bulan sebelum kebijakan berlaku tidak berubah.
 export const effectiveMinutesSql = `overtime_payable_minutes(
-  a.duration_minutes,a.status,a.check_in_at,a.check_out_at,
+  a.duration_minutes,a.status,a.check_in_at,a.check_out_at,a.piket_start_at,
   s.start_at,s.end_at,s.date,s.canceled_at,now()
 )`;
 

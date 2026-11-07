@@ -51,6 +51,7 @@ export async function PATCH(
         checkOutAt,
         spklStartAt: spkl.startAt,
         spklEndAt: spkl.endAt,
+        piketStartAt: attendance.piketStartAt,
       });
 
       const before = {

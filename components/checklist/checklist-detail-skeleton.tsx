@@ -6,6 +6,7 @@ function HeaderActionsSkeleton({ withBadge }: { withBadge?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Skeleton className="h-5 w-20 rounded-full" />
+      <Skeleton className="h-5 w-16 rounded-full" />
       <Skeleton className="h-8 w-28" />
     </div>
   );

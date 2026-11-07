@@ -1,7 +1,7 @@
 import "server-only";
 
-import { getDay, parseISO } from "date-fns";
 import { query } from "./db";
+import { isRecapHoliday } from "./overtime-recap-days";
 import { formatDateHuman } from "./time";
 import type { Connection } from "./db";
 import type {
@@ -24,29 +24,63 @@ export interface PayrollInput {
   effectiveMonth: string;
 }
 
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
-export function isValidRecapMonth(value: string) {
-  return MONTH_PATTERN.test(value);
-}
-
-export function recapMonthRange(value: string) {
-  const match = MONTH_PATTERN.exec(value);
+function dateParts(value: string) {
+  const match = DATE_PATTERN.exec(value);
   if (!match) return null;
   const year = Number(match[1]);
   const month = Number(match[2]);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const start = `${match[1]}-${match[2]}-01`;
-  const end = `${match[1]}-${match[2]}-${String(lastDay).padStart(2, "0")}`;
-  const monthLabel = formatDateHuman(`${start}T12:00:00`, "MMMM yyyy");
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return { year, month, day };
+}
+
+export function isValidRecapDate(value: string) {
+  return dateParts(value) !== null;
+}
+
+/**
+ * Rentang rekap boleh mengikuti periode gaji yang tidak sama dengan bulan
+ * kalender, mis. 26 Oktober sampai 25 November.
+ */
+export function recapDateRange(from: string, to: string) {
+  const start = dateParts(from);
+  const end = dateParts(to);
+  if (!start || !end || from > to) return null;
+
+  const years: number[] = [];
+  for (let year = start.year; year <= end.year; year += 1) years.push(year);
+
+  const sameMonth =
+    start.year === end.year && start.month === end.month;
+  const lastDay = new Date(
+    Date.UTC(end.year, end.month, 0),
+  ).getUTCDate();
+  let periodLabel: string;
+  if (sameMonth && start.day === 1 && end.day === lastDay) {
+    periodLabel = `1–${lastDay} ${formatDateHuman(`${from}T12:00:00`, "MMMM yyyy")}`;
+  } else if (sameMonth) {
+    periodLabel = `${start.day}–${end.day} ${formatDateHuman(`${from}T12:00:00`, "MMMM yyyy")}`;
+  } else if (start.year === end.year) {
+    periodLabel = `${formatDateHuman(`${from}T12:00:00`, "d MMM")} – ${formatDateHuman(`${to}T12:00:00`, "d MMM yyyy")}`;
+  } else {
+    periodLabel = `${formatDateHuman(`${from}T12:00:00`, "d MMM yyyy")} – ${formatDateHuman(`${to}T12:00:00`, "d MMM yyyy")}`;
+  }
+
   return {
-    year,
-    month,
-    start,
-    end,
-    lastDay,
-    monthLabel,
-    periodLabel: `1–${lastDay} ${monthLabel}`,
+    years,
+    start: from,
+    end: to,
+    periodLabel,
   };
 }
 
@@ -59,12 +93,12 @@ function normalizeName(value: string | null | undefined) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
-async function listHolidayDates(year: number) {
+async function listHolidayDates(years: number[]) {
   const rows = await query<{ holiday_date: unknown; name: string }>(
     `SELECT holiday_date,name FROM national_holidays
-     WHERE extract(year FROM holiday_date)=$1
+     WHERE extract(year FROM holiday_date) = ANY($1::int[])
      ORDER BY holiday_date`,
-    [year],
+    [years],
   );
   return rows.map((row) => ({
     date: toDateString(row.holiday_date),
@@ -213,31 +247,38 @@ interface RecapAccumulator {
  * - tanggal SPKL, bukan timestamp check-in, agar klasifikasi HK/HL konsisten;
  * - durasi final setelah kebijakan pembulatan, tanpa sesi berjalan;
  * - gaji terbaru yang berlaku pada awal bulan rekap, tanpa prorata harian;
- * - hari Minggu dan libur nasional resmi sebagai HL.
+ * - hari Sabtu, Minggu, dan libur nasional resmi sebagai HL.
  */
 export async function buildOvertimeRecap(input: {
   ownerId: string;
-  month: string;
+  from: string;
+  to: string;
   canManageSigners?: boolean;
 }): Promise<OvertimeRecapPreview> {
-  const range = recapMonthRange(input.month);
-  if (!range) throw new Error("Bulan rekap tidak valid.");
+  const range = recapDateRange(input.from, input.to);
+  if (!range) throw new Error("Rentang tanggal rekap tidak valid.");
 
   const owner = await getRecapTeam(input.ownerId);
   if (!owner) throw new Error("Tim rekap tidak ditemukan.");
 
   const [holidays, signers] = await Promise.all([
-    listHolidayDates(range.year),
+    listHolidayDates(range.years),
     getRecapSigners(input.ownerId),
   ]);
   const holidayDates = new Set(holidays.map((holiday) => holiday.date));
-  const holidayYearAvailable = holidays.length > 0;
+  const coveredYears = new Set(
+    holidays.map((holiday) => Number(holiday.date.slice(0, 4))),
+  );
+  const missingHolidayYears = range.years.filter(
+    (year) => !coveredYears.has(year),
+  );
+  const holidayYearAvailable = missingHolidayYears.length === 0;
 
   const days = await query<WorkedDayRow>(
     `WITH scoped AS (
        SELECT a.employee_id, s.date AS work_date,
          overtime_payable_minutes(
-           a.duration_minutes,a.status,a.check_in_at,a.check_out_at,
+           a.duration_minutes,a.status,a.check_in_at,a.check_out_at,a.piket_start_at,
            s.start_at,s.end_at,s.date,s.canceled_at,now()
          ) AS minutes
        FROM attendances a
@@ -302,10 +343,7 @@ export async function buildOvertimeRecap(input: {
       hkMinutes: 0,
       hlMinutes: 0,
     };
-    const holiday =
-      holidayDates.has(day.work_date) ||
-      getDay(parseISO(`${day.work_date}T12:00:00`)) === 0;
-    if (holiday) {
+    if (isRecapHoliday(day.work_date, holidayDates)) {
       accumulator.hlDays += 1;
       accumulator.hlMinutes += Number(day.minutes);
     } else {
@@ -381,7 +419,7 @@ export async function buildOvertimeRecap(input: {
   if (!holidayYearAvailable) {
     blockers.push({
       code: "holiday_calendar",
-      message: `Kalender libur nasional tahun ${range.year} belum tersedia. Rekap tidak dapat dihitung sebagai HK/HL.`,
+      message: `Kalender libur nasional tahun ${missingHolidayYears.join(", ")} belum tersedia. Rekap tidak dapat dihitung sebagai HK/HL.`,
     });
   }
   if (missingPayroll.length > 0) {
@@ -393,8 +431,8 @@ export async function buildOvertimeRecap(input: {
 
   return {
     owner,
-    month: input.month,
-    monthLabel: range.monthLabel,
+    from: range.start,
+    to: range.end,
     periodLabel: range.periodLabel,
     rows,
     totals,

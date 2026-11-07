@@ -99,6 +99,8 @@ export interface Attendance {
   employeeId: string;
   checkInAt: string | null;
   checkOutAt: string | null;
+  /** Waktu mulai hitung piket hari Sabtu, null untuk sesi biasa. */
+  piketStartAt: string | null;
   durationMinutes: number | null;
   checkInLocation: AttendanceLocation | null;
   checkOutLocation: AttendanceLocation | null;

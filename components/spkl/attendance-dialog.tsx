@@ -22,8 +22,11 @@ import {
 } from "@/components/reui/alert";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Spinner } from "@/components/ui/spinner";
+import { PIKET_START_TIME } from "@/lib/constants";
 import { formatDistance, distanceMeters } from "@/lib/geo";
+import { isSaturdayDate } from "@/lib/time";
 import type { GeoPoint } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +35,8 @@ interface AttendanceDialogProps {
   onClose: () => void;
   mode: "checkin" | "checkout";
   spklId: string;
+  /** Tanggal SPKL (yyyy-MM-dd), dipakai untuk centang piket hari Sabtu. */
+  spklDate?: string;
   attendanceId?: string;
   site: GeoPoint;
   radiusMeters: number;
@@ -51,6 +56,7 @@ export function AttendanceDialog({
   onClose,
   mode,
   spklId,
+  spklDate,
   attendanceId,
   site,
   radiusMeters,
@@ -62,6 +68,9 @@ export function AttendanceDialog({
   const [locating, setLocating] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [piket, setPiket] = useState(false);
+  const piketAvailable =
+    mode === "checkin" && spklDate ? isSaturdayDate(spklDate) : false;
 
   const locate = useCallback(() => {
     setError(null);
@@ -103,8 +112,10 @@ export function AttendanceDialog({
       setPosition(null);
       setError(null);
       setSubmitting(false);
+      setPiket(false);
       return;
     }
+    setPiket(false);
     locate();
   }, [open, locate]);
 
@@ -157,6 +168,7 @@ export function AttendanceDialog({
           latitude: position.latitude,
           longitude: position.longitude,
           accuracy: position.accuracy,
+          ...(mode === "checkin" ? { piket } : {}),
         }),
       });
       const data = (await response.json()) as {
@@ -317,6 +329,30 @@ export function AttendanceDialog({
               terbuka, tunggu GPS stabil, lalu ambil titik ulang.
             </AlertDescription>
           </Alert>
+        )}
+
+        {piketAvailable && (
+          <label
+            htmlFor="attendance-piket"
+            className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3 transition-colors hover:bg-muted/50"
+          >
+            <Checkbox
+              id="attendance-piket"
+              checked={piket}
+              disabled={submitting}
+              onCheckedChange={(value) => setPiket(value === true)}
+              className="mt-0.5"
+            />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-sm font-medium text-foreground">
+                Saya petugas piket hari Sabtu
+              </span>
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                Lembur dihitung mulai pukul {PIKET_START_TIME}. Waktu absen
+                masuk tetap dicatat sesuai waktu aktual.
+              </span>
+            </span>
+          </label>
         )}
 
         {!isCheckin && requiresDocumentation && (

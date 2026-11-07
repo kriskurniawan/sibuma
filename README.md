@@ -436,6 +436,8 @@ Ringkasan API utama:
 | `PATCH /api/employees/:id` | Ubah / nonaktifkan pekerja |
 | `GET/PATCH /api/policy` | Baca / ubah kebijakan |
 | `GET /api/reports/export` | Unduh rekap lembur: CSV default, `format=xlsx` untuk workbook Excel (detail + ringkasan) |
+| `GET /api/reports/overtime-recap` | Pratinjau rekap lembur periode gaji (`from`, `to`, `ownerId` opsional) |
+| `POST /api/reports/overtime-recap/export` | Unduh PDF/Excel rekapitulasi lembur untuk rentang tanggal dan tim terpilih |
 | `GET /api/reports/checklist/export` | Checklist: `kind=rekap`, `kind=item` (legacy `kind=butir`), `kind=tindak-lanjut`, atau `kind=laporan` (Excel rekap + rincian); `format=xlsx` untuk Excel |
 | `GET /api/health` | Health check |
 
@@ -482,6 +484,7 @@ Ringkasan API utama:
 - **Pagination tim/laporan** berjalan di SQL, dikontrol URL `page`/`size` dan DataGrid `manualPagination`. KPI memakai seluruh data/filter, bukan halaman saja. Ringkasan layar laporan dibatasi 20 pekerja dengan durasi tertinggi; jumlah pekerja total tetap penuh.
 - Tombol **Cetak / PDF** membuka tampilan `print=1` di tab baru dengan seluruh hasil filter; Excel dan CSV juga mengekspor hasil penuh. Gunakan tombol ini, bukan Ctrl+P pada halaman yang dipaginasi.
 - **Excel** diunduh lewat `format=xlsx`. Rekap lembur berisi sheet **Rekap Lembur** (tanggal asli, durasi dalam menit sebagai angka, dokumentasi, koreksi) dan **Ringkasan Pekerja** (sesi, hadir, tidak hadir, total menit, dokumentasi, baris total). Checklist memakai `kind=laporan` untuk workbook dua sheet: **Rekap Checklist** dan **Rincian Item**. Header dibekukan, lebar kolom diatur, dan angka siap dijumlahkan untuk penggajian atau analisis.
+- **Ekspor rekapitulasi lembur** memakai rentang tanggal yang dapat diubah, bukan hanya bulan kalender. Default-nya mengikuti filter laporan/periode akumulasi lembur berjalan (mis. 26 Okt – 25 Nov), dan gaji pokok yang dipakai adalah data yang berlaku pada tanggal awal periode. PDF/Excel resmi memuat label periode tersebut; nama berkas memakai tanggal awal dan akhir.
 - **CSV lembur** diunduh dari `/api/reports/export`; **CSV checklist** dari `/api/reports/checklist/export?kind=rekap|item|tindak-lanjut` (`kind=butir` lama tetap diterima). CSV item memuat kolom **Grup** berisi snapshot `group_path`. Keduanya memakai pemisah `;`, header berbahasa Indonesia, dan BOM UTF-8 agar terbaca benar di Excel. Tambahkan `format=xlsx` pada URL yang sama untuk mendapatkan workbook Excel.
 - **PDF** menggunakan fitur cetak browser (tombol *Cetak / PDF*). Tata letak cetak menyembunyikan navigasi, sidebar, filter, dan pagination, serta menampilkan header rekap. Di dialog cetak, pilih *Save as PDF*.
 

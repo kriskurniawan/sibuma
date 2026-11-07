@@ -117,7 +117,7 @@ export function ChecklistListSkeleton() {
           <div key={index} className="flex min-w-0 flex-col gap-2 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="flex min-w-0 flex-1 flex-col gap-1"><Skeleton className="h-4 w-48 max-w-full" /><Skeleton className="h-3 w-36 max-w-full" /></div>
-              <div className="flex shrink-0 items-center gap-1"><Skeleton className="h-5 w-20" /><Skeleton className="h-5 w-16" /></div>
+              <div className="flex shrink-0 items-center gap-1"><Skeleton className="h-5 w-20" /><Skeleton className="h-5 w-16" /><Skeleton className="h-5 w-16" /></div>
             </div>
             <div className="flex flex-wrap items-center gap-2"><Skeleton className="h-3 w-24" /><Skeleton className="h-3 w-16" /></div>
             <div className="flex min-w-0 items-center gap-3"><Skeleton className="h-3 w-8 shrink-0" /><Skeleton className="h-1.5 min-w-0 flex-1" /><Skeleton className="size-6 shrink-0 rounded-full" /><Skeleton className="h-3 w-12 shrink-0" /><Skeleton className="size-4 shrink-0" /></div>

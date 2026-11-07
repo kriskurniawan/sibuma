@@ -25,6 +25,8 @@ export const MAX_DAILY_MINUTES = 8 * 60;
 export const DEFAULT_OVERTIME_PERIOD_START_DAY = 1;
 /** Toleransi absen pulang setelah jam selesai SPKL. */
 export const CHECKOUT_GRACE_MINUTES = 60;
+/** Hari Sabtu, petugas piket dihitung lembur mulai pukul 12.00. */
+export const PIKET_START_TIME = "12:00";
 
 export const DEFAULT_MAP_CENTER = {
   latitude: -6.2439,

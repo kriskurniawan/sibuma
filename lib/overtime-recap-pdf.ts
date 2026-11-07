@@ -4,6 +4,7 @@ import { jsPDF } from "jspdf";
 import autoTable, { type CellDef, type UserOptions } from "jspdf-autotable";
 import {
   RECAP_DOCUMENT,
+  recapDocumentFileName,
   recapDocumentHours,
   recapDocumentName,
   recapDocumentNominal,
@@ -193,7 +194,7 @@ export function overtimeRecapPdfResponse(input: OvertimeRecapPdfInput) {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="rekapitulasi-lembur-${input.preview.month}.pdf"`,
+      "Content-Disposition": `attachment; filename="${recapDocumentFileName(input.preview.from, input.preview.to, "pdf")}"`,
       "Cache-Control": "no-store",
       "Content-Length": String(bytes.byteLength),
     },

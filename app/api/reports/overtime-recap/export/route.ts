@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { apiError, safeErrorMessage, validationMessage } from "@/lib/http";
 import {
   buildOvertimeRecap,
-  isValidRecapMonth,
+  isValidRecapDate,
   listRecapTeams,
   saveRecapSigners,
 } from "@/lib/overtime-recap";
@@ -36,8 +36,12 @@ export async function POST(request: Request) {
   }
   const parsed = overtimeRecapExportSchema.safeParse(raw);
   if (!parsed.success) return apiError(validationMessage(parsed.error));
-  if (!isValidRecapMonth(parsed.data.month)) {
-    return apiError("Bulan rekap tidak valid.");
+  if (
+    !isValidRecapDate(parsed.data.from) ||
+    !isValidRecapDate(parsed.data.to) ||
+    parsed.data.from > parsed.data.to
+  ) {
+    return apiError("Rentang tanggal rekap tidak valid.");
   }
 
   const canSelectTeam = readOwnerId(user) === null;
@@ -59,7 +63,8 @@ export async function POST(request: Request) {
     const canManageSigners = canManageTeamReportSettings(user, ownerId);
     const preview = await buildOvertimeRecap({
       ownerId,
-      month: parsed.data.month,
+      from: parsed.data.from,
+      to: parsed.data.to,
       canManageSigners,
     });
 

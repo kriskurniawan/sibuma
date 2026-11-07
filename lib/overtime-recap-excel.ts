@@ -8,6 +8,7 @@ import writeXlsxFile, {
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 import {
   RECAP_DOCUMENT,
+  recapDocumentFileName,
   recapDocumentName,
   recapDocumentPeriod,
 } from "./overtime-recap-document";
@@ -291,7 +292,7 @@ export async function overtimeRecapExcelResponse(
     headers: {
       "Content-Type":
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "Content-Disposition": `attachment; filename="rekapitulasi-lembur-${input.preview.month}.xlsx"`,
+      "Content-Disposition": `attachment; filename="${recapDocumentFileName(input.preview.from, input.preview.to, "xlsx")}"`,
       "Cache-Control": "no-store",
     },
   });

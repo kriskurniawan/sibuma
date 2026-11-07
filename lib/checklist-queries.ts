@@ -170,6 +170,11 @@ function lateInspectionSql(alias = "i") {
   return `(${alias}.occurrence_date<(now() AT TIME ZONE ${sqlTimeZone()})::date OR ${alias}.due_at<now())`;
 }
 
+/** Terkunci: deadline lewat dan belum dibuka kembali setelah deadline. */
+function lockedInspectionSql(alias = "i") {
+  return `(${alias}.due_at<now() AND NOT (${alias}.reopened_at IS NOT NULL AND ${alias}.reopened_at>=${alias}.due_at))`;
+}
+
 export async function getChecklistDashboard(
   user: SessionUser,
   filters: ChecklistFilters = {},
@@ -244,7 +249,12 @@ export async function getChecklistDashboard(
        WHERE ia.inspection_id=i.id
      ) asg ON true
      ${where}
-     ORDER BY CASE WHEN i.status IN ('belum_dimulai','berlangsung') THEN 0 ELSE 1 END,i.due_at,i.id
+     ORDER BY CASE
+       WHEN i.status IN ('belum_dimulai','berlangsung') AND ${lateInspectionSql()} AND NOT ${lockedInspectionSql()} THEN 0
+       WHEN i.status IN ('belum_dimulai','berlangsung') AND NOT ${lockedInspectionSql()} THEN 1
+       WHEN i.status IN ('belum_dimulai','berlangsung') THEN 2
+       ELSE 3
+     END,i.due_at,i.id
      ${pagination ? `LIMIT $${values.length + 1} OFFSET $${values.length + 2}` : ""}`,
     pagination
       ? [...values, pagination.pageSize, pagination.pageIndex * pagination.pageSize]

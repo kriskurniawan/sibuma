@@ -54,6 +54,8 @@ export const checkInSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracy: z.number().min(0).max(100_000),
+  /** Piket hari Sabtu: lembur dihitung mulai pukul 12.00. */
+  piket: z.boolean().default(false),
 });
 
 const localDateTime = z
@@ -119,27 +121,38 @@ export const employeeUpdateSchema = z.object({
   payroll: payrollInputSchema.optional(),
 });
 
-/** Ekspor rekap lembur bulanan; nama penandatangan opsional. */
-export const overtimeRecapExportSchema = z.object({
-  format: z.enum(["pdf", "xlsx"], {
-    message: "Format ekspor tidak valid.",
-  }),
-  month: z
-    .string()
-    .trim()
-    .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "Bulan rekap tidak valid."),
-  ownerId: z.string().trim().min(1).max(64).optional(),
-  buildingManagerName: z
-    .string()
-    .trim()
-    .max(80, "Nama Building Manager maksimal 80 karakter.")
-    .optional(),
-  managerName: z
-    .string()
-    .trim()
-    .max(80, "Nama Manager maksimal 80 karakter.")
-    .optional(),
-});
+/** Ekspor rekap lembur periode gaji; nama penandatangan opsional. */
+const recapDate = z
+  .string()
+  .trim()
+  .regex(
+    /^\d{4}-(0[1-9]|1[0-2])-\d{2}$/,
+    "Tanggal rekap tidak valid.",
+  );
+
+export const overtimeRecapExportSchema = z
+  .object({
+    format: z.enum(["pdf", "xlsx"], {
+      message: "Format ekspor tidak valid.",
+    }),
+    from: recapDate,
+    to: recapDate,
+    ownerId: z.string().trim().min(1).max(64).optional(),
+    buildingManagerName: z
+      .string()
+      .trim()
+      .max(80, "Nama Building Manager maksimal 80 karakter.")
+      .optional(),
+    managerName: z
+      .string()
+      .trim()
+      .max(80, "Nama Manager maksimal 80 karakter.")
+      .optional(),
+  })
+  .refine((value) => value.from <= value.to, {
+    message: "Tanggal awal harus sebelum tanggal akhir.",
+    path: ["to"],
+  });
 
 /** Akun atasan dibuat super admin; tidak memiliki supervisor maupun divisi. */
 export const supervisorInputSchema = z.object({

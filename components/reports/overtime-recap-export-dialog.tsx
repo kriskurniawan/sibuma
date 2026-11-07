@@ -9,7 +9,6 @@ import {
   TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
-import { MonthPicker } from "@/components/date-picker";
 import { InfoBanner } from "@/components/ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +23,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Modal } from "@/components/modal";
+import { ReportDateFilters } from "@/components/reports/report-date-filters";
+import { recapDocumentFileName } from "@/lib/overtime-recap-document";
 import {
   formatRecapHours,
   formatRecapRupiah,
@@ -35,16 +36,21 @@ import type {
 } from "@/lib/overtime-recap-types";
 
 type DownloadFormat = "pdf" | "xlsx";
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function OvertimeRecapExportDialog({
-  defaultMonth,
+  defaultFrom,
+  defaultTo,
   canSelectTeam,
 }: {
-  defaultMonth: string;
+  defaultFrom: string;
+  defaultTo: string;
   canSelectTeam: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState(defaultMonth);
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultTo);
+  const [rangeKey, setRangeKey] = useState(0);
   const [teams, setTeams] = useState<OvertimeRecapTeam[]>([]);
   const [ownerId, setOwnerId] = useState("");
   const [preview, setPreview] = useState<OvertimeRecapPreview | null>(null);
@@ -62,10 +68,14 @@ export function OvertimeRecapExportDialog({
     const controller = new AbortController();
     let active = true;
 
-    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    if (
+      !DATE_PATTERN.test(from) ||
+      !DATE_PATTERN.test(to) ||
+      from > to
+    ) {
       setLoading(false);
       setPreview(null);
-      setError("Pilih bulan rekap terlebih dahulu.");
+      setError("Pilih rentang tanggal rekap terlebih dahulu.");
       return;
     }
 
@@ -73,7 +83,7 @@ export function OvertimeRecapExportDialog({
     setError(null);
     setPreview(null);
 
-    const params = new URLSearchParams({ month });
+    const params = new URLSearchParams({ from, to });
     if (canSelectTeam && ownerId) params.set("ownerId", ownerId);
 
     fetch(`/api/reports/overtime-recap?${params.toString()}`, {
@@ -140,10 +150,12 @@ export function OvertimeRecapExportDialog({
       active = false;
       controller.abort();
     };
-  }, [open, month, ownerId, canSelectTeam, reloadKey]);
+  }, [open, from, to, ownerId, canSelectTeam, reloadKey]);
 
   function openDialog() {
-    setMonth(defaultMonth);
+    setFrom(defaultFrom);
+    setTo(defaultTo);
+    setRangeKey((value) => value + 1);
     setOwnerId("");
     setTeams([]);
     setPreview(null);
@@ -180,7 +192,8 @@ export function OvertimeRecapExportDialog({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           format,
-          month,
+          from,
+          to,
           ...(canSelectTeam ? { ownerId: preview.owner.id } : {}),
           buildingManagerName,
           managerName,
@@ -199,7 +212,7 @@ export function OvertimeRecapExportDialog({
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `rekapitulasi-lembur-${month}.${format}`;
+      link.download = recapDocumentFileName(from, to, format);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -232,7 +245,7 @@ export function OvertimeRecapExportDialog({
         open={open}
         onClose={closeDialog}
         title="Ekspor rekapitulasi lembur"
-        description="Pilih bulan dan tim, lengkapi nama penandatangan, lalu unduh PDF atau Excel."
+        description="Pilih rentang tanggal dan tim, lengkapi nama penandatangan, lalu unduh PDF atau Excel."
         size="lg"
         dismissible={!downloading}
         mobileSheet
@@ -287,20 +300,23 @@ export function OvertimeRecapExportDialog({
       >
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="recap-month">Bulan rekap</Label>
-              <MonthPicker
-                id="recap-month"
-                value={month}
-                onChange={(nextMonth) => {
+            <div className="flex flex-col gap-2 sm:col-span-2">
+              <Label>Periode rekap</Label>
+              <ReportDateFilters
+                key={rangeKey}
+                from={from}
+                to={to}
+                ariaLabel="Rentang tanggal rekap"
+                errorId="recap-date-range-error"
+                onChange={(nextFrom, nextTo) => {
                   setActionError(null);
-                  setMonth(nextMonth);
+                  setFrom(nextFrom);
+                  setTo(nextTo);
                 }}
-                ariaLabel="Bulan rekap"
-                ariaDescribedBy="recap-month-hint"
               />
-              <p id="recap-month-hint" className="text-xs text-muted-foreground">
-                Periode selalu tanggal 1 sampai akhir bulan.
+              <p className="text-xs text-muted-foreground">
+                Default mengikuti filter laporan. Gaji pokok yang berlaku pada
+                tanggal awal periode dipakai untuk menghitung lembur.
               </p>
             </div>
 

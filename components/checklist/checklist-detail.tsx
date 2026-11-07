@@ -374,7 +374,7 @@ export function ChecklistDetail({
   const headerActions = (
     <div className="flex flex-wrap items-center gap-2">
       <ChecklistStatusBadge status={inspection.status} />
-      {overdue && !detail.deadlineLocked && <ChecklistOverdueBadge />}
+      {overdue && <ChecklistOverdueBadge />}
       {detail.deadlineLocked && <ChecklistLockedBadge />}
       {(detail.canUnlock || detail.canReopen) && (
         <Button

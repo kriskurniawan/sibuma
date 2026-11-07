@@ -1,10 +1,12 @@
 import {
   addDays,
+  getDay,
   parseISO,
 } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getActiveTimeZone } from "./active-time-zone";
+import { PIKET_START_TIME } from "./constants";
 import type { AttendanceStatus, Spkl, SpklStatus } from "./types";
 
 export { currentTimeZoneLabel, setActiveTimeZone } from "./active-time-zone";
@@ -114,14 +116,32 @@ export function isEarlyCheckIn(checkInAt: string, spklStartAt: string) {
   return new Date(checkInAt).getTime() < new Date(spklStartAt).getTime();
 }
 
+export function isSaturdayDate(date: string) {
+  return getDay(parseISO(date)) === 6;
+}
+
+/** Awal hitung lembur piket hari Sabtu dalam zona waktu aktif. */
+export function piketStartAtForDate(
+  date: string,
+  timeZone = getActiveTimeZone(),
+) {
+  return zonedToIso(date, PIKET_START_TIME, timeZone);
+}
+
 /**
  * Waktu mulai yang dihitung sebagai lembur. Absen lebih awal tetap dicatat
- * pada checkInAt, tetapi durasi resmi dimulai saat jadwal SPKL dimulai.
+ * pada checkInAt, tetapi durasi resmi dimulai saat jadwal SPKL dimulai atau
+ * saat batas piket Sabtu, mana yang lebih akhir.
  */
-export function attendanceStartAt(checkInAt: string, spklStartAt: string) {
+export function attendanceStartAt(
+  checkInAt: string,
+  spklStartAt: string,
+  piketStartAt?: string | null,
+) {
   const start = Math.max(
     new Date(checkInAt).getTime(),
     new Date(spklStartAt).getTime(),
+    piketStartAt ? new Date(piketStartAt).getTime() : 0,
   );
   return new Date(start).toISOString();
 }
@@ -131,10 +151,15 @@ export function attendanceMinutes(input: {
   checkOutAt?: string | null;
   spklStartAt: string;
   spklEndAt: string;
+  piketStartAt?: string | null;
   now?: Date;
 }) {
   const start = new Date(
-    attendanceStartAt(input.checkInAt, input.spklStartAt),
+    attendanceStartAt(
+      input.checkInAt,
+      input.spklStartAt,
+      input.piketStartAt,
+    ),
   ).getTime();
   const endSource =
     input.checkOutAt ?? (input.now ?? new Date()).toISOString();
@@ -168,6 +193,8 @@ export function overtimePayableMinutes(input: {
   spklEndAt: string;
   spklDate: string;
   spklCanceledAt?: string | null;
+  /** Waktu mulai hitung piket hari Sabtu; kosong untuk sesi biasa. */
+  piketStartAt?: string | null;
   policy: OvertimeRoundingPolicy;
   now?: Date;
 }) {
@@ -185,6 +212,7 @@ export function overtimePayableMinutes(input: {
     checkOutAt: input.checkOutAt,
     spklStartAt: input.spklStartAt,
     spklEndAt: input.spklEndAt,
+    piketStartAt: input.piketStartAt,
     now: input.now,
   });
 
@@ -197,12 +225,16 @@ export function overtimePayableMinutes(input: {
     return actual;
   }
 
+  // Piket hari Sabtu hanya dihitung sejak pukul 12.00. Jadwal pembanding juga
+  // dimulai dari batas piket agar toleransi tidak menambah jam di luar itu.
+  const scheduledStart = Math.max(
+    new Date(input.spklStartAt).getTime(),
+    input.piketStartAt ? new Date(input.piketStartAt).getTime() : 0,
+  );
   const scheduled = Math.max(
     0,
     Math.round(
-      (new Date(input.spklEndAt).getTime() -
-        new Date(input.spklStartAt).getTime()) /
-        60_000,
+      (new Date(input.spklEndAt).getTime() - scheduledStart) / 60_000,
     ),
   );
   const tolerance = Math.max(

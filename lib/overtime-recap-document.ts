@@ -57,6 +57,14 @@ export function recapDocumentPeriod(periodLabel: string) {
   return `PERIODE : ${period}`;
 }
 
+export function recapDocumentFileName(
+  from: string,
+  to: string,
+  format: "pdf" | "xlsx",
+) {
+  return `rekapitulasi-lembur-${from}_${to}.${format}`;
+}
+
 /** Satuan RP hanya di header, bukan di setiap nominal. Nol tampil sebagai '-'. */
 export function recapDocumentNominal(value: number | null | undefined) {
   const rounded = Math.round(Math.max(0, value ?? 0));

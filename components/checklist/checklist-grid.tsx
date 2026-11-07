@@ -192,11 +192,8 @@ const columns: ColumnDef<DataGridFeatures, ChecklistInspectionRow>[] = [
     cell: ({ row }) => (
       <div className="flex flex-wrap items-center gap-1">
         <ChecklistStatusBadge status={row.original.inspection.status} />
-        {row.original.locked ? (
-          <ChecklistLockedBadge />
-        ) : (
-          row.original.overdue && <ChecklistOverdueBadge />
-        )}
+        {row.original.overdue && <ChecklistOverdueBadge />}
+        {row.original.locked && <ChecklistLockedBadge />}
       </div>
     ),
   },
@@ -285,6 +282,7 @@ export function ChecklistGrid({
                 <div className="flex shrink-0 items-center gap-1">
                   <Skeleton className="h-5 w-20" />
                   <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-5 w-16" />
                 </div>
               </div>
               <Skeleton className="h-3 w-52" />
@@ -324,11 +322,8 @@ export function ChecklistGrid({
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                     <ChecklistStatusBadge status={row.inspection.status} />
-                    {row.locked ? (
-                      <ChecklistLockedBadge />
-                    ) : (
-                      row.overdue && <ChecklistOverdueBadge />
-                    )}
+                    {row.overdue && <ChecklistOverdueBadge />}
+                    {row.locked && <ChecklistLockedBadge />}
                   </div>
                 </div>
 

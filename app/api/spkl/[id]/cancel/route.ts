@@ -59,6 +59,7 @@ export async function POST(
           checkOutAt: attendance.checkOutAt,
           spklStartAt: spkl.startAt,
           spklEndAt: spkl.endAt,
+          piketStartAt: attendance.piketStartAt,
         });
         attendance.status = "ditutup_otomatis";
         attendance.updatedAt = now.toISOString();

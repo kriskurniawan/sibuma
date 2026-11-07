@@ -101,6 +101,7 @@ export async function POST(
         checkOutAt: checkout,
         spklStartAt: spkl.startAt,
         spklEndAt: spkl.endAt,
+        piketStartAt: attendance.piketStartAt,
       });
 
       attendance.checkOutAt = checkout;

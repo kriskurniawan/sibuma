@@ -88,10 +88,15 @@ function attendanceStatusCell(attendance: Attendance | null) {
     );
   }
   return (
-    <AttendanceBadge
-      status={attendance.status}
-      checkOutAt={attendance.checkOutAt}
-    />
+    <div className="flex flex-wrap items-center gap-1">
+      <AttendanceBadge
+        status={attendance.status}
+        checkOutAt={attendance.checkOutAt}
+      />
+      {attendance.piketStartAt && (
+        <Badge variant="info-light">Piket</Badge>
+      )}
+    </div>
   );
 }
 

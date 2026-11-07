@@ -246,11 +246,11 @@ export function SpklDetailDataSkeleton() {
             <AlertDescription>
               <ul className="flex flex-col gap-1.5">
                 <li>Absen masuk bisa dilakukan sejak 00:00 {currentTimeZoneLabel()} pada tanggal SPKL hingga jam selesai, dalam radius <Skeleton className="inline-block h-3 w-8 align-middle" /> m dari titik.</li>
-                <li>Absen lebih awal diperbolehkan; durasi lembur tetap dihitung sejak jam mulai SPKL.</li>
+                <li>Absen lebih awal diperbolehkan; durasi lembur tetap dihitung sejak jam mulai SPKL, atau pukul 12.00 bagi petugas piket hari Sabtu.</li>
                 <li>Absen pulang wajib dilakukan di dalam radius <Skeleton className="inline-block h-3 w-8 align-middle" /> m. Checkout setelah jam selesai masih dapat dilakukan dalam toleransi {CHECKOUT_GRACE_MINUTES} menit; durasi tetap dibatasi sampai jam selesai.</li>
                 <li>Waktu absensi memakai jam server, bukan jam perangkat.</li>
                 <li><Skeleton className="h-8 w-full" /></li>
-                <li>Durasi dihitung per menit aktual. Jika absen pulang tidak tercatat, durasi tidak dihitung dan atasan dapat mengoreksi. Dokumentasi ditutup <Skeleton className="inline-block h-3 w-8 align-middle" /> menit setelah SPKL berakhir.</li>
+                <li>Durasi dihitung per menit aktual. Jika absen pulang tidak tercatat, durasi tidak dihitung dan atasan dapat mengoreksi. Pada hari Sabtu, peserta yang mencentang piket dihitung mulai pukul 12.00. Dokumentasi ditutup <Skeleton className="inline-block h-3 w-8 align-middle" /> menit setelah SPKL berakhir.</li>
               </ul>
             </AlertDescription>
           </Alert>

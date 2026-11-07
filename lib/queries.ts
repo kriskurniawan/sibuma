@@ -518,5 +518,6 @@ export function reportDuration(row: ReportRow) {
     checkOutAt: row.attendance.checkOutAt,
     spklStartAt: row.spkl.startAt,
     spklEndAt: row.spkl.endAt,
+    piketStartAt: row.attendance.piketStartAt,
   });
 }

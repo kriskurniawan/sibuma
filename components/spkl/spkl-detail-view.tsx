@@ -66,6 +66,9 @@ export function SpklDesktopStatus({ detail }: { detail: SpklDetail }) {
     <div className="ml-auto flex flex-wrap items-center gap-2">
       <SpklStatusBadge status={detail.status} />
       {running && <Badge variant="warning-light" dot>Sesi aktif</Badge>}
+      {detail.myAttendance?.piketStartAt && (
+        <Badge variant="info-light">Piket</Badge>
+      )}
       {early && <Badge variant="info-light">Absen lebih awal</Badge>}
     </div>
   );
@@ -104,10 +107,13 @@ export function SpklDetailView({
     ? isEarlyCheckIn(myAttendance.checkInAt, spkl.startAt)
     : false;
   const earlyCheckIn = running && checkedInEarly;
-  const countedFrom =
-    running && myAttendance?.checkInAt
-      ? attendanceStartAt(myAttendance.checkInAt, spkl.startAt)
-      : spkl.startAt;
+  const countedFrom = myAttendance?.checkInAt
+    ? attendanceStartAt(
+        myAttendance.checkInAt,
+        spkl.startAt,
+        myAttendance.piketStartAt,
+      )
+    : spkl.startAt;
   const graceEnd = new Date(
     new Date(spkl.endAt).getTime() + policy.docGraceMinutes * 60_000,
   );
@@ -209,6 +215,17 @@ export function SpklDetailView({
                   {Math.round(myAttendance.checkInLocation.accuracy)} m
                 </p>
               )}
+              {myAttendance.piketStartAt && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Piket · lembur dihitung sejak{" "}
+                  {formatTime(
+                    myAttendance.checkInAt
+                      ? countedFrom
+                      : myAttendance.piketStartAt,
+                  )}{" "}
+                  {currentTimeZoneLabel()}
+                </p>
+              )}
             </div>
             <div className="relative">
               <span
@@ -275,7 +292,8 @@ export function SpklDetailView({
           {checkedInEarly && (
             <p className="text-xs leading-relaxed text-muted-foreground">
               Kamu absen lebih awal. Durasi lembur dihitung sejak{" "}
-              {formatTime(spkl.startAt)} {currentTimeZoneLabel()}.
+              {formatTime(myAttendance.piketStartAt ?? spkl.startAt)}{" "}
+              {currentTimeZoneLabel()}.
             </p>
           )}
 
@@ -663,8 +681,9 @@ export function SpklDetailView({
                 <li>
                   Durasi dihitung per menit aktual. Jika absen pulang tidak
                   tercatat, durasi tidak dihitung dan atasan dapat mengoreksi.
-                  Dokumentasi ditutup {policy.docGraceMinutes} menit setelah
-                  SPKL berakhir.
+                  Pada hari Sabtu, peserta yang mencentang piket dihitung mulai
+                  pukul 12.00. Dokumentasi ditutup {policy.docGraceMinutes}{" "}
+                  menit setelah SPKL berakhir.
                 </li>
               </ul>
             </AlertDescription>
@@ -740,6 +759,7 @@ export function SpklDetailView({
           onClose={() => setDialog(null)}
           mode="checkin"
           spklId={spkl.id}
+          spklDate={spkl.date}
           site={spkl.location}
           radiusMeters={spkl.radiusMeters}
           maxAccuracyMeters={policy.maxGpsAccuracyMeters}

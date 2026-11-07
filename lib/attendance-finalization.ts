@@ -74,6 +74,7 @@ export function finalizeExpired(db: Database, targetId?: string) {
           employeeId,
           checkInAt: null,
           checkOutAt: null,
+          piketStartAt: null,
           durationMinutes: 0,
           checkInLocation: null,
           checkOutLocation: null,

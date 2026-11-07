@@ -3,7 +3,7 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { distanceMeters } from "@/lib/geo";
 import { mutateDb, pushAudit } from "@/lib/store";
-import { checkInOpensAt, currentTimeZoneLabel, formatDateHuman, spklStatus } from "@/lib/time";
+import { checkInOpensAt, currentTimeZoneLabel, formatDateHuman, isSaturdayDate, piketStartAtForDate, spklStatus } from "@/lib/time";
 import type { Attendance } from "@/lib/types";
 import { checkInSchema } from "@/lib/validation";
 
@@ -65,6 +65,19 @@ export async function POST(
         );
       }
 
+      let piketStartAt: string | null = null;
+      if (parsed.data.piket) {
+        if (!isSaturdayDate(spkl.date)) {
+          throw new Error("Status piket hanya berlaku untuk SPKL hari Sabtu.");
+        }
+        piketStartAt = piketStartAtForDate(spkl.date);
+        if (new Date(piketStartAt) >= new Date(spkl.endAt)) {
+          throw new Error(
+            "SPKL berakhir sebelum pukul 12:00. Status piket tidak dapat digunakan.",
+          );
+        }
+      }
+
       if (parsed.data.accuracy > db.policy.maxGpsAccuracyMeters) {
         throw new Error(
           `Akurasi GPS terlalu rendah (${Math.round(parsed.data.accuracy)} m). Maksimal ${db.policy.maxGpsAccuracyMeters} m. Coba di area terbuka.`,
@@ -94,6 +107,7 @@ export async function POST(
         employeeId: user.id,
         checkInAt: capturedAt,
         checkOutAt: null,
+        piketStartAt,
         durationMinutes: null,
         checkInLocation: {
           latitude: parsed.data.latitude,
@@ -123,6 +137,8 @@ export async function POST(
           checkInAt: capturedAt,
           scheduledStartAt: spkl.startAt,
           earlyCheckIn: now < new Date(spkl.startAt),
+          piket: Boolean(piketStartAt),
+          piketStartAt,
           distanceFromSite: distance,
           accuracy: parsed.data.accuracy,
         },

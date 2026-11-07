@@ -13,6 +13,7 @@ import {
   recapDocumentHours,
   recapDocumentNominal,
 } from "../lib/overtime-recap-document.ts";
+import { isRecapHoliday } from "../lib/overtime-recap-days.ts";
 
 function fixture(rowCount = 5) {
   const rows = Array.from({ length: rowCount }, (_, index) => {
@@ -38,8 +39,8 @@ function fixture(rowCount = 5) {
   });
   return {
     owner: { id: "fixture-owner", name: "TIM TIDAK BOLEH DICETAK", active: true },
-    month: "2026-10",
-    monthLabel: "Oktober 2026",
+    from: "2026-10-01",
+    to: "2026-10-31",
     periodLabel: "1–31 Oktober 2026",
     rows,
     totals: {
@@ -75,6 +76,12 @@ function pdfText(buffer) {
   }
   return texts;
 }
+
+const holidayDates = new Set(["2026-11-09"]);
+assert.equal(isRecapHoliday("2026-11-07", holidayDates), true, "Sabtu dihitung HL");
+assert.equal(isRecapHoliday("2026-11-08", holidayDates), true, "Minggu dihitung HL");
+assert.equal(isRecapHoliday("2026-11-09", holidayDates), true, "Libur nasional dihitung HL");
+assert.equal(isRecapHoliday("2026-11-06", holidayDates), false, "Jumat dihitung HK");
 
 const preview = fixture();
 const input = { preview, signers: preview.signers };
@@ -140,7 +147,7 @@ const largePreview = fixture(60);
 const largeDoc = createOvertimeRecapPdf({ preview: largePreview, signers: largePreview.signers });
 assert(largeDoc.getNumberOfPages() > 1);
 assert(pdfText(Buffer.from(largeDoc.output("arraybuffer"))).includes("PENANDATANGAN B"));
-console.log("PASS: format PDF, sel/formula/warna XLSX, tanpa tambahan, dan PDF multi-halaman.");
+console.log("PASS: klasifikasi Sabtu/Minggu/libur sebagai HL, format PDF, sel/formula/warna XLSX, tanpa tambahan, dan PDF multi-halaman.");
 
 if (process.argv.includes("--render")) {
   const base = path.join(process.env.LOCALAPPDATA, "Temp", "opencode");

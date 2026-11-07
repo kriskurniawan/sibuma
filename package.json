@@ -38,6 +38,7 @@
     "db:migrate:daily-report-settings": "node scripts/migrate-daily-report-settings.mjs",
     "db:migrate:overtime-recap": "node scripts/migrate-overtime-recap.mjs",
     "db:migrate:overtime-rounding": "node scripts/migrate-overtime-rounding.mjs",
+    "db:migrate:saturday-piket": "node scripts/migrate-saturday-piket.mjs",
     "db:migrate:checklist-equipment": "node scripts/migrate-checklist-equipment.mjs",
     "push:keys": "node scripts/generate-vapid-keys.mjs",
     "db:promote:super-admin": "tsx scripts/promote-super-admin.mjs",

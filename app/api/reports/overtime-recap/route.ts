@@ -3,20 +3,16 @@ import {
   isSuperAdmin,
   readOwnerId,
 } from "@/lib/access";
+import { currentOvertimePeriodRange } from "@/lib/active-overtime-period";
 import { getCurrentUser } from "@/lib/auth";
 import { apiError, apiOk, safeErrorMessage } from "@/lib/http";
 import {
   buildOvertimeRecap,
-  isValidRecapMonth,
+  isValidRecapDate,
   listRecapTeams,
 } from "@/lib/overtime-recap";
-import { currentMonthRange } from "@/lib/time";
 
 export const runtime = "nodejs";
-
-function currentRecapMonth() {
-  return currentMonthRange().from.slice(0, 7);
-}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -26,11 +22,21 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const monthParam = url.searchParams.get("month")?.trim();
-  if (monthParam && !isValidRecapMonth(monthParam)) {
-    return apiError("Bulan rekap tidak valid.");
+  const requestedFrom = url.searchParams.get("from")?.trim();
+  const requestedTo = url.searchParams.get("to")?.trim();
+  if (Boolean(requestedFrom) !== Boolean(requestedTo)) {
+    return apiError("Rentang tanggal rekap tidak lengkap.");
   }
-  const month = monthParam || currentRecapMonth();
+  const fallback = currentOvertimePeriodRange();
+  const from = requestedFrom || fallback.from;
+  const to = requestedTo || fallback.to;
+  if (
+    !isValidRecapDate(from) ||
+    !isValidRecapDate(to) ||
+    from > to
+  ) {
+    return apiError("Rentang tanggal rekap tidak valid.");
+  }
 
   const canSelectTeam = readOwnerId(user) === null;
   try {
@@ -52,7 +58,8 @@ export async function GET(request: Request) {
 
     const preview = await buildOvertimeRecap({
       ownerId,
-      month,
+      from,
+      to,
       canManageSigners: canManageTeamReportSettings(user, ownerId),
     });
 

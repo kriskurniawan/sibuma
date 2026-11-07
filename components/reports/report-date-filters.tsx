@@ -15,12 +15,14 @@ export function ReportDateFilters({
   to,
   onChange,
   className,
+  ariaLabel = "Rentang tanggal laporan",
   errorId = "report-date-range-error",
 }: {
   from: string;
   to: string;
   onChange: (from: string, to: string) => void;
   className?: string;
+  ariaLabel?: string;
   /** Unique per placement so inline and sheet copies never share an id. */
   errorId?: string;
 }) {
@@ -63,7 +65,7 @@ export function ReportDateFilters({
   return (
     <div
       role="group"
-      aria-label="Rentang tanggal laporan"
+      aria-label={ariaLabel}
       className={cn("flex flex-col gap-1", className)}
     >
       <div className="flex items-center gap-2">
