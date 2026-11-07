@@ -273,6 +273,20 @@ export const policySchema = z
       .int("Tanggal mulai periode harus bilangan bulat.")
       .min(1, "Tanggal mulai periode minimal 1.")
       .max(31, "Tanggal mulai periode maksimal 31."),
+    overtimeRoundingEnabled: z.boolean(),
+    overtimeRoundingToleranceMinutes: z
+      .number()
+      .int("Toleransi pembulatan harus bilangan bulat.")
+      .min(0, "Toleransi pembulatan tidak boleh negatif.")
+      .max(60, "Toleransi pembulatan maksimal 60 menit."),
+    overtimeRoundingEffectiveMonth: z
+      .string()
+      .trim()
+      .regex(
+        /^\d{4}-(0[1-9]|1[0-2])$/,
+        "Bulan berlaku pembulatan tidak valid.",
+      )
+      .transform((value) => `${value}-01`),
   })
   .superRefine((value, ctx) => {
     if (value.weeklyLimitMinutes < value.dailyLimitMinutes) {

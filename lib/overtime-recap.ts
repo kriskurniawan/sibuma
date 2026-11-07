@@ -211,7 +211,7 @@ interface RecapAccumulator {
 /**
  * Rekap pembayaran lembur bulanan memakai:
  * - tanggal SPKL, bukan timestamp check-in, agar klasifikasi HK/HL konsisten;
- * - durasi final (koreksi tersimpan atau checkout aktual), tanpa sesi berjalan;
+ * - durasi final setelah kebijakan pembulatan, tanpa sesi berjalan;
  * - gaji terbaru yang berlaku pada awal bulan rekap, tanpa prorata harian;
  * - hari Minggu dan libur nasional resmi sebagai HL.
  */
@@ -236,18 +236,15 @@ export async function buildOvertimeRecap(input: {
   const days = await query<WorkedDayRow>(
     `WITH scoped AS (
        SELECT a.employee_id, s.date AS work_date,
-         CASE
-           WHEN a.status='tidak_hadir' THEN 0
-           WHEN a.duration_minutes IS NOT NULL THEN greatest(0,a.duration_minutes)
-           WHEN a.check_in_at IS NULL OR a.check_out_at IS NULL THEN 0
-           ELSE greatest(0,floor(extract(epoch FROM
-             (least(a.check_out_at,s.end_at)-greatest(a.check_in_at,s.start_at))
-           )/60+0.5))::integer
-         END AS minutes
+         overtime_payable_minutes(
+           a.duration_minutes,a.status,a.check_in_at,a.check_out_at,
+           s.start_at,s.end_at,s.date,s.canceled_at,now()
+         ) AS minutes
        FROM attendances a
        JOIN spkls s ON s.id=a.spkl_id
        WHERE s.created_by=$1
          AND s.date >= $2::date AND s.date <= $3::date
+         AND a.status <> 'berjalan'
      )
      SELECT employee_id,work_date::text AS work_date,sum(minutes)::integer AS minutes
      FROM scoped

@@ -423,8 +423,8 @@ function CorrectionDialog({
         <p className="text-xs leading-relaxed text-muted-foreground">
           Jadwal SPKL: {formatDateHuman(spkl.startAt, "d MMM yyyy")} ·{" "}
           {formatTime(spkl.startAt)}–{formatTime(spkl.endAt)}{" "}
-          {currentTimeZoneLabel()}. Waktu masuk boleh lebih awal dari jam mulai;
-          durasi dihitung sejak jam mulai dan waktu pulang maksimal jam selesai.
+          {currentTimeZoneLabel()}. Isi waktu aktual; jam lembur dihitung
+          otomatis di dalam jadwal SPKL.
         </p>
 
         <div className="flex flex-col gap-1.5">

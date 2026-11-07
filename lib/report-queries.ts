@@ -27,7 +27,8 @@ export async function getReportData(supervisorId: string | null, filters: Report
     coalesce(sum(${documents}),0)::integer documentation,count(DISTINCT e.id)::integer employees ${reportFrom}`, values);
   const pagination = request ? clampPage(request, totals.sessions) : undefined;
   const [records, groups] = await Promise.all([
-    query(`SELECT row_to_json(a) attendance,row_to_json(s) spkl,row_to_json(e) employee,${documents} documentation_count
+    query(`SELECT row_to_json(a) attendance,row_to_json(s) spkl,row_to_json(e) employee,${documents} documentation_count,
+      ${effectiveMinutesSql} payable_minutes
       ${reportFrom} ORDER BY s.date DESC,e.name,a.id ${pagination ? "LIMIT $7 OFFSET $8" : ""}`,
       pagination ? [...values, pagination.pageSize, pagination.pageIndex * pagination.pageSize] : values),
     query(`SELECT row_to_json(e) employee,count(*)::integer sessions,count(*) FILTER(WHERE a.check_in_at IS NOT NULL)::integer present,
@@ -35,8 +36,18 @@ export async function getReportData(supervisorId: string | null, filters: Report
       coalesce(sum(${documents}),0)::integer documentation ${reportFrom} GROUP BY e.id ORDER BY minutes DESC,e.name,e.id
       ${request ? "LIMIT 20" : ""}`, values),
   ]);
-  const rows: ReportRow[] = records.map((row) => ({ attendance: decode("attendances", row.attendance), spkl: decode("spkls", row.spkl),
-    employee: decode("employees", row.employee), documentationCount: Number(row.documentation_count) }));
+  const rows: ReportRow[] = records.map((row) => {
+    const attendance = decode("attendances", row.attendance);
+    if (attendance.checkOutAt) {
+      attendance.durationMinutes = Number(row.payable_minutes);
+    }
+    return {
+      attendance,
+      spkl: decode("spkls", row.spkl),
+      employee: decode("employees", row.employee),
+      documentationCount: Number(row.documentation_count),
+    };
+  });
   const summaries: ReportSummary[] = groups.map((row) => ({ employee: decode("employees", row.employee), sessionCount: Number(row.sessions),
     presentCount: Number(row.present), absentCount: Number(row.absent), totalMinutes: Number(row.minutes), documentationCount: Number(row.documentation) }));
   return { rows, summaries, pagination, totals: { sessions: Number(totals.sessions), present: Number(totals.present),

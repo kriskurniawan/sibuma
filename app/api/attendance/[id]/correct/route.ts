@@ -46,12 +46,6 @@ export async function PATCH(
         throw new Error("Hanya atasan pembuat SPKL yang dapat mengoreksi absensi.");
       }
 
-      if (new Date(checkOutAt) > new Date(spkl.endAt)) {
-        throw new Error(
-          "Jam pulang tidak boleh melewati jam selesai SPKL. Perpanjang SPKL terlebih dahulu jika pekerjaan berlanjut.",
-        );
-      }
-
       const duration = attendanceMinutes({
         checkInAt,
         checkOutAt,

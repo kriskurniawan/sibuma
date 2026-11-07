@@ -13,6 +13,7 @@ import {
   FrameTitle,
 } from "@/components/reui/frame";
 import { IconTile } from "@/components/reui/icon-tile";
+import { MonthPicker } from "@/components/date-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -58,6 +59,11 @@ export function PolicyForm({ policy }: { policy: Policy }) {
     maxGpsAccuracyMeters: policy.maxGpsAccuracyMeters,
     timezone: policy.timezone,
     overtimePeriodStartDay: policy.overtimePeriodStartDay,
+    overtimeRoundingEnabled: policy.overtimeRoundingEnabled,
+    overtimeRoundingToleranceMinutes:
+      policy.overtimeRoundingToleranceMinutes,
+    overtimeRoundingEffectiveMonth:
+      policy.overtimeRoundingEffectiveMonth.slice(0, 7),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +89,22 @@ export function PolicyForm({ policy }: { policy: Policy }) {
       values.overtimePeriodStartDay > 31
     ) {
       setError("Tanggal mulai periode lembur harus antara 1 dan 31.");
+      return;
+    }
+    if (
+      !Number.isInteger(values.overtimeRoundingToleranceMinutes) ||
+      values.overtimeRoundingToleranceMinutes < 0 ||
+      values.overtimeRoundingToleranceMinutes > 60
+    ) {
+      setError("Toleransi pembulatan harus antara 0 dan 60 menit.");
+      return;
+    }
+    if (
+      !/^\d{4}-(0[1-9]|1[0-2])$/.test(
+        values.overtimeRoundingEffectiveMonth,
+      )
+    ) {
+      setError("Pilih bulan mulai berlaku pembulatan.");
       return;
     }
 
@@ -229,8 +251,7 @@ export function PolicyForm({ policy }: { policy: Policy }) {
               </InputGroupAddon>
             </InputGroup>
             <p className="text-xs text-muted-foreground">
-              Setelah SPKL berakhir. Durasi lembur selalu dihitung per menit
-              aktual.
+              Batas unggah dokumentasi setelah SPKL berakhir.
             </p>
           </div>
 
@@ -300,6 +321,90 @@ export function PolicyForm({ policy }: { policy: Policy }) {
             </p>
           </div>
 
+          <div className="flex flex-col gap-4 border-t border-border pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <Label htmlFor="overtime-rounding">
+                  Pembulatan jam lembur
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Kekurangan hingga toleransi tetap dihitung penuh; lebih dari
+                  itu dibulatkan ke bawah per jam.
+                </p>
+              </div>
+              <Switch
+                id="overtime-rounding"
+                checked={values.overtimeRoundingEnabled}
+                onCheckedChange={(checked) =>
+                  setValues((current) => ({
+                    ...current,
+                    overtimeRoundingEnabled: checked,
+                  }))
+                }
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="overtime-rounding-tolerance">
+                  Toleransi kekurangan
+                </Label>
+                <InputGroup>
+                  <InputGroupInput
+                    id="overtime-rounding-tolerance"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={5}
+                    disabled={!values.overtimeRoundingEnabled}
+                    value={values.overtimeRoundingToleranceMinutes}
+                    onChange={(event) =>
+                      numberValue(
+                        "overtimeRoundingToleranceMinutes",
+                        event.target.value,
+                      )
+                    }
+                    className="tabular-nums"
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupText className="text-xs">mnt</InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+                <p className="text-xs text-muted-foreground">
+                  Contoh: kurang 30 menit tetap penuh, kurang 31 menit
+                  dikurangi 1 jam.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="overtime-rounding-month">
+                  Mulai berlaku
+                </Label>
+                <MonthPicker
+                  id="overtime-rounding-month"
+                  value={values.overtimeRoundingEffectiveMonth}
+                  disabled={!values.overtimeRoundingEnabled}
+                  onChange={(value) =>
+                    setValues((current) => ({
+                      ...current,
+                      overtimeRoundingEffectiveMonth: value,
+                    }))
+                  }
+                  ariaLabel="Bulan mulai berlaku pembulatan lembur"
+                />
+                <p className="text-xs text-muted-foreground">
+                  SPKL mulai bulan ini mengikuti aturan baru. Bulan sebelumnya
+                  tidak berubah.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Waktu absen aktual tetap disimpan. Datang lebih awal atau pulang
+              lebih lambat tidak menambah jam di luar jadwal SPKL.
+            </p>
+          </div>
+
           <div className="flex flex-col gap-2 border-t border-border pt-4">
             <Label htmlFor="timezone">Zona waktu</Label>
             <Select
@@ -352,7 +457,8 @@ export function PolicyForm({ policy }: { policy: Policy }) {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Berlaku untuk absensi dan SPKL berikutnya. Laporan lama tidak dihitung ulang.
+            Aturan absensi berlaku untuk SPKL berikutnya. Pembulatan lembur
+            dihitung mulai bulan yang dipilih; bulan sebelumnya tidak berubah.
           </p>
 
           {error && (

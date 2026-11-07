@@ -7,6 +7,7 @@ import { sqlOvertimePeriod } from "./sql-overtime-period";
 import { sqlTimeZone } from "./sql-time-zone";
 import { emptyData, persistChanges } from "./unit-of-work";
 import { finalizeExpired } from "./attendance-finalization";
+import { overtimePayableMinutes } from "./time";
 import type { Database, SessionUser, Spkl } from "./types";
 
 /** Finalize a bounded relevant set with locks; repeat calls are idempotent. */
@@ -41,7 +42,26 @@ export async function hydrateSpkls(spkls: Spkl[], connection?: Connection): Prom
   const employees = await select("employees", "id=ANY($1::text[])", [employeeIds], connection);
   const divisionIds = [...new Set([...spkls.map((row) => row.divisionId), ...employees.map((row) => row.divisionId)].filter((id): id is string => Boolean(id)))];
   const divisions = await select("divisions", "id=ANY($1::text[])", [divisionIds], connection);
-  return { schemaVersion: 4, seededAt: "", meta: { nextSpklSequence: 0 }, spkls, spklWorkers, attendances, documentations, workLocations: [], policy, divisions, employees, otps: [], notifications: [], auditLogs: [] };
+  const spklById = new Map(spkls.map((row) => [row.id, row]));
+  const payableAttendances = attendances.map((attendance) => {
+    const spkl = spklById.get(attendance.spklId);
+    if (!spkl || !attendance.checkOutAt) return attendance;
+    return {
+      ...attendance,
+      durationMinutes: overtimePayableMinutes({
+        checkInAt: attendance.checkInAt,
+        checkOutAt: attendance.checkOutAt,
+        status: attendance.status,
+        storedMinutes: attendance.durationMinutes,
+        spklStartAt: spkl.startAt,
+        spklEndAt: spkl.endAt,
+        spklDate: spkl.date,
+        spklCanceledAt: spkl.canceledAt,
+        policy,
+      }),
+    };
+  });
+  return { schemaVersion: 4, seededAt: "", meta: { nextSpklSequence: 0 }, spkls, spklWorkers, attendances: payableAttendances, documentations, workLocations: [], policy, divisions, employees, otps: [], notifications: [], auditLogs: [] };
 }
 
 export async function overviewData(user: SessionUser) {
@@ -60,12 +80,13 @@ export async function overviewData(user: SessionUser) {
   return hydrateSpkls(rows.map((row) => decode("spkls", row)));
 }
 
-// Sesi yang tidak pernah absen pulang tidak boleh dihitung penuh. Durasi hanya
-// memakai checkout aktual (dibatasi jadwal) atau durasi terkoreksi yang tersimpan.
-export const effectiveMinutesSql = `CASE WHEN a.duration_minutes IS NOT NULL THEN greatest(0,a.duration_minutes)
- WHEN a.check_in_at IS NULL OR a.status='tidak_hadir' THEN 0
- WHEN a.check_out_at IS NULL AND now() > s.end_at THEN 0
- ELSE greatest(0,floor(extract(epoch FROM (least(coalesce(a.check_out_at,now()),s.end_at)-greatest(a.check_in_at,s.start_at)))/60+0.5))::integer END`;
+// Jam yang diperhitungkan mengikuti kebijakan pembulatan aktif. Waktu aktual
+// tetap disimpan pada attendance; fungsi SQL memakai jadwal SPKL dan tanggal
+// SPKL agar bulan sebelum kebijakan berlaku tidak berubah.
+export const effectiveMinutesSql = `overtime_payable_minutes(
+  a.duration_minutes,a.status,a.check_in_at,a.check_out_at,
+  s.start_at,s.end_at,s.date,s.canceled_at,now()
+)`;
 
 export async function overviewMetrics(user: SessionUser) {
   const all = isObserver(user);

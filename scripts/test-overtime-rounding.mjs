@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import { overtimePayableMinutes } from "../lib/time.ts";
+
+const policy = {
+  overtimeRoundingEnabled: true,
+  overtimeRoundingToleranceMinutes: 30,
+  overtimeRoundingEffectiveMonth: "2026-10-01",
+};
+
+const schedule = {
+  spklStartAt: "2026-10-05T09:00:00+07:00",
+  spklEndAt: "2026-10-05T17:00:00+07:00",
+  spklDate: "2026-10-05",
+};
+
+function minutes(overrides = {}) {
+  return overtimePayableMinutes({
+    checkInAt: "2026-10-05T09:00:00+07:00",
+    checkOutAt: "2026-10-05T17:00:00+07:00",
+    status: "selesai",
+    policy,
+    ...schedule,
+    ...overrides,
+  });
+}
+
+assert.equal(minutes({ checkInAt: "2026-10-05T08:30:00+07:00", checkOutAt: "2026-10-05T17:10:00+07:00" }), 480);
+assert.equal(minutes({ checkInAt: "2026-10-05T09:30:00+07:00" }), 480, "kurang 30 menit tetap penuh");
+assert.equal(minutes({ checkInAt: "2026-10-05T09:31:00+07:00" }), 420, "kurang 31 menit menjadi 7 jam");
+assert.equal(minutes({ checkInAt: "2026-10-05T10:30:00+07:00" }), 420, "kurang 90 menit menjadi 7 jam");
+assert.equal(minutes({ checkInAt: "2026-10-05T10:31:00+07:00" }), 360, "kurang 91 menit menjadi 6 jam");
+assert.equal(minutes({ checkOutAt: "2026-10-05T16:30:00+07:00" }), 480, "pulang awal 30 menit tetap penuh");
+assert.equal(minutes({ checkOutAt: "2026-10-05T16:29:00+07:00" }), 420, "pulang awal 31 menit menjadi 7 jam");
+assert.equal(minutes({ checkInAt: "2026-10-05T09:20:00+07:00", checkOutAt: "2026-10-05T16:40:00+07:00" }), 420, "terlambat dan pulang awal dijumlahkan");
+assert.equal(minutes({ checkOutAt: null, status: "ditutup_otomatis" }), 0, "tanpa checkout tidak mendapat jam penuh");
+assert.equal(minutes({ checkOutAt: null, status: "berjalan", now: new Date("2026-10-05T10:00:00+07:00") }), 60, "sesi berjalan memakai durasi aktual");
+assert.equal(minutes({ spklCanceledAt: "2026-10-05T12:00:00+07:00", checkOutAt: "2026-10-05T12:00:00+07:00" }), 180, "SPKL batal tidak dibulatkan");
+assert.equal(minutes({ spklDate: "2026-09-30", checkInAt: "2026-10-05T09:31:00+07:00" }), 449, "bulan sebelum berlaku tidak berubah");
+assert.equal(minutes({ policy: { ...policy, overtimeRoundingEnabled: false }, checkInAt: "2026-10-05T09:31:00+07:00" }), 449);
+assert.equal(minutes({ policy: { ...policy, overtimeRoundingToleranceMinutes: 0 }, checkInAt: "2026-10-05T09:01:00+07:00" }), 420);
+assert.equal(minutes({ checkInAt: "2026-10-05T09:00:00+07:00", checkOutAt: "2026-10-05T17:00:00+07:00", status: "dikoreksi" }), 480);
+assert.equal(minutes({ checkInAt: "2026-10-05T09:00:00+07:00", checkOutAt: "2026-10-05T17:00:00+07:00", status: "tidak_hadir" }), 0);
+
+console.log("PASS: batas toleransi 30/31 menit, pulang awal, sesi tanpa checkout, SPKL batal, dan bulan efektif.");

@@ -131,7 +131,7 @@ export async function GET(request: Request) {
             row.attendance.correctionReason ?? "",
           ]),
           notes: [
-            "Durasi dalam menit, dihitung dari check-in efektif hingga check-out dan dibatasi jadwal SPKL.",
+            "Durasi dalam menit mengikuti kebijakan pembulatan lembur; waktu absen aktual tetap tersimpan.",
           ],
         },
         {
@@ -180,7 +180,9 @@ export async function GET(request: Request) {
             data.totals.minutes,
             data.totals.documentation,
           ],
-          notes: ["Total durasi dalam menit dan siap dijumlahkan untuk penggajian."],
+          notes: [
+            "Total durasi dalam menit mengikuti kebijakan pembulatan dan siap dijumlahkan untuk penggajian.",
+          ],
         },
       ],
     });
@@ -252,7 +254,7 @@ export async function GET(request: Request) {
             row.attendance.correctionReason || "-",
           ]),
           notes: [
-            "Durasi dihitung dari check-in efektif hingga check-out dan dibatasi jadwal SPKL.",
+            "Durasi mengikuti kebijakan pembulatan lembur; waktu absen aktual tetap tersimpan.",
             "Koreksi absensi ditandai pada kolom catatan dan tercatat di audit log.",
           ],
         },

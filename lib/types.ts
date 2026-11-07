@@ -143,6 +143,10 @@ export interface Policy {
   defaultLocation: GeoPoint;
   timezone: string;
   overtimePeriodStartDay: number;
+  overtimeRoundingEnabled: boolean;
+  overtimeRoundingToleranceMinutes: number;
+  /** Tanggal pertama bulan berlakunya pembulatan, format yyyy-MM-dd. */
+  overtimeRoundingEffectiveMonth: string;
   updatedAt: string;
   updatedBy: string;
 }

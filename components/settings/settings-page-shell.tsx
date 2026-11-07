@@ -30,7 +30,7 @@ export function SettingsFormSkeleton({ tab }: { tab: SettingsTab }) {
         <span className="sr-only">Memuat {TITLES[tab].toLowerCase()}…</span>
         <div className="flex flex-col gap-6">
           <div className="grid gap-4 sm:grid-cols-2">
-            {Array.from({ length: tab === "kebijakan" ? 6 : 4 }, (_, index) => (
+            {Array.from({ length: tab === "kebijakan" ? 9 : 4 }, (_, index) => (
               <div key={index} className="flex flex-col gap-2">
                 <Skeleton className="h-3 w-28" />
                 <Skeleton className="h-8 w-full" />

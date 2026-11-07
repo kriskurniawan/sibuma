@@ -5,7 +5,7 @@ import {
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 import { getActiveTimeZone } from "./active-time-zone";
-import type { Spkl, SpklStatus } from "./types";
+import type { AttendanceStatus, Spkl, SpklStatus } from "./types";
 
 export { currentTimeZoneLabel, setActiveTimeZone } from "./active-time-zone";
 export { getActiveTimeZone };
@@ -143,6 +143,77 @@ export function attendanceMinutes(input: {
     new Date(input.spklEndAt).getTime(),
   );
   return Math.max(0, Math.round((end - start) / 60_000));
+}
+
+export interface OvertimeRoundingPolicy {
+  overtimeRoundingEnabled: boolean;
+  overtimeRoundingToleranceMinutes: number;
+  overtimeRoundingEffectiveMonth: string;
+}
+
+/**
+ * Jam lembur yang diperhitungkan untuk satu sesi final.
+ *
+ * Durasi aktual tetap dibatasi jadwal SPKL dan disimpan apa adanya. Mulai bulan
+ * yang ditetapkan, kekurangan sampai toleransi dihitung penuh; kekurangan yang
+ * lebih besar dibulatkan ke bawah per jam penuh. Sesi berjalan, sesi tanpa
+ * checkout, dan SPKL batal tidak pernah mendapat tambahan jam dari aturan ini.
+ */
+export function overtimePayableMinutes(input: {
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  status: AttendanceStatus;
+  storedMinutes?: number | null;
+  spklStartAt: string;
+  spklEndAt: string;
+  spklDate: string;
+  spklCanceledAt?: string | null;
+  policy: OvertimeRoundingPolicy;
+  now?: Date;
+}) {
+  if (input.status === "tidak_hadir") return 0;
+  if (!input.checkInAt) {
+    return Math.max(0, Math.round(input.storedMinutes ?? 0));
+  }
+
+  // Sesi berjalan boleh memakai waktu sekarang; sesi final tanpa checkout
+  // tidak boleh mendapat jam penuh hanya karena jadwal sudah berakhir.
+  if (!input.checkOutAt && input.status !== "berjalan") return 0;
+
+  const actual = attendanceMinutes({
+    checkInAt: input.checkInAt,
+    checkOutAt: input.checkOutAt,
+    spklStartAt: input.spklStartAt,
+    spklEndAt: input.spklEndAt,
+    now: input.now,
+  });
+
+  if (!input.checkOutAt || input.spklCanceledAt) return actual;
+  if (
+    !input.policy.overtimeRoundingEnabled ||
+    input.spklDate.slice(0, 7) <
+      input.policy.overtimeRoundingEffectiveMonth.slice(0, 7)
+  ) {
+    return actual;
+  }
+
+  const scheduled = Math.max(
+    0,
+    Math.round(
+      (new Date(input.spklEndAt).getTime() -
+        new Date(input.spklStartAt).getTime()) /
+        60_000,
+    ),
+  );
+  const tolerance = Math.max(
+    0,
+    Math.round(input.policy.overtimeRoundingToleranceMinutes),
+  );
+  const shortfall = Math.max(0, scheduled - actual);
+  if (shortfall <= tolerance) return scheduled;
+
+  const deduction = Math.ceil((shortfall - tolerance) / 60) * 60;
+  return Math.max(0, scheduled - deduction);
 }
 
 export function isSameLocalDay(a: string, b: string, timeZone = getActiveTimeZone()) {
