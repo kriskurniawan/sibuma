@@ -185,6 +185,18 @@ async function runClaimedJob(
 
   try {
     const result = await job.run(deadlineAt);
+    const deliveryFailures =
+      job.id === "notification_outbox" &&
+      result &&
+      typeof result === "object" &&
+      "failed" in result
+        ? Number((result as { failed?: unknown }).failed)
+        : 0;
+    if (Number.isFinite(deliveryFailures) && deliveryFailures > 0) {
+      throw new Error(
+        `${deliveryFailures} pesan gagal dikirim pada putaran ini. Periksa outbox dan penyedia.`,
+      );
+    }
     const durationMs = Date.now() - startedAt;
     await query(
       `UPDATE automation_jobs

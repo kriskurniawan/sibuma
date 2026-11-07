@@ -32,7 +32,7 @@ import {
 import type { AuditDataPromise } from "@/components/audit/audit-data";
 import { useSessionUser } from "@/components/session-user-provider";
 import { isReadOnly, isSuperAdmin } from "@/lib/access";
-import type { AuditLog, NotificationStatus } from "@/lib/types";
+import type { AuditLog } from "@/lib/types";
 
 type AuditTab = "audit" | "notifikasi";
 type AuditType = AuditLog["objectType"];
@@ -73,6 +73,7 @@ function AuditToolbar({
           ? (
               [
                 { value: "semua", label: "Semua" },
+                { value: "menunggu", label: "Menunggu" },
                 { value: "terkirim", label: "Terkirim" },
                 { value: "gagal", label: "Gagal" },
               ] as const
@@ -152,7 +153,7 @@ export function AuditShell({
   const [search, setSearch] = useState("");
   const [notificationSearch, setNotificationSearch] = useState("");
   const [notificationStatus, setNotificationStatus] = useState<
-    "semua" | NotificationStatus
+    "semua" | "terkirim" | "gagal" | "menunggu"
   >("semua");
   if ((user.role !== "atasan" && !isSuperAdmin(user)) || isReadOnly(user))
     return null;

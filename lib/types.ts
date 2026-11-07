@@ -74,6 +74,8 @@ export interface Spkl {
   createdBy: string;
   divisionId: string | null;
   requiresDocumentation: boolean;
+  /** Kunci idempotensi dari klien untuk mencegah SPKL ganda saat request diulang. */
+  requestId: string | null;
   canceledAt: string | null;
   cancelReason: string | null;
   createdAt: string;
@@ -173,6 +175,11 @@ export interface OtpRecord {
 }
 
 export type NotificationStatus = "terkirim" | "gagal";
+/** Status tampilan outbox: pesan yang belum dicoba atau sedang diproses juga terlihat. */
+export type NotificationActivityStatus =
+  | NotificationStatus
+  | "menunggu"
+  | "diproses";
 
 export interface NotificationLog {
   id: string;
@@ -185,7 +192,7 @@ export interface NotificationLog {
     | "spkl_dibatalkan"
     | "pengingat";
   message: string;
-  status: NotificationStatus;
+  status: NotificationActivityStatus;
   providerMessageId?: string;
   error?: string;
   createdAt: string;

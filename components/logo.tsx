@@ -3,19 +3,34 @@ import { cn } from "@/lib/utils";
 export function LogoMark({ className }: { className?: string }) {
   return (
     <svg
-      viewBox="0 0 32 32"
+      viewBox="0 0 64 64"
       fill="none"
       aria-hidden="true"
+      focusable="false"
       className={cn("h-8 w-8", className)}
     >
-      <rect width="32" height="32" rx="10" fill="#623BBD" />
+      {/* Fixed brand artwork, shared with the favicon and installed app icons. */}
+      <rect width="64" height="64" rx="18" fill="#623BBD" />
       <path
-        d="M9 9.5V19a3.5 3.5 0 0 0 3.5 3.5H23"
+        d="M18 21.5a3 3 0 0 1 1.8-2.75l13-5.67A3 3 0 0 1 37 15.83V49H18V21.5Z"
+        fill="#FFFFFF"
+      />
+      <path
+        d="M40 29.5a2 2 0 0 1 1.17-1.82l5-2.27A2 2 0 0 1 49 27.23V49h-9V29.5Z"
+        fill="#D8C6FF"
+      />
+      <path
+        d="M15 49h37"
         stroke="#FFFFFF"
-        strokeWidth="2.6"
+        strokeWidth="3"
         strokeLinecap="round"
       />
-      <circle cx="22.5" cy="9.5" r="3" fill="#D8C6FF" />
+      <path
+        d="M24 26h7M24 33h7M24 40h7"
+        stroke="#623BBD"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

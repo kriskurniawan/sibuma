@@ -241,6 +241,9 @@ export function AuditStats({
   const failedNotifications = notifications.filter(
     (item) => item.status === "gagal",
   ).length;
+  const waitingNotifications = notifications.filter(
+    (item) => item.status === "menunggu" || item.status === "diproses",
+  ).length;
   return (
     <>
       <MobileSummary
@@ -282,7 +285,7 @@ export function AuditStats({
           label="Pesan gagal"
           value={failedNotifications}
           icon={AlertTriangle}
-          helper={`${notifications.length} pesan di outbox`}
+          helper={`${waitingNotifications} menunggu · ${failedNotifications} gagal`}
           tone={failedNotifications > 0 ? "destructive" : "neutral"}
         />
       </div>
@@ -502,7 +505,10 @@ function NotificationEntries({
   const query = search.trim().toLowerCase();
   const filtered = notifications.filter(
     (item) =>
-      (status === "semua" || item.status === status) &&
+      (status === "semua" ||
+        (status === "menunggu"
+          ? item.status === "menunggu" || item.status === "diproses"
+          : item.status === status)) &&
       (!query ||
         `${item.recipientPhone} ${item.message} ${item.type}`
           .toLowerCase()
@@ -595,11 +601,19 @@ function NotificationEntries({
                           variant={
                             item.status === "terkirim"
                               ? "success-light"
-                              : "destructive-light"
+                              : item.status === "gagal"
+                                ? "destructive-light"
+                                : "info-light"
                           }
                           dot
                         >
-                          {item.status === "terkirim" ? "Terkirim" : "Gagal"}
+                          {item.status === "terkirim"
+                            ? "Terkirim"
+                            : item.status === "gagal"
+                              ? "Gagal"
+                              : item.status === "diproses"
+                                ? "Diproses"
+                                : "Menunggu"}
                         </Badge>
                       </span>
                       <span className="text-xs text-muted-foreground">

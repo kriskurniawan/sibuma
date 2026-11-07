@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { AuditLog, NotificationStatus } from "@/lib/types";
+import type { AuditLog } from "@/lib/types";
 
 type AuditTab = "audit" | "notifikasi";
 type AuditType = AuditLog["objectType"];
@@ -15,8 +15,10 @@ interface AuditFilters {
   setSearch: (search: string) => void;
   notificationSearch: string;
   setNotificationSearch: (search: string) => void;
-  notificationStatus: "semua" | NotificationStatus;
-  setNotificationStatus: (status: "semua" | NotificationStatus) => void;
+  notificationStatus: "semua" | "terkirim" | "gagal" | "menunggu";
+  setNotificationStatus: (
+    status: "semua" | "terkirim" | "gagal" | "menunggu",
+  ) => void;
 }
 
 export const AuditFilterContext = createContext<AuditFilters | null>(null);

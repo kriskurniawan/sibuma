@@ -47,20 +47,68 @@ export async function deliverWhatsApp(
       redirect: "error",
     });
 
-    const json = (await response.json().catch(() => null)) as
-      | { success?: boolean; error?: unknown; data?: { id?: string; messageId?: string } }
-      | null;
+    // Chatery dapat membalas HTTP 200 dengan body kosong atau bukan JSON saat
+    // sesi perangkat bermasalah. Hanya respons yang memuat ID pesan dianggap
+    // benar-benar terkirim.
+    const text = await response.text().catch(() => "");
+    let json: {
+      success?: unknown;
+      error?: unknown;
+      message?: unknown;
+      data?: { id?: unknown; messageId?: unknown } | null;
+      id?: unknown;
+      messageId?: unknown;
+    } | null = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
 
-    if (!response.ok || json?.success === false || json?.error) {
+    const messageId = [
+      json?.data?.id,
+      json?.data?.messageId,
+      json?.id,
+      json?.messageId,
+    ].find((value): value is string => typeof value === "string" && value.length > 0);
+    const providerError = json?.error;
+    const hasProviderError =
+      providerError !== undefined &&
+      providerError !== null &&
+      (typeof providerError !== "string" || providerError.trim().length > 0);
+    const explicitlyFailed = json?.success === false || hasProviderError;
+    const providerDetail = (() => {
+      const detail = json?.error ?? json?.message;
+      if (typeof detail === "string" && detail.trim()) {
+        return detail.trim().slice(0, 300);
+      }
+      if (detail && typeof detail === "object") {
+        try {
+          return JSON.stringify(detail).slice(0, 300);
+        } catch {
+          return "";
+        }
+      }
+      return "";
+    })();
+
+    if (!response.ok || explicitlyFailed || !messageId) {
+      const reason = !response.ok
+        ? `Chatery membalas HTTP ${response.status}`
+        : explicitlyFailed
+          ? `Chatery menolak pesan${providerDetail ? `: ${providerDetail}` : "."}`
+          : json === null
+            ? "Respons Chatery bukan JSON yang valid."
+            : "Respons Chatery tidak memuat ID pesan, jadi status pengiriman tidak dapat dipastikan.";
       return {
         status: "gagal",
-        error: `Chatery membalas HTTP ${response.status}`,
+        error: reason.slice(0, 400),
       };
     }
 
     return {
       status: "terkirim",
-      providerMessageId: json?.data?.id ?? json?.data?.messageId,
+      providerMessageId: messageId,
     };
   } catch (error) {
     return {

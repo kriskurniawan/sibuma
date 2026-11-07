@@ -69,6 +69,7 @@ export async function POST(
       const workers = db.employees.filter(
         (employee) =>
           employee.active &&
+          employee.accessMode !== "read_only" &&
           db.spklWorkers.some(
             (assignment) =>
               assignment.spklId === spkl.id &&

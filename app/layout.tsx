@@ -20,6 +20,9 @@ export const metadata: Metadata = {
     "Checklist operasional building management: isi area kerja, pantau temuan, dan tindak lanjuti bersama tim.",
   applicationName: APP_NAME,
   manifest: "/manifest.webmanifest",
+  icons: {
+    apple: [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -72,7 +75,8 @@ export default function RootLayout({
     window[INTENT] = intent;
     window.__sibumaDialogIntentElement = trigger;
     window.__sibumaDialogIntentPath = window.location.pathname;
-    // Waktu interaksi hanya untuk mengenali pemicu dialog, bukan TTL intent.
+    // Clock is read only in this click handler to identify dialog intent;
+    // it is never rendered or used as an SSR/hydration value (C4 exception).
     window[AT] = Date.now();
     // Listener halaman menerima klik yang sama; jika belum siap, intent
     // tetap tersimpan sampai handler halaman tersebut terpasang.

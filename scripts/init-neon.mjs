@@ -113,6 +113,7 @@ try {
     "038_checklist_equipment.sql",
     "039_overtime_rounding.sql",
     "040_saturday_piket.sql",
+    "041_notification_reliability.sql",
   ]) {
     await connection.query(await readFile(new URL(`../db/migrations/${file}`, import.meta.url), "utf8"));
   }

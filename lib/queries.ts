@@ -3,6 +3,7 @@ import "server-only";
 import { addDays } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { formatInTimeZone } from "date-fns-tz";
+import type { QueryResultRow } from "pg";
 import { isObserver, readOwnerId } from "./access";
 import { getActiveTimeZone } from "./active-time-zone";
 import { currentOvertimePeriodLabel } from "./active-overtime-period";
@@ -27,6 +28,7 @@ import type {
   Division,
   Employee,
   EmployeeAttendanceView,
+  NotificationLog,
   Policy,
   ReportRow,
   SessionUser,
@@ -491,15 +493,76 @@ export async function getReportOptions(supervisorId: string | null) {
 }
 
 /** Notification rows are scoped to the supervisor and their own team. */
-export async function getNotifications(userId: string, limit = 30) {
- const safeLimit = Math.max(1, Math.min(limit, 500));
- return select(
-  "notifications",
-  `(recipient_id=$1 OR recipient_id IN (SELECT id FROM employees WHERE supervisor_id=$1))`,
-  [userId],
-  undefined,
-  `ORDER BY created_at DESC,id DESC LIMIT ${safeLimit}`,
- );
+interface NotificationOutboxRow extends QueryResultRow {
+  id: string;
+  recipient_id: string | null;
+  recipient_phone: string;
+  type: string;
+  message: string;
+  status: string;
+  provider_message_id: string | null;
+  error: string | null;
+  created_at: Date | string;
+}
+
+function mapOutboxNotification(row: NotificationOutboxRow): NotificationLog {
+  return {
+    id: row.id,
+    recipientId: row.recipient_id,
+    recipientPhone: row.recipient_phone,
+    type: row.type as NotificationLog["type"],
+    message: row.message,
+    status: row.status === "processing" ? "diproses" : "menunggu",
+    providerMessageId: row.provider_message_id ?? undefined,
+    error: row.error ?? undefined,
+    createdAt:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : new Date(row.created_at).toISOString(),
+  };
+}
+
+/**
+ * Menggabungkan log pengiriman dengan antrean yang belum pernah dicoba agar
+ * pesan `pending` tidak tersembunyi dari halaman audit.
+ */
+export async function getNotifications(userId: string | null, limit = 30) {
+  const safeLimit = Math.max(1, Math.min(limit, 500));
+  const scope = userId
+    ? "(recipient_id=$1 OR recipient_id IN (SELECT id FROM employees WHERE supervisor_id=$1))"
+    : "true";
+  const outboxScope = userId
+    ? "(o.recipient_id=$1 OR o.recipient_id IN (SELECT id FROM employees WHERE supervisor_id=$1))"
+    : "true";
+  const values = userId ? [userId] : [];
+
+  const [logs, outbox] = await Promise.all([
+    select(
+      "notifications",
+      scope,
+      values,
+      undefined,
+      `ORDER BY created_at DESC,id DESC LIMIT ${safeLimit}`,
+    ),
+    query<NotificationOutboxRow>(
+      `SELECT o.id,o.recipient_id,o.recipient_phone,o.type,o.message,o.status,
+              o.provider_message_id,o.error,o.created_at
+       FROM notification_outbox o
+       WHERE o.status IN ('pending','processing')
+         AND ${outboxScope}
+         AND NOT EXISTS (SELECT 1 FROM notification_logs l WHERE l.id=o.id)
+       ORDER BY o.created_at DESC,o.id DESC
+       LIMIT ${safeLimit}`,
+      values,
+    ),
+  ]);
+
+  return [...logs, ...outbox.map(mapOutboxNotification)]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, safeLimit);
 }
 
 export function toDateInput(iso: string) {

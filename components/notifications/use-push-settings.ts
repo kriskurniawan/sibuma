@@ -39,7 +39,12 @@ export function usePushSettings() {
       try {
         const [response, state] = await Promise.all([
           fetch("/api/notifikasi/push", { cache: "no-store" }),
-          localPushState(),
+          localPushState().then((state) => {
+            // Device-only prerequisites can shape the skeleton before the
+            // server configuration finishes loading.
+            if (!cancelled) setLocal(state);
+            return state;
+          }),
         ]);
         if (!response.ok) throw new Error("Gagal memuat status perangkat.");
         const data = (await response.json()) as {
@@ -108,7 +113,11 @@ export function usePushSettings() {
 
     if (!result.ok) {
       setError(result.message);
-      if (result.reason === "denied" || result.reason === "unsupported") {
+      if (
+        result.reason === "denied" ||
+        result.reason === "unsupported" ||
+        result.reason === "install-required"
+      ) {
         const capability = result.reason;
         setLocal((current) =>
           current ? { ...current, capability, subscribed: false } : current,
@@ -156,13 +165,16 @@ export function usePushSettings() {
     local?.capability === "granted" &&
     Boolean(local?.subscribed);
 
+  const installRequired = local?.capability === "install-required";
   const unavailable =
+    installRequired ||
     local?.capability === "unsupported" ||
     local?.capability === "denied" ||
     config?.configured === false;
 
-  const unavailableLabel =
-    local?.capability === "unsupported"
+  const unavailableLabel = installRequired
+    ? "Perlu dipasang"
+    : local?.capability === "unsupported"
       ? "Tidak didukung"
       : local?.capability === "denied"
         ? "Izin ditolak"
@@ -170,12 +182,23 @@ export function usePushSettings() {
           ? "Belum diatur"
           : null;
 
+  const statusDescription = installRequired
+    ? "Di iPhone/iPad, tambahkan SIBUMA ke Layar Utama lalu buka dari ikonnya. Notifikasi memerlukan iOS/iPadOS 16.4 atau lebih baru."
+    : local?.capability === "unsupported"
+      ? "Browser atau perangkat ini belum mendukung notifikasi push. Gunakan browser terbaru melalui HTTPS; iPhone/iPad memerlukan iOS/iPadOS 16.4 atau lebih baru."
+      : local?.capability === "denied"
+        ? "Izin notifikasi diblokir. Izinkan kembali melalui pengaturan notifikasi perangkat atau izin situs di browser, lalu kembali ke SIBUMA."
+        : config?.configured === false
+          ? "Konfigurasi notifikasi server belum tersedia. Hubungi admin untuk mengaktifkannya."
+          : active
+            ? "Notifikasi perangkat aktif. Pemberitahuan juga tetap tersedia di kotak notifikasi aplikasi."
+            : "Aktifkan untuk menerima pemberitahuan pekerjaan di perangkat ini. Kotak notifikasi aplikasi tetap tersedia tanpa izin ini.";
+
   const canActivate =
     !loading &&
     config?.configured === true &&
     local != null &&
-    local.capability !== "unsupported" &&
-    local.capability !== "denied" &&
+    (local.capability === "default" || local.capability === "granted") &&
     !local.subscribed;
 
   return {
@@ -187,6 +210,8 @@ export function usePushSettings() {
     active,
     unavailable,
     unavailableLabel,
+    statusDescription,
+    installRequired,
     canActivate,
     subscriptions: config?.subscriptions ?? 0,
     activate,

@@ -2,9 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Download } from "lucide-react";
-import { Modal } from "@/components/modal";
+import { PwaInstallInstructions } from "@/components/pwa-install-instructions";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  hasRelatedPwa,
+  isPwaStandalone,
+  type RelatedPwaApplication,
+} from "@/lib/pwa-client";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -14,20 +19,13 @@ interface BeforeInstallPromptEvent extends Event {
   }>;
 }
 
-interface RelatedApplication {
-  platform: string;
-  id?: string;
-  url?: string;
-  version?: string;
-}
-
 declare global {
   interface Navigator {
     /**
      * Didukung Chrome/Edge (Android sejak 84, desktop sejak 140). Tidak ada di
      * Safari/Firefox, sehingga hasilnya tidak bisa diandalkan di sana.
      */
-    getInstalledRelatedApps?: () => Promise<RelatedApplication[]>;
+    getInstalledRelatedApps?: () => Promise<RelatedPwaApplication[]>;
   }
 
   interface Window {
@@ -35,54 +33,25 @@ declare global {
   }
 }
 
-const INSTALLED_STORAGE_KEY = "sibuma:pwa-installed";
 /** Jangan menahan tombol terlalu lama bila API deteksi tidak merespons. */
 const DETECTION_TIMEOUT_MS = 1200;
 
-function isStandalone() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone ===
-      true
-  );
-}
-
-function readInstalledMarker() {
-  try {
-    return window.localStorage.getItem(INSTALLED_STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Penanda lokal dipakai saat API deteksi tidak tersedia (mis. Safari) atau
- * saat aplikasi pernah dibuka dalam mode terpasang, agar tombol tidak muncul
- * lagi di tab browser.
- */
-function writeInstalledMarker(installed: boolean) {
-  try {
-    if (installed) window.localStorage.setItem(INSTALLED_STORAGE_KEY, "1");
-    else window.localStorage.removeItem(INSTALLED_STORAGE_KEY);
-  } catch {
-    // Penyimpanan bisa diblokir; deteksi per sesi tetap berjalan.
-  }
-}
-
-/** `true` hanya jika browser memastikan ada PWA terkait yang terpasang. */
-async function detectInstalledApp() {
-  if (typeof navigator.getInstalledRelatedApps !== "function") return false;
+/** null means unknown, not proof that a confirmed installation was removed. */
+async function detectInstalledApp(): Promise<boolean | null> {
+  if (typeof navigator.getInstalledRelatedApps !== "function") return null;
   try {
     const apps = await navigator.getInstalledRelatedApps();
-    return apps.length > 0;
+    return hasRelatedPwa(apps, window.location.origin);
   } catch {
-    return false;
+    return null;
   }
 }
 
 /**
- * Tombol pasang PWA di header mobile. Hanya tampil saat aplikasi belum
- * terpasang, baik saat dibuka di tab browser maupun di dalam aplikasi.
+ * Hide only with current evidence: standalone, appinstalled this session,
+ * or the related-app API.
+ * Safari cannot reliably detect an existing Home Screen app from a browser
+ * tab, so installation help stays accessible there (also after uninstall).
  */
 export function PwaInstallButton() {
   const [ready, setReady] = useState(false);
@@ -94,7 +63,6 @@ export function PwaInstallButton() {
 
   const markInstalled = useCallback(() => {
     window.__sibumaInstallPrompt = null;
-    writeInstalledMarker(true);
     setPromptEvent(null);
     setInstalled(true);
     setInstructionsOpen(false);
@@ -103,69 +71,74 @@ export function PwaInstallButton() {
   useEffect(() => {
     const media = window.matchMedia("(display-mode: standalone)");
     let disposed = false;
+    let revision = 0;
+    let timer: number | undefined;
 
-    function syncDisplayMode() {
-      if (isStandalone()) markInstalled();
+    // Older versions wrote a permanent marker. It is not evidence of a
+    // current installation and must never hide installation help in Safari.
+    try {
+      window.localStorage.removeItem("sibuma:pwa-installed");
+    } catch {
+      // Storage can be blocked; detection does not depend on it.
     }
 
     function capture(event: Event) {
+      revision += 1;
       const installEvent = event as BeforeInstallPromptEvent;
       installEvent.preventDefault();
       window.__sibumaInstallPrompt = installEvent;
-      // Browser hanya menawarkan pemasangan bila PWA belum terpasang, jadi
-      // penanda lama (mis. setelah uninstall) harus dihapus.
-      writeInstalledMarker(false);
       setPromptEvent(installEvent);
       setInstalled(false);
+      setReady(true);
     }
 
     function handleInstalled() {
+      revision += 1;
       markInstalled();
+      setReady(true);
     }
 
     async function recheck() {
       if (document.visibilityState === "hidden") return;
-      const detected = await detectInstalledApp();
-      if (!disposed && detected) markInstalled();
-    }
-
-    const earlyPrompt = window.__sibumaInstallPrompt ?? null;
-    syncDisplayMode();
-
-    if (earlyPrompt) {
-      setPromptEvent(earlyPrompt);
-      writeInstalledMarker(false);
-      setReady(true);
-    } else if (isStandalone()) {
-      setReady(true);
-    } else if (readInstalledMarker()) {
-      setInstalled(true);
-      setReady(true);
-    } else {
-      const timer = window.setTimeout(() => {
-        if (!disposed) setReady(true);
-      }, DETECTION_TIMEOUT_MS);
-      void detectInstalledApp().then((detected) => {
-        if (disposed) return;
-        window.clearTimeout(timer);
-        if (detected) markInstalled();
+      const current = ++revision;
+      if (isPwaStandalone()) {
+        handleInstalled();
+        return;
+      }
+      if (window.__sibumaInstallPrompt) {
+        setPromptEvent(window.__sibumaInstallPrompt);
+        setInstalled(false);
         setReady(true);
-      });
+        return;
+      }
+      const detected = await detectInstalledApp();
+      if (disposed || current !== revision) return;
+      // Re-evaluate both ways when the API knows; preserve a current-session
+      // appinstalled confirmation if detection is unavailable or fails.
+      if (detected === true) markInstalled();
+      else if (detected === false) setInstalled(false);
+      setReady(true);
     }
 
     window.addEventListener("beforeinstallprompt", capture);
     window.addEventListener("appinstalled", handleInstalled);
     window.addEventListener("focus", recheck);
     document.addEventListener("visibilitychange", recheck);
-    media.addEventListener("change", syncDisplayMode);
+    media.addEventListener("change", recheck);
+
+    timer = window.setTimeout(() => {
+      if (!disposed) setReady(true);
+    }, DETECTION_TIMEOUT_MS);
+    void recheck();
 
     return () => {
       disposed = true;
+      window.clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", capture);
       window.removeEventListener("appinstalled", handleInstalled);
       window.removeEventListener("focus", recheck);
       document.removeEventListener("visibilitychange", recheck);
-      media.removeEventListener("change", syncDisplayMode);
+      media.removeEventListener("change", recheck);
     };
   }, [markInstalled]);
 
@@ -179,10 +152,10 @@ export function PwaInstallButton() {
     setInstalling(true);
     try {
       await promptEvent.prompt();
-      const choice = await promptEvent.userChoice;
+      await promptEvent.userChoice;
       window.__sibumaInstallPrompt = null;
       setPromptEvent(null);
-      if (choice.outcome === "accepted") markInstalled();
+      // Acceptance is not completion; appinstalled confirms installation.
     } catch {
       setInstructionsOpen(true);
     } finally {
@@ -207,42 +180,10 @@ export function PwaInstallButton() {
         <span>Pasang</span>
       </Button>
 
-      <Modal
+      <PwaInstallInstructions
         open={instructionsOpen}
         onClose={() => setInstructionsOpen(false)}
-        title="Pasang SIBUMA"
-        description="Buka SIBUMA langsung dari layar utama, tanpa melalui browser."
-        size="sm"
-        mobileSheet
-        footer={
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => setInstructionsOpen(false)}
-          >
-            Mengerti
-          </Button>
-        }
-      >
-        <ol className="flex flex-col gap-3">
-          {[
-            "Buka menu browser: ikon ⋮ di Chrome atau tombol Bagikan di Safari.",
-            "Pilih Instal aplikasi atau Tambahkan ke Layar Utama.",
-            "Konfirmasi, lalu buka SIBUMA dari layar utama.",
-          ].map((step, index) => (
-            <li key={step} className="flex items-start gap-3 text-sm">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium tabular-nums text-foreground">
-                {index + 1}
-              </span>
-              <span>{step}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Jika opsi tidak tersedia, buka SIBUMA melalui Chrome di Android atau
-          Safari di iPhone.
-        </p>
-      </Modal>
+      />
     </>
   );
 }

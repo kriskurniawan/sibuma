@@ -18,6 +18,22 @@ const localTime = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Format jam tidak valid.");
 
+/** Tanggal kalender nyata; regex saja masih meloloskan 2026-13-01. */
+function validCalendarDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid.")
+  .refine(validCalendarDate, "Tanggal tidak valid.");
+
 export const spklInputSchema = z.object({
   title: z
     .string()
@@ -30,9 +46,7 @@ export const spklInputSchema = z.object({
     .min(10, "Deskripsi pekerjaan minimal 10 karakter.")
     .max(1_200, "Deskripsi maksimal 1.200 karakter."),
   divisionId: z.string().trim().min(1, "Pilih divisi."),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid."),
+  date: calendarDate,
   startTime: localTime,
   endTime: localTime,
   locationId: z.string().trim().min(1, "Pilih titik absensi."),
@@ -40,12 +54,16 @@ export const spklInputSchema = z.object({
     .number()
     .int()
     .min(25, "Radius minimal 25 meter.")
-    .max(2_000, "Radius maksimal 2.000 meter."),
+    .max(1_000, "Radius maksimal 1.000 meter."),
   requiresDocumentation: z.boolean().default(false),
   workerIds: z
     .array(z.string().trim().min(1))
     .min(1, "Pilih minimal satu pekerja.")
-    .max(100),
+    .max(100, "Maksimal 100 pekerja per SPKL."),
+  /** Kunci idempotensi pembuatan; diabaikan saat mengubah SPKL. */
+  requestId: z.string().trim().min(8).max(100).optional(),
+  /** Revisi yang dilihat form edit; mencegah timpa perubahan pengguna lain. */
+  expectedUpdatedAt: z.string().trim().min(10).max(40).optional(),
 });
 
 export type SpklInput = z.infer<typeof spklInputSchema>;

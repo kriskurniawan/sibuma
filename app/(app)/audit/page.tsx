@@ -16,7 +16,9 @@ export default async function AuditPage() {
   // Only database work is caught. Authorization redirects remain outside this promise.
   const dataPromise: AuditDataPromise = Promise.all([
     isSuperAdmin(user) ? getAllAuditLogs(200) : getAuditLogs(user.id, 200),
-    isSuperAdmin(user) ? Promise.resolve([]) : getNotifications(user.id, 100),
+    isSuperAdmin(user)
+      ? getNotifications(null, 200)
+      : getNotifications(user.id, 100),
   ])
     .then(([logs, notifications]) => ({ logs, notifications }))
     .catch(() => null);

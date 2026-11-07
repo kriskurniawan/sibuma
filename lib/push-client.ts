@@ -1,8 +1,10 @@
 "use client";
 
 import type { PushSubscriptionInput } from "./notification-types";
+import { iosSupportsWebPush, readPwaEnvironment } from "./pwa-client";
 
 export type PushCapability =
+  | "install-required"
   | "unsupported"
   | "default"
   | "denied"
@@ -12,7 +14,7 @@ export type PushActivationResult =
   | { ok: true }
   | {
       ok: false;
-      reason: "unsupported" | "denied" | "unconfigured" | "failed";
+      reason: "install-required" | "unsupported" | "denied" | "unconfigured" | "failed";
       message: string;
     };
 
@@ -29,6 +31,12 @@ function urlBase64ToUint8Array(value: string) {
 
 export function pushCapability(): PushCapability {
   if (typeof window === "undefined") return "unsupported";
+  if (!window.isSecureContext) return "unsupported";
+  const environment = readPwaEnvironment();
+  if (environment.platform === "ios") {
+    if (!iosSupportsWebPush(environment)) return "unsupported";
+    if (!environment.standalone) return "install-required";
+  }
   if (
     !("serviceWorker" in navigator) ||
     !("PushManager" in window) ||
@@ -60,7 +68,7 @@ async function currentSubscription() {
 
 export async function localPushState() {
   const capability = pushCapability();
-  if (capability === "unsupported") {
+  if (capability === "unsupported" || capability === "install-required") {
     return { capability, subscribed: false };
   }
   const subscription = await currentSubscription().catch(() => null);
@@ -100,7 +108,15 @@ async function attachSubscription(subscription: PushSubscription) {
 export async function activatePush(
   publicKey: string,
 ): Promise<PushActivationResult> {
-  if (pushCapability() === "unsupported") {
+  const capability = pushCapability();
+  if (capability === "install-required") {
+    return {
+      ok: false,
+      reason: "install-required",
+      message: "Tambahkan SIBUMA ke Layar Utama, lalu buka dari ikonnya untuk mengaktifkan notifikasi.",
+    };
+  }
+  if (capability === "unsupported") {
     return {
       ok: false,
       reason: "unsupported",
@@ -178,7 +194,7 @@ export async function detachPushSubscription() {
  */
 export async function syncPushSubscription() {
   const capability = pushCapability();
-  if (capability === "unsupported") return;
+  if (capability === "unsupported" || capability === "install-required") return;
   const subscription = await currentSubscription().catch(() => null);
   if (!subscription) return;
 

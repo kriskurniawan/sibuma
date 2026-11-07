@@ -3,6 +3,7 @@ import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { enqueueSpklNotifications } from "@/lib/notification-outbox";
 import { scheduleWarnings } from "@/lib/schedule";
+import { isUnchangedSpklEdit, splitWorkerIds } from "@/lib/spkl-edit";
 import { mutateDb, pushAudit } from "@/lib/store";
 import { durationLabel, minutesBetween, spklStatus, zonedToIso } from "@/lib/time";
 import type { Employee, SpklWorker } from "@/lib/types";
@@ -66,6 +67,14 @@ export async function PATCH(
           "SPKL sudah selesai. Gunakan koreksi absensi untuk memperbaiki jam.",
         );
       }
+      if (
+        input.expectedUpdatedAt &&
+        spkl.updatedAt !== input.expectedUpdatedAt
+      ) {
+        throw new Error(
+          "SPKL sudah diubah oleh pengguna lain. Muat ulang halaman sebelum menyimpan.",
+        );
+      }
 
       const workLocation = db.workLocations.find(
         (location) => location.id === input.locationId,
@@ -87,30 +96,30 @@ export async function PATCH(
         throw new Error("Divisi tidak ditemukan atau sudah nonaktif.");
       }
 
+      const currentAssignments = db.spklWorkers.filter(
+        (item) => item.spklId === spkl.id,
+      );
+      const currentWorkerIds = currentAssignments.map((item) => item.employeeId);
+      // Pekerja yang sudah tercatat tetap dipertahankan meskipun akunnya
+      // nonaktif atau di luar tim saat ini. Validasi aktif hanya untuk
+      // penugasan baru agar edit judul tidak menghapus pekerja diam-diam.
+      const { added: addedIds, removed: removedIds } = splitWorkerIds(
+        currentWorkerIds,
+        workerIds,
+      );
       const team = db.employees.filter(
         (employee) =>
           employee.role === "pekerja" &&
           employee.active &&
           employee.accessMode !== "read_only" &&
           employee.supervisorId === user.id &&
-          workerIds.includes(employee.id),
+          addedIds.includes(employee.id),
       );
-      if (team.length !== workerIds.length) {
+      if (team.length !== addedIds.length) {
         throw new Error(
-          "Satu atau lebih pekerja tidak ditemukan, tidak aktif, atau bukan bagian dari timmu.",
+          "Satu atau lebih pekerja baru tidak ditemukan, tidak aktif, atau bukan bagian dari timmu.",
         );
       }
-
-      const currentAssignments = db.spklWorkers.filter(
-        (item) => item.spklId === spkl.id,
-      );
-      const currentWorkerIds = currentAssignments.map((item) => item.employeeId);
-      const removedIds = currentWorkerIds.filter(
-        (employeeId) => !workerIds.includes(employeeId),
-      );
-      const addedIds = workerIds.filter(
-        (employeeId) => !currentWorkerIds.includes(employeeId),
-      );
 
       const attendances = db.attendances.filter(
         (attendance) => attendance.spklId === spkl.id,
@@ -180,6 +189,36 @@ export async function PATCH(
         excludeSpklId: spkl.id,
       });
 
+      const unchanged = isUnchangedSpklEdit(
+        spkl,
+        {
+          title: input.title,
+          description: input.description,
+          date: input.date,
+          startAt,
+          endAt,
+          divisionId: division.id,
+          workLocationId: workLocation.id,
+          radiusMeters: input.radiusMeters,
+          requiresDocumentation: input.requiresDocumentation,
+          workerIds,
+        },
+        currentWorkerIds,
+      );
+
+      // Simpan tanpa perubahan tidak boleh menambah audit atau mengirim ulang
+      // notifikasi “SPKL diperbarui”.
+      if (unchanged) {
+        return {
+          spkl: { ...spkl },
+          team: [] as Employee[],
+          removedEmployees: [] as Employee[],
+          warnings,
+          addedIds: [] as string[],
+          changed: false,
+        };
+      }
+
       const before = {
         title: spkl.title,
         description: spkl.description,
@@ -244,11 +283,17 @@ export async function PATCH(
         },
       });
 
-      const removedEmployees = db.employees.filter((employee) =>
-        removedIds.includes(employee.id),
+      const removedEmployees = db.employees.filter(
+        (employee) =>
+          removedIds.includes(employee.id) &&
+          employee.active &&
+          employee.accessMode !== "read_only",
       );
-      const notifiedWorkers = db.employees.filter((employee) =>
-        workerIds.includes(employee.id),
+      const notifiedWorkers = db.employees.filter(
+        (employee) =>
+          workerIds.includes(employee.id) &&
+          employee.active &&
+          employee.accessMode !== "read_only",
       );
 
       return {
@@ -257,9 +302,12 @@ export async function PATCH(
         removedEmployees: removedEmployees as Employee[],
         warnings,
         addedIds,
+        changed: true,
       };
     }, {
       afterPersist: async (connection, result) => {
+        if (!result.changed) return;
+
         await enqueueSpklNotifications(
           connection,
           "spkl_diubah",
@@ -284,7 +332,10 @@ export async function PATCH(
       spkl: result.spkl,
       warnings: result.warnings,
       newWorkerIds: result.addedIds,
-      message: "Perubahan SPKL disimpan dan pekerja akan diberi tahu.",
+      changed: result.changed,
+      message: result.changed
+        ? "Perubahan SPKL disimpan dan pekerja akan diberi tahu."
+        : "Tidak ada perubahan pada SPKL, jadi notifikasi tidak dikirim ulang.",
     });
   } catch (error) {
     return apiError(

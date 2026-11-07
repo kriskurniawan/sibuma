@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -88,6 +88,10 @@ export interface SpklFormInitial {
   divisionId: string;
   requiresDocumentation: boolean;
   workerIds: string[];
+  /** Revisi baris saat form dibuka, untuk mendeteksi edit bersamaan. */
+  updatedAt: string;
+  /** Pekerja lama yang tidak boleh diubah dari form ini (nonaktif/bukan tim). */
+  lockedWorkerIds?: string[];
 }
 
 interface SpklFormProps {
@@ -119,6 +123,17 @@ function durationMinutes(start: string, end: string) {
   return Math.max(0, value);
 }
 
+/** Kunci idempotensi untuk satu intent pembuatan SPKL. */
+function newRequestId() {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 export function SpklForm({
   mode,
   team,
@@ -131,6 +146,12 @@ export function SpklForm({
   hideHeading = false,
 }: SpklFormProps) {
   const router = useRouter();
+  const requestIdRef = useRef(newRequestId());
+  const lastPayloadRef = useRef<string | null>(null);
+  const lockedWorkerIds = useMemo(
+    () => new Set(initial?.lockedWorkerIds ?? []),
+    [initial?.lockedWorkerIds],
+  );
   const activeDivisions = useMemo(
     () => divisions.filter((division) => division.active),
     [divisions],
@@ -190,8 +211,14 @@ export function SpklForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<ScheduleWarning[]>([]);
   const assignableWorkers = useMemo(
-    () => team.filter((employee) => employee.divisionId),
-    [team],
+    () =>
+      team.filter(
+        (employee) =>
+          employee.divisionId &&
+          employee.active &&
+          !lockedWorkerIds.has(employee.id),
+      ),
+    [team, lockedWorkerIds],
   );
   const divisionGroups = useMemo(() => {
     const byDivision = new Map<string, Employee[]>();
@@ -220,7 +247,7 @@ export function SpklForm({
   );
   const allSelected =
     assignableWorkers.length > 0 &&
-    workerIds.length === assignableWorkers.length;
+    assignableWorkers.every((employee) => workerIds.includes(employee.id));
 
   const localWarnings = useMemo(() => {
     if (!date || !startTime || !endTime || workerIds.length === 0) return [];
@@ -262,8 +289,14 @@ export function SpklForm({
   }, [localWarnings, warnings]);
 
   const duration = durationMinutes(startTime, endTime);
-  const selectedWorkers = assignableWorkers.filter((employee) =>
+  const selectedWorkers = team.filter((employee) =>
     workerIds.includes(employee.id),
+  );
+  const notifiedWorkers = selectedWorkers.filter(
+    (employee) => employee.active && employee.accessMode !== "read_only",
+  );
+  const retainedLockedWorkers = selectedWorkers.filter((employee) =>
+    lockedWorkerIds.has(employee.id),
   );
   const selectedDivisions = divisions.filter((division) =>
     selectedWorkers.some((employee) => employee.divisionId === division.id),
@@ -284,8 +317,11 @@ export function SpklForm({
   }
 
   function toggleAll() {
-    setWorkerIds(
-      allSelected ? [] : assignableWorkers.map((employee) => employee.id),
+    const selectableIds = assignableWorkers.map((employee) => employee.id);
+    setWorkerIds((current) =>
+      allSelected
+        ? current.filter((id) => !selectableIds.includes(id))
+        : [...new Set([...current, ...selectableIds])],
     );
   }
 
@@ -334,6 +370,8 @@ export function SpklForm({
     }
     if (workerIds.length === 0) {
       next.workers = "Pilih minimal satu pekerja.";
+    } else if (workerIds.length > 100) {
+      next.workers = "Maksimal 100 pekerja per SPKL.";
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -350,7 +388,7 @@ export function SpklForm({
 
     setSubmitting(true);
     try {
-      const payload = {
+      const basePayload = {
         title: title.trim(),
         description: description.trim(),
         divisionId,
@@ -361,6 +399,26 @@ export function SpklForm({
         radiusMeters,
         requiresDocumentation,
         workerIds,
+      };
+      // Retry dengan data yang sama memakai kunci yang sama; jika pengguna
+      // mengubah data, itu adalah intent baru dan boleh membuat SPKL baru.
+      if (mode === "create") {
+        const serialized = JSON.stringify(basePayload);
+        if (
+          lastPayloadRef.current !== null &&
+          lastPayloadRef.current !== serialized
+        ) {
+          requestIdRef.current = newRequestId();
+        }
+        lastPayloadRef.current = serialized;
+      }
+      const payload = {
+        ...basePayload,
+        ...(mode === "create"
+          ? { requestId: requestIdRef.current }
+          : {
+              expectedUpdatedAt: initial?.updatedAt,
+            }),
       };
       const response = await fetch(
         mode === "create" ? "/api/spkl" : `/api/spkl/${initial?.id}`,
@@ -864,7 +922,22 @@ export function SpklForm({
                 </p>
               </div>
 
-              {assignableWorkers.length === 0 ? (
+              {retainedLockedWorkers.length > 0 && (
+                <Alert>
+                  <Info />
+                  <AlertTitle>Pekerja lama tetap dipertahankan</AlertTitle>
+                  <AlertDescription>
+                    {retainedLockedWorkers
+                      .map((employee) => employee.name)
+                      .join(", ")}
+                    . Pekerja nonaktif atau di luar tim saat ini tidak dapat
+                    diubah dari form ini dan tidak menerima notifikasi baru.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {assignableWorkers.length === 0 &&
+              retainedLockedWorkers.length === 0 ? (
                 <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-border p-4">
                   <p className="text-sm font-medium text-foreground">
                     Belum ada pekerja aktif di tim.
@@ -951,14 +1024,20 @@ export function SpklForm({
                 <div className="flex items-center gap-2.5 rounded-md bg-muted/50 px-3 py-2.5">
                   <AvatarStack employees={selectedWorkers} max={4} size="xs" />
                   <p className="text-xs font-medium text-muted-foreground">
-                    {selectedWorkers
-                      .slice(0, 3)
-                      .map((employee) => employee.name.split(" ")[0])
-                      .join(", ")}
-                    {selectedWorkers.length > 3
-                      ? ` +${selectedWorkers.length - 3} pekerja lain`
-                      : ""}{" "}
-                    akan menerima notifikasi WhatsApp.
+                    {notifiedWorkers.length > 0 ? (
+                      <>
+                        {notifiedWorkers
+                          .slice(0, 3)
+                          .map((employee) => employee.name.split(" ")[0])
+                          .join(", ")}
+                        {notifiedWorkers.length > 3
+                          ? ` +${notifiedWorkers.length - 3} pekerja lain`
+                          : ""}{" "}
+                        akan menerima notifikasi WhatsApp.
+                      </>
+                    ) : (
+                      "Tidak ada pekerja aktif yang akan menerima notifikasi WhatsApp."
+                    )}
                   </p>
                 </div>
               )}

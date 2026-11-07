@@ -8,6 +8,7 @@ import type { SessionUser } from "@/lib/types";
 import { SpklForm } from "@/components/spkl/spkl-form";
 import { isReadOnly } from "@/lib/access";
 import { getCurrentUser } from "@/lib/auth";
+import { lockedAssignedWorkerIds } from "@/lib/spkl-edit";
 import {
   getAssignmentSchedules,
   getDivisions,
@@ -67,20 +68,21 @@ async function EditSpklData({ user, params }: {
     redirect(`/spkl/${id}`);
   }
 
-  const activeWorkerIds = setFrom(
-    team
-      .filter((employee) => employee.active)
-      .map((employee) => employee.id),
-  );
-  const assignedActiveWorkers = detail.workers
-    .filter((employee) => activeWorkerIds.has(employee.id))
-    .map((employee) => employee.id);
+  const teamIds = setFrom(team.map((employee) => employee.id));
+  const assignedWorkerIds = detail.workers.map((employee) => employee.id);
+  // Pekerja yang sudah ditugaskan selalu ditampilkan. Yang nonaktif atau sudah
+  // tidak berada di tim saat ini dikunci agar tidak terhapus diam-diam.
+  const lockedWorkerIds = lockedAssignedWorkerIds(detail.workers, teamIds);
+  const teamForForm = [
+    ...team,
+    ...detail.workers.filter((employee) => !teamIds.has(employee.id)),
+  ];
 
   return (
     <SpklForm
       hideHeading
       mode="edit"
-      team={team.filter((employee) => employee.active)}
+      team={teamForForm}
       divisions={divisions}
       locations={locations}
       policy={policy}
@@ -97,10 +99,9 @@ async function EditSpklData({ user, params }: {
         radiusMeters: detail.spkl.radiusMeters,
         divisionId: detail.spkl.divisionId ?? "",
         requiresDocumentation: detail.spkl.requiresDocumentation,
-        workerIds:
-          assignedActiveWorkers.length > 0
-            ? assignedActiveWorkers
-            : detail.workers.map((employee) => employee.id),
+        updatedAt: detail.spkl.updatedAt,
+        workerIds: assignedWorkerIds,
+        lockedWorkerIds,
       }}
     />
   );

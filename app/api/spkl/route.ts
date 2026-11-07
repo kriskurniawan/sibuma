@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { select } from "@/lib/db";
 import { readOnlyWrite } from "@/lib/read-only";
 import { apiError, apiOk, validationMessage } from "@/lib/http";
 import { enqueueSpklNotifications } from "@/lib/notification-outbox";
@@ -33,9 +34,30 @@ export async function POST(request: Request) {
 
   const input = parsed.data;
   const workerIds = [...new Set(input.workerIds)];
+  const requestId = input.requestId?.trim() || null;
   const startAt = zonedToIso(input.date, input.startTime);
   const endAt = zonedToIso(input.date, input.endTime);
   const now = new Date();
+
+  // Replay permintaan yang sama harus mengembalikan SPKL pertama, bukan
+  // membuat SPKL dan antrean WhatsApp baru.
+  if (requestId) {
+    const [existing] = await select(
+      "spkls",
+      "created_by=$1 AND request_id=$2",
+      [user.id, requestId],
+    );
+    if (existing) {
+      return apiOk({
+        id: existing.id,
+        spkl: existing,
+        warnings: [],
+        replayed: true,
+        message:
+          "SPKL untuk permintaan ini sudah dibuat sebelumnya. Tidak ada data atau notifikasi baru.",
+      });
+    }
+  }
 
   if (new Date(endAt) <= new Date(startAt)) {
     return apiError("Jam selesai harus setelah jam mulai.");
@@ -129,6 +151,7 @@ export async function POST(request: Request) {
         createdBy: user.id,
         divisionId: division.id,
         requiresDocumentation: input.requiresDocumentation,
+        requestId,
         canceledAt: null,
         cancelReason: null,
         createdAt: now.toISOString(),
@@ -176,6 +199,29 @@ export async function POST(request: Request) {
       message: "SPKL berhasil dibuat dan langsung berlaku.",
     });
   } catch (error) {
+    const code = (error as { code?: string }).code;
+    const constraint = (error as { constraint?: string }).constraint;
+    if (
+      requestId &&
+      code === "23505" &&
+      (!constraint || constraint === "spkls_request_unique")
+    ) {
+      const [existing] = await select(
+        "spkls",
+        "created_by=$1 AND request_id=$2",
+        [user.id, requestId],
+      );
+      if (existing) {
+        return apiOk({
+          id: existing.id,
+          spkl: existing,
+          warnings: [],
+          replayed: true,
+          message:
+            "SPKL untuk permintaan ini sudah dibuat sebelumnya. Tidak ada data atau notifikasi baru.",
+        });
+      }
+    }
     return apiError(
       error instanceof Error ? error.message : "Gagal membuat SPKL.",
     );
